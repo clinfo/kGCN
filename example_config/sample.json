@@ -1,0 +1,18 @@
+{
+    "model.py": "example_model.model",
+    "save_result_test": "./result/test.csv",
+    "save_result_train": "./result/train.csv",
+    "load_model": "./model/model.sample.last.ckpt",
+    "validation_data_rate": 0.4,
+    "epoch": 100,
+    "with_feature": true,
+    "batch_size": 10,
+    "save_interval": 10,
+    "learning_rate": 0.01,
+    "with_node_embedding": false,
+    "save_model_path": "model",
+    "save_model": "model/model.sample.last.ckpt",
+    "patience": 0,
+    "dataset": "example_jbl/synthetic.jbl",
+    "make_plot": false
+}

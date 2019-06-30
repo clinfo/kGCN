@@ -1,0 +1,20 @@
+{
+    "model.py": "model_cancer",
+    "save_result_test": "./result/cancer_test.csv",
+    "save_result_train": "./result/cancer_train.csv",
+    "load_model": "./model.cancer/model.last.ckpt",
+    "validation_data_rate": 0.1,
+    "epoch": 500,
+    "order":2,
+    "embedding_dim":100,
+    "with_feature": false,
+    "batch_size": 30,
+    "save_interval": 100,
+    "learning_rate": 0.0001,
+    "with_node_embedding": true,
+    "save_model_path": "model.cancer",
+    "save_model": "model.cancer/model.last.ckpt",
+    "patience": 0,
+	"split_adj_flag": true,
+    "dataset": "cancer_dataset.jbl"
+}

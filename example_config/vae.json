@@ -1,0 +1,22 @@
+{
+    "model.py": "example_model.model_vae",
+    "save_result_test": "./result/vae_test.csv",
+    "save_result_train": "./result/vae_train.csv",
+    "load_model": "./model.vae/model.last.ckpt",
+    "validation_data_rate": 0.1,
+    "epoch": 100,
+    "order":1,
+    "embedding_dim":100,
+    "with_feature": false,
+    "batch_size": 30,
+    "save_interval": 100,
+    "learning_rate": 0.0001,
+    "with_node_embedding": true,
+    "with_feature": true,
+    "save_model_path": "model.vae",
+    "save_model": "model.ae/model.last.ckpt",
+    "patience": 0,
+	"split_adj_flag": false,
+"reconstruction_test":"recons.jbl",
+    "dataset": "sample_dataset_tox21/multitask.jbl"
+}

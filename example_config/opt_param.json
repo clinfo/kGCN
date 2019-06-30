@@ -1,0 +1,20 @@
+{
+    "model.py": "example_model.opt_param",
+    "save_result_test": "./result/synth_test.csv",
+    "save_result_train": "./result/synth_train.csv",
+    "save_info_valid": "./result/synth.json",
+    "load_model": "./model/synth.last.ckpt",
+    "validation_data_rate": 0.2,
+    "epoch": 10,
+    "batch_size": 30,
+    "save_interval": 100,
+    "order": 1,
+    "learning_rate": 0.001,
+    "with_node_embedding": false,
+    "with_feature": true,
+    "save_model_path": "model",
+    "save_model": "model/synth.last.ckpt",
+    "patience": 0,
+    "dataset": "example_jbl/synthetic.jbl",
+	"split_adj_flag": false
+}

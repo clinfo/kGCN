@@ -1,0 +1,8 @@
+[
+	{
+		"name":"num_gcn_layer",
+		"type": "discrete",
+		"domain": [0,1,2]
+	}
+]
+

@@ -1,0 +1,17 @@
+{
+    "model.py": "example_model.model_multitask",
+    "save_result_test": "./result/test.multitask.csv",
+    "save_result_train": "./result/train.multitask.csv",
+    "load_model": "./model/model.sample_multitask.ckpt",
+    "save_model": "./model/model.sample_multitask.ckpt",
+    "validation_data_rate": 0.3,
+    "epoch": 5,
+    "with_feature": true,
+    "batch_size": 10,
+    "save_interval": 10,
+    "learning_rate": 0.3,
+    "with_node_embedding": false,
+    "save_model_path": "model",
+    "patience": 0,
+    "dataset": "example_jbl/sample_multitask.jbl"
+}
