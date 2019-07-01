@@ -376,7 +376,7 @@ When you want to change and add hyperparameters, please change domain.json and m
 
 ## License
 
-This edition of kGCN is for evaluation, learning, and non-profit
-academic research purposes only, and a license is needed for any other uses.
-Please send requests on license or questions to `kojima.ryosuke.8e@kyoto-u.ac.jp`.
+In principle, this edition of kGCN is freely available for evaluation, education/learning, non-profit research/activity purposes, and hobbies (see LICENSE file in detail).
+This license is not for commercial uses.
+Please send requests on the commercial license or questions to `kojima.ryosuke.8e@kyoto-u.ac.jp`.
 
