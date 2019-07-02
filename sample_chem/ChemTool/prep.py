@@ -97,27 +97,6 @@ def get_parser():
     )
     return parser.parse_args()
 
-"""
-def generate_inactive_data(label_data, label_mask):
-    data_index = np.argwhere(label_mask == 1)
-    neg_count=0
-    pos_count=0
-    for data_point in data_index:
-        if label_data[tuple(data_point)] == 0:
-            neg_count+=1
-        else:
-            pos_count+=1
-    print("active count:",pos_count)
-    print("inactive count:",neg_count)
-    actives = np.argwhere(label_data == 1)
-    np.random.shuffle(actives[:, 1])  # in place
-    count=0
-    for inactive_data_point in actives:
-        if label_data[tuple(inactive_data_point)] == 0:
-            label_mask[tuple(inactive_data_point)] = 1
-            count+=1
-    print("pseudo inactive count:",count)
-"""
 
 def generate_inactive_data(label_data, label_mask):
     data_index = np.argwhere(label_mask == 1)
@@ -140,8 +119,6 @@ def generate_inactive_data(label_data, label_mask):
                 count+=1
         print("pseudo inactive count:",count)
 
-#make def negative_generate part
-#def generate_multimodal_inactive_data(adj, feature, seq, seq_symbol, dragon_data, label_data, mol_id, protein):
 def generate_multimodal_data(mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
     """make inactive data with mol data and protein data & count active = inactive, inactive = over300000
         
@@ -247,7 +224,7 @@ def atom_features(atom, explicit_H=False):
                                      'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti',
                                      'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In','Mn', 'Zr', 'Cr', 'Pt',
                                      'Hg', 'Pb', 'Unknown']) + \
-              one_of_k_encoding(atom.GetDegree(), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) + \
+              one_of_k_encoding(atom.GetDegree(), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) + \
               one_of_k_encoding_unk(atom.GetImplicitValence(), [0, 1, 2, 3, 4, 5, 6]) + \
               [atom.GetFormalCharge(), atom.GetNumRadicalElectrons()] + \
               one_of_k_encoding_unk(atom.GetHybridization(),
