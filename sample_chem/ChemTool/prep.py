@@ -172,13 +172,7 @@ def generate_inactive_data(label_data, label_mask):
                 count+=1
         print("pseudo inactive count:",count)
 
-<<<<<<< HEAD
-#make def negative_generate part
-#def generate_multimodal_inactive_data(adj, feature, seq, seq_symbol, dragon_data, label_data, mol_id, protein):
 def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
-=======
-def generate_multimodal_data(mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
->>>>>>> 3135185d5291ee1c01ea7d4381529d435febb0b9
     """make inactive data with mol data and protein data & count active = inactive, inactive = over300000
         
     Arguments:

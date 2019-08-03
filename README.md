@@ -349,30 +349,6 @@ In this sample, "multitask" means that multiple labels are allowed for one graph
 This configuration file specifies the program of model as "model_multitask.py", which includes definition of a loss function for multiple labels.
 Please reffer to sample_data/multi_label.txt and a coverting program (make_sample.py) to prepare multi labeled data, 
 
-### Reaction prediction and visualization
-This is a sample usage of a reaction prediction.
-- First, create the input dataset from a molecule file and a label file
-```bash
-python sample_chem/ChemTool/prep.py -s example_data/mol.sma -l example_data/reaction_label.csv --no_header -o example_jbl/reaction.jbl -a 203 --sparse_label
-```
-- Then, run "gcn.py" by "infer" command to get the accuracy.
-```bash
-python gcn.py infer --config example_config/reaction.json
-```
-This is a sample usage of visualization of the prediction.  
-- First, install the gcnvisualizer following "kGCN/gcnvisualizer" instruction.  
-- Then, prepare the input files for gcnvisualizer.
-```bash
-python gcn.py visualize --config example_config/reaction.json
-```
-- Finally, run "gcnv" command to create the figures of the visualization.
-```bash
-gcnv -i visualization/mol_0000_task_0_active_all_scaling.jbl
-```
-#### Reference
-Shoichi Ishida , Kei Terayama,  Ryosuke Kojima, Kiyosei Takasu, Yasushi Okuno,
-[Prediction and Interpretable Visualization of Synthetic Reactions Using Graph Convolutional Networks](http://dx.doi.org/10.26434/chemrxiv.8343995),
-ChemRxiv. [DOI: 10.26434/chemrxiv.8343995]
 ### Generative model
 
 ```bash
@@ -402,7 +378,7 @@ When you want to change and add hyperparameters, please change domain.json and m
 
 ## License
 
-In principle, this edition of kGCN is freely available for evaluation, education/learning, non-profit research/activity purposes, and hobbies (see LICENSE file in detail).
-This license is not for commercial uses.
-Please send requests on the commercial license or questions to `kojima.ryosuke.8e@kyoto-u.ac.jp`.
+This edition of kGCN is for evaluation, learning, and non-profit
+academic research purposes only, and a license is needed for any other uses.
+Please send requests on license or questions to `kojima.ryosuke.8e@kyoto-u.ac.jp`.
 

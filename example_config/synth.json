@@ -1,10 +1,8 @@
 {
     "model.py": "example_model.model",
-    "save_result_test": "./result/synth_test.csv",
-    "save_result_train": "./result/synth_train.csv",
     "load_model": "./model/synth.last.ckpt",
     "validation_data_rate": 0.2,
-    "epoch": 100,
+    "epoch": 10,
     "batch_size": 30,
     "save_interval": 100,
     "order": 1,
@@ -17,5 +15,13 @@
     "dataset": "example_jbl/synthetic.jbl",
     "split_adj_flag": false,
     "plot_path": "result",
-    "make_plot": true
+    "make_plot": true,
+    "shuffle_data": true,
+    "save_result_test": "./result/synth_test.csv",
+    "save_result_train": "./result/synth_train.csv",
+    "save_result_valid": "result/synth_valid_result.csv",
+    "save_result_cv": "result/synth_cv_result.json",
+    "save_info_train": "result/synth_info_train.json",
+    "save_info_valid": "result/synth_info_valid.json",
+    "save_info_cv": "result/synth_info.json"
 }

@@ -18,7 +18,7 @@ K.set_learning_phase(0)
 ed.set_seed(42)
 
 
-M = 100  # batch size during training
+M = 100  # data size
 D = 15 # the number of nodes
 d = 1 # latent dimension
 
