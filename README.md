@@ -95,6 +95,32 @@ For example, in training phases, you can specify a dataset as follows:
 python gcn.py train --config example_config/sample.json --dataset example_jbl/sample.jbl
 ```
 
+## Additional example
+We provide additional example using synthetic data to discriminate 5-node rings and 6-node rings.
+The following command generates synthetic data as text formats:
+```bash
+pyhton data_generator/synth_generator_ring.py
+```
+
+The following command generates .jbl from text:
+```bash
+python make_synth.py
+```
+
+The following command carries out cross-validation: 
+```bash
+python gcn.py train_cv --config example_config/synth.json
+```
+Accuracy and the other scores are stored in:
+```
+result/synth_cv_result.json
+```
+
+More information is stored in:
+```
+result/synth_info.json
+```
+
 ## Configuration
 
 You can specify a configuration file (example_config/sample.json) as follows:
