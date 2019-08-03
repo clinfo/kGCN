@@ -150,27 +150,6 @@ def get_parser():
     )
     return parser.parse_args()
 
-"""
-def generate_inactive_data(label_data, label_mask):
-    data_index = np.argwhere(label_mask == 1)
-    neg_count=0
-    pos_count=0
-    for data_point in data_index:
-        if label_data[tuple(data_point)] == 0:
-            neg_count+=1
-        else:
-            pos_count+=1
-    print("active count:",pos_count)
-    print("inactive count:",neg_count)
-    actives = np.argwhere(label_data == 1)
-    np.random.shuffle(actives[:, 1])  # in place
-    count=0
-    for inactive_data_point in actives:
-        if label_data[tuple(inactive_data_point)] == 0:
-            label_mask[tuple(inactive_data_point)] = 1
-            count+=1
-    print("pseudo inactive count:",count)
-"""
 
 def generate_inactive_data(label_data, label_mask):
     data_index = np.argwhere(label_mask == 1)
@@ -193,9 +172,13 @@ def generate_inactive_data(label_data, label_mask):
                 count+=1
         print("pseudo inactive count:",count)
 
+<<<<<<< HEAD
 #make def negative_generate part
 #def generate_multimodal_inactive_data(adj, feature, seq, seq_symbol, dragon_data, label_data, mol_id, protein):
 def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
+=======
+def generate_multimodal_data(mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
+>>>>>>> 3135185d5291ee1c01ea7d4381529d435febb0b9
     """make inactive data with mol data and protein data & count active = inactive, inactive = over300000
         
     Arguments:
@@ -310,7 +293,7 @@ def read_profeat():
         return None
 
 # Get the information from atom
-def atom_features(atom, explicit_H=False, use_sybyl=False, use_electronegativity=False, use_gasteiger=False,degree_dim=17):
+def atom_features(atom, explicit_H=False, use_sybyl=False, use_electronegativity=False, use_gasteiger=False,degree_dim=11):
     if use_sybyl:
         import oddt.toolkits.extras.rdkit as ordkit
         atom_type = ordkit._sybyl_atom_type(atom)
