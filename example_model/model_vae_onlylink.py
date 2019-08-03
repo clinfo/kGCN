@@ -8,7 +8,7 @@ from tensorflow.python.keras.layers import Dense
 def build_placeholders(info,config,batch_size=4):
 	adj_channel_num=info.adj_channel_num
 	print(info.adj_channel_num)
-	encoder_output_dim=32
+	encoder_output_dim=64
 	preference_list_length=2
 	adjs=[[[tf.sparse_placeholder(tf.float32,name="adj_"+str(a)+"_"+str(b)+"_"+str(p)) for a in range(adj_channel_num)] for b in range(batch_size)] for p in range(preference_list_length)]
 	placeholders = {
@@ -23,49 +23,69 @@ def build_placeholders(info,config,batch_size=4):
 	return  placeholders
 
 def encode(name,inputs,info,batch_size):
-	internal_dim=128
-	encoder_output_dim=inputs["encoder_output_dim"]
-	in_adjs=inputs["adjs"]
-	features=inputs["features"]
-	dropout_rate=inputs["dropout_rate"]
-	is_train=inputs["is_train"]
-	enabled_node_nums=inputs['enabled_node_nums']
-	adj_channel_num=info.adj_channel_num
-	
-	layer=features
-	layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
-	layer=layers.GraphBatchNormalization()(layer,
-		max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
-	layer = tf.nn.relu(layer)
-	layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
-	layer=layers.GraphBatchNormalization()(layer,
-		max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
-	layer = tf.nn.relu(layer)
-	layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
-	layer=layers.GraphBatchNormalization()(layer,
-		max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
-	layer = tf.nn.relu(layer)
-	mean_layer=layers.GraphDense(encoder_output_dim)(layer)
-	std_layer=layers.GraphDense(encoder_output_dim)(layer)
-	std_layer=tf.nn.softplus(std_layer)
-	std_layer=tf.sqrt(std_layer)
-	return mean_layer,std_layer
+    internal_dim=64
+    encoder_output_dim=inputs["encoder_output_dim"]
+    in_adjs=inputs["adjs"]
+    features=inputs["features"]
+    dropout_rate=inputs["dropout_rate"]
+    is_train=inputs["is_train"]
+    enabled_node_nums=inputs['enabled_node_nums']
+    adj_channel_num=info.adj_channel_num
+
+    with tf.variable_scope(name):
+        layer=features
+        layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
+        layer=layers.GraphBatchNormalization()(layer,
+            max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
+        layer = tf.tanh(layer)
+        layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
+        layer=layers.GraphBatchNormalization()(layer,
+            max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
+        layer = tf.tanh(layer)
+        layer=layers.GraphDense(internal_dim)(layer)
+        layer=tf.sigmoid(layer)
+        layer=layers.GraphGather()(layer)
+
+        mean_layer=Dense(encoder_output_dim,kernel_initializer='random_uniform')(layer)
+        std_layer=Dense(encoder_output_dim)(layer)
+        std_layer=tf.nn.softplus(std_layer)
+        std_layer=tf.sqrt(std_layer)
+        mean_layer=tf.clip_by_value(mean_layer,-100,100)
+        std_layer=tf.clip_by_value(std_layer,-5,5)
+    return mean_layer,std_layer
+
+def decode_nodes(name,inputs,info):
+    dropout_rate=inputs["dropout_rate"]
+    layer=inputs["input_layer"]
+    input_dim=inputs["input_layer_dim"]
+    decoded_output_dim=inputs["output_layer_dim"]
+    node_num=inputs["decoded_node_num"]
+    is_train=inputs["is_train"]
+    enabled_node_nums=inputs['enabled_node_nums']
+    with tf.variable_scope(name):
+        layer=layers.GraphDense(decoded_output_dim,kernel_initializer='random_uniform',name="dense_1")(layer)
+    return layer
 
 def decode_links(name,inputs,info):
-	internal_dim=128
-	dropout_rate=inputs["dropout_rate"]
-	layer=inputs["input_layer"]
-	input_dim=inputs["input_layer_dim"]
-	is_train=inputs["is_train"]
-	node_num=inputs["decoded_node_num"]
-	enabled_node_nums=inputs['enabled_node_nums']
-	layer=layers.GraphDense(internal_dim)(layer)
-	layer=layers.GraphBatchNormalization()(layer,
-		max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
-	layer=tf.nn.relu(layer)
-	layer=layers.GraphDense(internal_dim)(layer)
-	layer=layers.GraphDecoderDistMult()(layer)
-	return layer
+    dropout_rate=inputs["dropout_rate"]
+    internal_dim=64
+    layer=inputs["input_layer"]
+    input_dim=inputs["input_layer_dim"]
+    is_train=inputs["is_train"]
+    node_num=inputs["decoded_node_num"]
+    enabled_node_nums=inputs['enabled_node_nums']
+    with tf.variable_scope(name):
+        layer=layers.GraphDense(internal_dim,name="dense_1")(layer)
+        layer=layers.GraphBatchNormalization(name="bn_1")(layer,
+            max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
+        layer=tf.sigmoid(layer)
+        layer=layers.GraphDense(internal_dim,name="dense_2")(layer)
+        layer=tf.sigmoid(layer)
+        #layer=layers.GraphDecoderInnerProd()(layer)
+        layer=layers.GraphDecoderDistMult()(layer)
+    return layer
+
+
 
 def build_model(placeholders,info,config,batch_size=4):
 	adj_channel_num=info.adj_channel_num
@@ -77,7 +97,7 @@ def build_model(placeholders,info,config,batch_size=4):
 	# encoder
 	features=placeholders["features"][0]
 	mask=placeholders["mask"][0]
-	encoder_output_dim=32
+	encoder_output_dim=64
 	input_encoder={
 		"adjs":placeholders["adjs"][0],
 		"features":features,
@@ -105,7 +125,7 @@ def build_model(placeholders,info,config,batch_size=4):
 	decoded_node_num=info.graph_node_num
 	input_decoder={
 		"input_layer":z,
-		"input_layer_dim":32,
+		"input_layer_dim":64,
 		"output_layer_dim":75,
 		"decoded_node_num":decoded_node_num,
 		"dropout_rate":placeholders["dropout_rate"],	

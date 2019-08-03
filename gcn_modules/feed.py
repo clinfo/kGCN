@@ -39,15 +39,49 @@ def get_preference_label_list_feed(config,info,label_list,label_itr,batch_size):
         temp_labels=np.zeros((batch_size,num,dim),dtype=np.int32)
         for b in range(len(label_list)):
             temp_labels[b,:num,:]=label_list[b][num*j:num*(j+1),:]
-            neg=np.random.choice(all_label, (num,))
-            temp_labels[b,:num,5]=neg
+            if "preference_pair_mode" in config:
+                if config["preference_pair_mode"]=="right":
+                    neg=np.random.choice(all_label, (num,))
+                    temp_labels[b,:num,5]=neg
+                    temp_labels[b,:num,3]=temp_labels[b,:num,0]
+                elif config["preference_pair_mode"]=="left":
+                    neg=np.random.choice(all_label, (num,))
+                    temp_labels[b,:num,3]=neg
+                    temp_labels[b,:num,5]=temp_labels[b,:num,2]
+                else:#both
+                    temp_labels[b,:num,3]=temp_labels[b,:num,0]
+                    temp_labels[b,:num,5]=temp_labels[b,:num,2]
+                    neg=np.random.choice(all_label, (num,))
+                    idx=np.random.choice([3,5], (num,))
+                    temp_labels[b,:num,idx]=neg
+            else:
+                neg=np.random.choice(all_label, (num,))
+                temp_labels[b,:num,5]=neg
+                temp_labels[b,:num,3]=temp_labels[b,:num,0]
     else:
         temp_labels=np.zeros((batch_size,num_label_list,dim),dtype=np.int32)
         for b in range(len(label_list)):
-            temp_labels[b,:len(label_list[b]),:]=label_list[b][:,:]
-            neg=np.random.choice(all_label, (len(label_list[b]),))
-            temp_labels[b,:,5]=neg
-    temp_labels[b,:,3]=temp_labels[b,:,0]
+            temp_labels[b,:,:]=label_list[b][:,:]
+            num=len(label_list[b])
+            if "preference_pair_mode" in config:
+                if config["preference_pair_mode"]=="right":
+                    neg=np.random.choice(all_label, (num,))
+                    temp_labels[b,:,5]=neg
+                    temp_labels[b,:,3]=temp_labels[b,:,0]
+                elif config["preference_pair_mode"]=="left":
+                    neg=np.random.choice(all_label, (num,))
+                    temp_labels[b,:,3]=neg
+                    temp_labels[b,:,5]=temp_labels[b,:,2]
+                else:#both
+                    temp_labels[b,:,3]=temp_labels[b,:,0]
+                    temp_labels[b,:,5]=temp_labels[b,:,2]
+                    neg=np.random.choice(all_label, (num,))
+                    idx=np.random.choice([3,5], (num,))
+                    temp_labels[b,:,idx]=neg
+            else:
+                neg=np.random.choice(all_label, (num,))
+                temp_labels[b,:,5]=neg
+                temp_labels[b,:,3]=temp_labels[b,:,0]
     return temp_labels
 
 

@@ -199,6 +199,8 @@ path to save plot data
 plotting results of multitaslk
 #### *"profile"*
 for profiling using the tensorflow profiler
+#### *stratified_kfold*
+for using stratified k-fold
 
 
 

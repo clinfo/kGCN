@@ -8,10 +8,22 @@ import sys
 import numpy as np
 import pandas as pd
 from rdkit import Chem
+from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
 from sklearn.preprocessing import LabelEncoder
 from tensorflow.python_io import TFRecordWriter
 from tensorflow.train import Feature, Features, FloatList, Int64List, Example
 import joblib
+
+#import oddt.toolkits.extras.rdkit as ordkit
+from mendeleev import element
+
+ELECTRONEGATIVITIES = [element(i).electronegativity('pauling') for i in range(1, 100)]
+ELECTRONEGATIVITIES_NO_NONE = []
+for e in ELECTRONEGATIVITIES:
+    if e is None:
+        ELECTRONEGATIVITIES_NO_NONE.append(0)
+    else:
+        ELECTRONEGATIVITIES_NO_NONE.append(e)
 
 
 def get_parser():
@@ -21,6 +33,10 @@ def get_parser():
     )
     parser.add_argument(
         '-l', '--label', default=None, type=str,
+        help='help'
+    )
+    parser.add_argument(
+        '--label_dim', default=None, type=int,
         help='help'
     )
     parser.add_argument(
@@ -56,7 +72,7 @@ def get_parser():
         help='help'
     )
     parser.add_argument(
-        '-a', '--atom_num_limit', required=True, type=int,
+        '-a', '--atom_num_limit', type=int,
         help='help'
     )
     parser.add_argument(
@@ -76,6 +92,18 @@ def get_parser():
         help='vector modal csv'
     )
     parser.add_argument(
+        '--sdf_label', default=None, type=str,
+        help='property name used as labels'
+    )
+    parser.add_argument(
+        '--sdf_label_active', default="Active", type=str,
+        help='property name used as labels'
+    )
+    parser.add_argument(
+        '--sdf_label_inactive', default="Inactive", type=str,
+        help='property name used as labels'
+    )
+    parser.add_argument(
         '--solubility', action='store_true', default=False,
         help='solubilites in SDF as labels'
     )
@@ -88,12 +116,37 @@ def get_parser():
         help='help'
     )
     parser.add_argument(
+        '--no_pseudo_negative', action='store_true', default=False,
+        help='help'
+    )
+    parser.add_argument(
         '--max_len_seq', type=int, default=None,
         help='help'
     )
     parser.add_argument(
         '--generate_mfp', action='store_true', default=False,
         help='generate Morgan Fingerprint using RDkit'
+    )
+    parser.add_argument(
+        '--use_sybyl', action='store_true', default=False,
+        help='[Additional features] SYBYL atom types'
+    )
+    parser.add_argument(
+        '--use_electronegativity', action='store_true', default=False,
+        help='[Additional features] electronegativity'
+    )
+    parser.add_argument(
+        '--use_gasteiger', action='store_true', default=False,
+        help='[Additional features] gasteiger charge'
+    )
+    parser.add_argument(
+        '--degree_dim', type=int,
+        default=17,
+        help='[Additional features] maximum number of degree'
+    )
+    parser.add_argument(
+        '--use_deepchem_feature', action='store_true', default=False,
+        help='75dim used in deepchem default'
     )
     return parser.parse_args()
 
@@ -142,7 +195,7 @@ def generate_inactive_data(label_data, label_mask):
 
 #make def negative_generate part
 #def generate_multimodal_inactive_data(adj, feature, seq, seq_symbol, dragon_data, label_data, mol_id, protein):
-def generate_multimodal_data(mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
+def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
     """make inactive data with mol data and protein data & count active = inactive, inactive = over300000
         
     Arguments:
@@ -152,38 +205,39 @@ def generate_multimodal_data(mol_obj_list, label_data, label_mask, dragon_data, 
                 negative_adj,feature,seq,seq_symbol,drogon_data
     """
     ##make inactives
-    enabled_mol_index,enabled_task_index=np.where(label_mask==1)
-    active_count = np.where(label_data[enabled_mol_index,enabled_task_index] == 1)[0].shape[0]
-    inactive_count = np.where(label_data[enabled_mol_index,enabled_task_index] == 0)[0].shape[0]
-    make_count = active_count - inactive_count
-    print("[multimodal] count=",len(enabled_mol_index))
-    print("[multimodal] active count=",active_count)
-    print("[multimodal] inactive count=",inactive_count)
-    print("[multimodal] pseudo inactive count=",make_count)
-    print("[multimodal] #mols: ",len(mol_obj_list))
-    print("[multimodal] #proteins: ",len(task_name_list))
-    if make_count+active_count+inactive_count> len(mol_obj_list)*len(task_name_list):
-        print("[WARN] all of the rest data are pseudo negative!")
-        negative_data_index=np.where(label_mask==0)
-        label_mask[label_mask==0]=1
-    else:
-        negative_count=0
-        negative_data_index=[[],[]]
-        while(negative_count<make_count):
-            x=np.where(label_mask==1)
-            mol_index = np.random.randint(0,len(mol_id_list),make_count-negative_count)
-            protein_index = np.random.randint(0,len(task_name_list),make_count-negative_count)
-            flags=label_mask[mol_index,protein_index]
-            new_mol_index=mol_index[flags==0]
-            new_protein_index=protein_index[flags==0]
-            if len(new_mol_index)>0:
-                label_mask[new_mol_index,new_protein_index]=1
-                label_data[new_mol_index,new_protein_index]=0 # negative
-                new_index=np.unique(np.array([new_mol_index,new_protein_index]),axis=1)
-                negative_data_index=np.concatenate([negative_data_index,new_index],axis=1)
-                negative_count+=new_index.shape[1]
-                print("#negative count:",negative_count)
+    if not args.no_pseudo_negative:
+        enabled_mol_index,enabled_task_index=np.where(label_mask==1)
+        active_count = np.where(label_data[enabled_mol_index,enabled_task_index] == 1)[0].shape[0]
+        inactive_count = np.where(label_data[enabled_mol_index,enabled_task_index] == 0)[0].shape[0]
+        make_count = active_count - inactive_count
+        print("[multimodal] count=",len(enabled_mol_index))
+        print("[multimodal] active count=",active_count)
+        print("[multimodal] inactive count=",inactive_count)
+        print("[multimodal] pseudo inactive count=",make_count)
+        print("[multimodal] #mols: ",len(mol_obj_list))
+        print("[multimodal] #proteins: ",len(task_name_list))
+        if make_count+active_count+inactive_count> len(mol_obj_list)*len(task_name_list):
+            print("[WARN] all of the rest data are pseudo negative!")
+            negative_data_index=np.where(label_mask==0)
+            label_mask[label_mask==0]=1
+        else:
+            negative_count=0
+            negative_data_index=[[],[]]
+            while(negative_count<make_count):
                 x=np.where(label_mask==1)
+                mol_index = np.random.randint(0,len(mol_id_list),make_count-negative_count)
+                protein_index = np.random.randint(0,len(task_name_list),make_count-negative_count)
+                flags=label_mask[mol_index,protein_index]
+                new_mol_index=mol_index[flags==0]
+                new_protein_index=protein_index[flags==0]
+                if len(new_mol_index)>0:
+                    label_mask[new_mol_index,new_protein_index]=1
+                    label_data[new_mol_index,new_protein_index]=0 # negative
+                    new_index=np.unique(np.array([new_mol_index,new_protein_index]),axis=1)
+                    negative_data_index=np.concatenate([negative_data_index,new_index],axis=1)
+                    negative_count+=new_index.shape[1]
+                    print("#negative count:",negative_count)
+                    x=np.where(label_mask==1)
 
     #convert_multimodal_label
     x=np.where(label_mask==1)
@@ -198,12 +252,27 @@ def generate_multimodal_data(mol_obj_list, label_data, label_mask, dragon_data, 
         seq_symbol=seq_symbol[x[1]]
     if profeat is not None:
         profeat=profeat[x[1]]
-    new_label_data=np.zeros((ll.shape[0],2))
-    new_label_data[ll==1,1]=1
-    new_label_data[ll==0,0]=1
-    new_mask_label=np.ones_like(new_label_data)
+    max_label=np.max(ll)
+    print("[multimodal] maximum label",max_label)
+    if args.label_dim is None:
+        label_dim=int(max_label)+1
+    else:
+        label_dim = args.label_dim
+    print("[multimodal] label dim.",label_dim)
+    if label_dim<=2:
+        new_label_data=np.zeros((ll.shape[0],2))
+        new_label_data[ll==1,1]=1
+        new_label_data[ll==0,0]=1
+        new_mask_label=np.ones_like(new_label_data)
+    else:
+        new_label_data=np.zeros((ll.shape[0],label_dim))
+        print(ll)
+        for i,l in enumerate(ll):
+            new_label_data[i,int(l)]=1
+        new_mask_label=np.ones_like(new_label_data)
+
     return mol_obj_list, new_label_data, new_mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat
-    
+
 def dense_to_sparse(dense):
     from scipy.sparse import coo_matrix
     coo = coo_matrix(dense)
@@ -241,13 +310,25 @@ def read_profeat():
         return None
 
 # Get the information from atom
-def atom_features(atom, explicit_H=False):
-    results = one_of_k_encoding_unk(atom.GetSymbol(),
-                                    ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As',
-                                     'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti',
-                                     'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In','Mn', 'Zr', 'Cr', 'Pt',
-                                     'Hg', 'Pb', 'Unknown']) + \
-              one_of_k_encoding(atom.GetDegree(), [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]) + \
+def atom_features(atom, explicit_H=False, use_sybyl=False, use_electronegativity=False, use_gasteiger=False,degree_dim=17):
+    if use_sybyl:
+        import oddt.toolkits.extras.rdkit as ordkit
+        atom_type = ordkit._sybyl_atom_type(atom)
+        atom_list = ['C.ar', 'C.cat', 'C.1', 'C.2', 'C.3', 'N.ar', 'N.am', 'N.pl3', 'N.1', 'N.2', 'N.3', 'N.4', 'O.co2',
+                     'O.2', 'O.3', 'S.O', 'S.o2', 'S.2', 'S.3', 'F', 'Si', 'P', 'P3', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As',
+                     'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti',
+                     'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In','Mn', 'Zr', 'Cr', 'Pt',
+                     'Hg', 'Pb', 'Unknown']
+    else:
+        atom_type = atom.GetSymbol()
+        atom_list = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As',
+                     'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti',
+                     'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In','Mn', 'Zr', 'Cr', 'Pt',
+                     'Hg', 'Pb', 'Unknown']
+
+
+    results = one_of_k_encoding_unk(atom_type, atom_list) + \
+              one_of_k_encoding(atom.GetDegree(), list(range(degree_dim))) + \
               one_of_k_encoding_unk(atom.GetImplicitValence(), [0, 1, 2, 3, 4, 5, 6]) + \
               [atom.GetFormalCharge(), atom.GetNumRadicalElectrons()] + \
               one_of_k_encoding_unk(atom.GetHybridization(),
@@ -255,6 +336,15 @@ def atom_features(atom, explicit_H=False):
                                      Chem.rdchem.HybridizationType.SP3, Chem.rdchem.HybridizationType.SP3D,
                                      Chem.rdchem.HybridizationType.SP3D2]) + \
               [atom.GetIsAromatic()]
+    if use_electronegativity:
+        results = results + [ELECTRONEGATIVITIES_NO_NONE[atom.GetAtomicNum() - 1]]
+
+    if use_gasteiger:
+        gasteiger = atom.GetDoubleProp('_GasteigerCharge')
+        if np.isnan(gasteiger) or np.isinf(gasteiger):
+            gasteiger = 0 # because the mean is 0
+        results = results + [gasteiger]
+
 
     # In case of explicit hydrogen(QM8, QM9), avoid calling `GetTotalNumHs`
     if not explicit_H:
@@ -327,11 +417,12 @@ class AssayData:
             df_dragon = pd.read_csv(dragon_assay_filename2, sep='\t', header=None, index_col=0)
 
         # deleting lines in drop_list and converting into dictionary
-        dragon_data = {}
+        self.dragon_data = None
         if df_dragon is not None:
+            dragon_data = {}
             df_dragon.drop(index=self.drop_index, inplace=True)
             dragon_data = {x[0]: x[1:] for x in df_dragon.itertuples()}
-        self.dragon_data = dragon_data
+            self.dragon_data = dragon_data
 
     def _build_seq(self, assay_path):
         seq_filename = os.path.join(assay_path, "protein.fa")
@@ -483,6 +574,7 @@ def build_all_assay_data(args):
     mol_id_list = list(mol_ids)
     if dict_all_id_mol:
         mol_list = [dict_all_id_mol[mi] for mi in mol_ids]
+    dragon_data = None
     if dict_dragon_data:
         dragon_data = np.array([dict_dragon_data[mi] for mi in mol_ids])
     if seq:
@@ -546,7 +638,8 @@ def extract_mol_info(args):
         _, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
     elif args.assay_dir is not None and args.multimodal:
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = build_all_assay_data(args)
-        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = generate_multimodal_data(mol_obj_list, label_data, label_mask, dragon_data, task_name_list,mol_id_list, seq, seq_symbol, profeat)
+        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list,mol_id_list, seq, seq_symbol, profeat)
+        
     elif args.assay_dir is not None:
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list,mol_id_list, seq, seq_symbol, profeat = build_all_assay_data(args)
         generate_inactive_data(label_data, label_mask)
@@ -569,7 +662,15 @@ def create_adjancy_matrix(mol):
 
 
 def create_feature_matrix(mol, args):
-    feature = [atom_features(atom) for atom in mol.GetAtoms()]
+    if args.use_sybyl or args.use_gasteiger:
+        Chem.SanitizeMol(mol)
+    if args.use_gasteiger:
+        ComputeGasteigerCharges(mol)
+    feature = [atom_features(atom,
+        use_sybyl=args.use_sybyl,
+        use_electronegativity=args.use_electronegativity,
+        use_gasteiger=args.use_gasteiger,
+        degree_dim=args.degree_dim) for atom in mol.GetAtoms()]
     if not args.csv_reaxys:
         for _ in range(args.atom_num_limit - len(feature)):
             feature.append(np.zeros(len(feature[0]), dtype=np.int))
@@ -609,6 +710,11 @@ def write_to_tfrecords(adj, feature, label_data, label_mask, tfrname):
 
 def main():
     args = get_parser()
+    if args.use_deepchem_feature:
+        args.degree_dim=11
+        args.use_sybyl=False
+        args.use_electronegativity=False
+        args.use_gasteiger=False
 
     adj_list = []
     feature_list = []
@@ -624,7 +730,10 @@ def main():
     dragon_data = None
     profeat = None
     mol_list=[]
-
+    if args.solubility:
+        args.sdf_label="SOL_classification"
+        args.sdf_label_active="high"
+        args.sdf_label_inactive="low"
     if args.assay_dir is not None:
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol,profeat, publication_years = extract_mol_info(args)
     else:
@@ -632,6 +741,16 @@ def main():
 
     if args.vector_modal is not None:
         dragon_data = build_vector_modal(args)
+    ## automatically setting atom_num_limit
+    if args.atom_num_limit is None:
+        args.atom_num_limit=0
+        for index, mol in enumerate(mol_obj_list):
+            if mol is None:
+                continue
+            Chem.SanitizeMol(mol, sanitizeOps=Chem.SANITIZE_ADJUSTHS)
+            if args.atom_num_limit < mol.GetNumAtoms():
+                args.atom_num_limit=mol.GetNumAtoms()
+
     for index, mol in enumerate(mol_obj_list):
         if mol is None:
             continue
@@ -663,16 +782,17 @@ def main():
         adj_list.append(dense_to_sparse(adj))
         feature_list.append(feature)
         # Create labels
-        if args.solubility:
-            line = mol.GetProp("SOL_classification")
-            if line.find("high") != -1:
+        if args.sdf_label:
+            line = mol.GetProp(args.sdf_label)
+            if line.find(args.sdf_label_active) != -1:
                 label_data_list.append([0, 1])
                 label_mask_list.append([1, 1])
-            elif line.find("low") != -1:
+            elif line.find(args.sdf_label_inactive) != -1:
                 label_data_list.append([1, 0])
                 label_mask_list.append([1, 1])
             else:
                 # missing
+                print("[WARN] unknown label:",line)
                 label_data_list.append([0, 0])
                 label_mask_list.append([0, 0])
         else:
@@ -700,7 +820,10 @@ def main():
         from scipy.sparse import csr_matrix
         label_data = np.asarray(label_data_list)
         label_mask = np.asarray(label_mask_list)
-        obj['label_dim'] = label_data.shape[1]
+        if args.label_dim is None:
+            obj['label_dim'] = label_data.shape[1]
+        else:
+            obj['label_dim'] = args.label_dim
         obj['label_sparse'] = csr_matrix(label_data.astype(float))
         obj['mask_label_sparse'] = csr_matrix(label_mask.astype(float))
     if task_name_list is not None:

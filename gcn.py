@@ -63,7 +63,6 @@ def save_prediction(filename,prediction_data):
             print("[ERROR] unknown prediction format")
 
 
-
 def get_default_config():
     config={}
     config["model.py"]="model"
@@ -105,9 +104,10 @@ def get_default_config():
     #
     config["profile"]=False
     config["export_model"]=None
-
+    config["stratified_kfold"] = False
 
     return config
+
 
 def plot_cost(config,data,model,prefix=""):
     from gcn_modules.make_plots import make_cost_acc_plot
@@ -181,6 +181,7 @@ def train(sess,graph,config):
         result["train_time"]=train_time
         result["infer_time"]=infer_time
         save_path=config["save_info_valid"]
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         print("[SAVE] ",save_path)
         fp=open(save_path,"w")
         json.dump(result,fp, indent=4, cls=NumPyArangeEncoder)
@@ -201,7 +202,7 @@ def train(sess,graph,config):
 
 
 def train_cv(sess,graph,config):
-    from sklearn.model_selection import KFold
+    from sklearn.model_selection import KFold, StratifiedKFold
     from gcn_modules.make_plots import make_auc_plot, make_cost_acc_plot
     import sklearn
     from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
@@ -214,7 +215,11 @@ def train_cv(sess,graph,config):
     model = CoreModel(sess,config,info)
     model.build(importlib.import_module(config["model.py"]))
     # Training
-    kf = KFold(n_splits=config["k-fold_num"], shuffle=config["shuffle_data"], random_state=123)
+    if config["stratified_kfold"]:
+        print("[INFO] use stratified K-fold")
+        kf = StratifiedKFold(n_splits=config["k-fold_num"], shuffle=config["shuffle_data"], random_state=123)
+    else:
+        kf = KFold(n_splits=config["k-fold_num"], shuffle=config["shuffle_data"], random_state=123)
 
     kf_count=1
     fold_data_list=[]
@@ -222,6 +227,8 @@ def train_cv(sess,graph,config):
         split_base=all_data["labels"]
     else:
         split_base=all_data["label_list"][0]
+    if config["stratified_kfold"]:
+        split_base=np.argmax(split_base, axis=1)
     score_metrics=[]
     if config["task"]=="regression":
         metric_name="mse"
@@ -229,7 +236,8 @@ def train_cv(sess,graph,config):
         metric_name="gmfe"
     else:
         metric_name="accuracy"
-    for train_valid_list, test_list in kf.split(split_base):
+    split_data_generator = kf.split(split_base, split_base) if config["stratified_kfold"] else kf.split(split_base)
+    for train_valid_list, test_list in split_data_generator:
         print("starting fold:{0}".format(kf_count))
         train_valid_data,test_data = split_data(all_data,
             indices_for_train_data=train_valid_list,indices_for_valid_data=test_list)
@@ -299,6 +307,7 @@ def train_cv(sess,graph,config):
     print("cv %s(std.)   =%f"%(metric_name,np.std(score_metrics)))
     if "save_info_cv" in config and config["save_info_cv"] is not None:
         save_path=config["save_info_cv"]
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         print("[SAVE] ",save_path)
         _,ext=os.path.splitext(save_path)
         if ext==".json":
@@ -410,6 +419,7 @@ def infer(sess,graph,config):
         result["test_accuracy"]=test_metrics
         result["infer_time"]=infer_time
         save_path=config["save_info_test"]
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         print("[SAVE] ",save_path)
         fp=open(save_path,"w")
         json.dump(result,fp, indent=4, cls=NumPyArangeEncoder)
@@ -514,6 +524,9 @@ if __name__ == '__main__':
     parser.add_argument('--profile',
             action='store_true',
             help='')
+    parser.add_argument('--skfold',
+            action='store_true',
+            help='stratified k-fold')
     parser.add_argument('--param', type=str,
             default=None,
             help='parameter')
@@ -558,6 +571,8 @@ if __name__ == '__main__':
     #
     if args.profile:
         config["profile"]=True
+    if args.skfold is not None:
+        config["stratified_kfold"] = args.skfold
     # bspmm
     #if args.disable_bspmm:
     #    print("[INFO] disabled bspmm")

@@ -7,7 +7,7 @@ from tensorflow.python.keras.layers import Dense
 
 def build_placeholders(info,config,batch_size=4):
     adj_channel_num=info.adj_channel_num
-    encoder_output_dim=32
+    encoder_output_dim=64
     preference_list_length=2
     placeholders = {
         'epsilon': tf.placeholder(tf.float32, shape=(batch_size,info.graph_node_num,encoder_output_dim),name="epsilon"),
@@ -25,25 +25,49 @@ def decode_nodes(name,inputs,info):
     node_num=inputs["decoded_node_num"]
     is_train=inputs["is_train"]
     enabled_node_nums=inputs['enabled_node_nums']
-    with tf.variable_scope("decoder_node"):
+    with tf.variable_scope(name):
         layer=layers.GraphDense(decoded_output_dim,kernel_initializer='random_uniform',name="dense_1")(layer)
     return layer
 
+"""
 def decode_links(name,inputs,info):
     dropout_rate=inputs["dropout_rate"]
-    internal_dim=32
+    internal_dim=64
     layer=inputs["input_layer"]
     input_dim=inputs["input_layer_dim"]
     is_train=inputs["is_train"]
     node_num=inputs["decoded_node_num"]
     enabled_node_nums=inputs['enabled_node_nums']
-    with tf.variable_scope("decoder_link"):
+    with tf.variable_scope(name):
         layer=layers.GraphDense(internal_dim,name="dense_1")(layer)
         layer=layers.GraphBatchNormalization(name="bn_1")(layer,
             max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
         layer=tf.sigmoid(layer)
         layer=layers.GraphDecoderInnerProd()(layer)
     return layer
+"""
+
+def decode_links(name,inputs,info):
+    dropout_rate=inputs["dropout_rate"]
+    internal_dim=64
+    layer=inputs["input_layer"]
+    input_dim=inputs["input_layer_dim"]
+    is_train=inputs["is_train"]
+    node_num=inputs["decoded_node_num"]
+    enabled_node_nums=inputs['enabled_node_nums']
+    with tf.variable_scope(name):
+        layer=layers.GraphDense(internal_dim,name="dense_1")(layer)
+        layer=layers.GraphBatchNormalization(name="bn_1")(layer,
+            max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
+        layer=tf.sigmoid(layer)
+        layer=layers.GraphDense(internal_dim,name="dense_2")(layer)
+        layer=tf.sigmoid(layer)
+        #layer=layers.GraphDecoderInnerProd()(layer)
+        layer=layers.GraphDecoderDistMult()(layer)
+    return layer
+
+
+
 
 def print_variables():
     # print variables
@@ -61,7 +85,7 @@ def build_model(placeholders,info,config,batch_size=4):
         print("[ERROR] not supported yet")
         quit()
     # encoder
-    encoder_output_dim=32
+    encoder_output_dim=64
     # layer_mean: batch_size x dim
     # generating node_num vectors
     layer_std=tf.ones((batch_size,info.graph_node_num,encoder_output_dim))
@@ -71,7 +95,7 @@ def build_model(placeholders,info,config,batch_size=4):
     decoded_node_num=info.graph_node_num
     input_decoder={
         "input_layer":layer,
-        "input_layer_dim":32,
+        "input_layer_dim":64,
         "output_layer_dim":75,
         "decoded_node_num":decoded_node_num,
         "dropout_rate":placeholders["dropout_rate"],

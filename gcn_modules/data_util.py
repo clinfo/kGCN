@@ -119,7 +119,7 @@ def normalize_adj(adjs):
             adj[1][adj[1]>0]=1
             A_tilde = coo_matrix((adj[1], (adj[0][:,0],adj[0][:,1])),shape=adj[2])
             degrees=np.squeeze(np.asarray(np.sum(A_tilde, 0)))
-            D_sqrt_inverse = np.asmatrix(np.diag(np.reciprocal(degrees)))
+            D_sqrt_inverse = np.asmatrix(np.diag(np.reciprocal(np.sqrt(degrees))))
             D_sqrt_inverse[D_sqrt_inverse==np.inf] = 0
             D_sqrt_inverse[D_sqrt_inverse==-np.inf] = 0
             D_sqrt_inverse=coo_matrix(D_sqrt_inverse).tocsr()

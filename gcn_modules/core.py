@@ -233,7 +233,7 @@ class CoreModel:
         profiler_start=False
         best_score=None
         best_result=None
-
+        os.makedirs(config["save_model_path"], exist_ok=True)
         for epoch in range(config["epoch"]):
             np.random.shuffle(train_idx)
             shuffle_label_list(train_data)
@@ -305,9 +305,9 @@ class CoreModel:
             if (epoch)%config["save_interval"] == 0:
                 # save
                 if k_fold_num is not None:
-                    save_path =  config["save_model_path"]+"/model.%05d.%05d.ckpt"%(k_fold_num,epoch)
+                    save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:05d}.{epoch:05d}.ckpt")
                 else:
-                    save_path =  config["save_model_path"]+"/model.%05d.ckpt"%(epoch)
+                    save_path = os.path.join(config["save_model_path"], f"model.{epoch:05d}.ckpt")
                 saver.save(sess,save_path)
             # early stopping and printing information
             validation_result={"epoch":epoch,
@@ -323,23 +323,22 @@ class CoreModel:
             if best_score is None or best_score > validation_cost:
                 best_score = validation_cost
                 best_result=validation_result
-                save_path =  config["save_model_path"]+"/model.best.ckpt"
+                save_path = os.path.join(config["save_model_path"], "model.best.ckpt")
                 print("[SAVE] ",save_path)
                 saver.save(sess,save_path)
         if best_score is not None:
-                path =  config["save_model_path"]+"/model.best.ckpt"
+                path = os.path.join(config["save_model_path"], "model.best.ckpt")
                 print("[RESTORE] ",path)
                 saver.restore(sess,path)
         # saving last model
-        #save_path =  config["save_model_path"]+"/model.last.ckpt"
         if k_fold_num is not None:
-            save_path =  config["save_model_path"]+"/model.%05d.last.ckpt"%(k_fold_num)
+            save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:05d}.last.ckpt")
         else:
-            save_path =  config["save_model_path"]+"/model.last.ckpt"
+            save_path = os.path.join(config["save_model_path"], "model.last.ckpt")
             print("[SAVE] ",save_path)
             saver.save(sess,save_path)
         if "save_model" in config and config["save_model"] is not None:
-            save_path =  config["save_model"]
+            save_path = config["save_model"]
             print("[SAVE] ",save_path)
             saver.save(sess,save_path)
 
