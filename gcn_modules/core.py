@@ -201,7 +201,7 @@ class CoreModel:
             return evaled_metrics
         return None
 
-    def fit(self,train_data,valid_data,k_fold_num=None):
+    def fit(self,train_data,valid_data=None,k_fold_num=None):
         sess=self.sess
         config=self.config
         info=self.info
@@ -223,13 +223,15 @@ class CoreModel:
 
         # Train model
         print("#train data = ",train_data.num)
-        print("#valid data = ",valid_data.num)
+        if valid_data is not None:
+            print("#valid data = ",valid_data.num)
 
         #early_stopping=EarlyStoppingMultiTask(config)
         early_stopping=EarlyStopping(config)
 
         train_idx=list(range(train_data.num))
-        valid_idx=list(range(valid_data.num))
+        if valid_data is not None:
+            valid_idx=list(range(valid_data.num))
         profiler_start=False
         best_score=None
         best_result=None
@@ -274,8 +276,8 @@ class CoreModel:
             training_cost/=train_data.num
 
             # validation
-            sess.run(local_init_op)
-            if valid_data.num>0:
+            if valid_data is not None and valid_data.num>0:
+                sess.run(local_init_op)
                 itr_num=int(np.ceil(valid_data.num/batch_size))
                 validation_cost =0
                 validation_metrics=[]
@@ -294,7 +296,7 @@ class CoreModel:
             training_metrics=self.evaluation(training_metrics,train_data.num,key_prefix="training_")
             self.training_cost_list.append(training_cost)
             self.training_metrics_list.append(training_metrics)
-            if valid_data.num>0:
+            if valid_data is not None and valid_data.num>0:
                 validation_metrics=self.evaluation(validation_metrics,valid_data.num,key_prefix="validation_")
                 self.validation_cost_list.append(validation_cost)
                 self.validation_metrics_list.append(validation_metrics)

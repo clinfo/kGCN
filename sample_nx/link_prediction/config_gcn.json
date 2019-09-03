@@ -1,0 +1,22 @@
+{
+    "model.py": "sample_nx.link_prediction.model_gcn",
+    "load_model": "sample_nx/link_prediction/model_gcn/model.last.ckpt",
+    "save_model": "sample_nx/link_prediction/model_gcn/model.last.ckpt",
+    "save_model_path": "sample_nx/link_prediction/model_gcn",
+    "save_info_cv": "sample_nx/link_prediction/result/cv_info.gcn.jbl",
+    "save_edge_result_test": "sample_nx/link_prediction/result/test_edge_result.gcn.jbl",
+    "validation_data_rate": 0.2,
+    "learning_rate": 0.001,
+    "epoch": 1000,
+    "normalize_adj_flag": true,
+    "split_adj_flag": false,
+    "order": 1,
+    "k-fold_num": 5,
+    "embedding_dim": 64,
+    "with_feature": false,
+    "batch_size": 1,
+    "save_interval": 100,
+    "with_node_embedding": true,
+    "patience": 0,
+    "dataset": "sample_nx/link_prediction/sample.jbl"
+}
