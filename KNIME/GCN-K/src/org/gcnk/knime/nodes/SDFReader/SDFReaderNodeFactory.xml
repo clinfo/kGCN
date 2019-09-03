@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./default.png" type="Source" xmlns="http://knime.org/node/v2.8" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+    <name>SDFReader</name>
+    
+    <shortDescription>
+        Read molecule information from SDF file.
+    </shortDescription>
+    
+    <fullDescription>
+        <intro>Read molecule information from SDF file.</intro>
+        
+        <option name="Input SDF File">Input SDF file to be read.</option>
+        <option name="Atom Number Limit">Use only molecules with number of atoms less than this value in the SDF file.</option>
+        <option name="Working Directory">Working directory for output files.</option>
+    </fullDescription>
+    
+    <ports>
+        <outPort index="0" name="Molecule Information List">Python RDKit object and name of each molecule.</outPort>
+    </ports>    
+</knimeNode>

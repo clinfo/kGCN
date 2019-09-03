@@ -223,6 +223,7 @@ def train_cv(sess,graph,config):
 
     kf_count=1
     fold_data_list=[]
+    output_data_list=[]
     if all_data["labels"] is not None:
         split_base=all_data["labels"]
     else:
@@ -277,6 +278,9 @@ def train_cv(sess,graph,config):
                 tf.train.write_graph(graph_def, '.', filename, as_text=False)
             except:
                 print('[ERROR] output has been not found')
+        if "save_edge_result_cv" in config:
+            output_data=model.output(test_data)
+            output_data_list.append(output_data)
         # save fold data
         fold_data=dotdict({})
         fold_data.prediction_data=prediction_data
@@ -315,7 +319,34 @@ def train_cv(sess,graph,config):
             json.dump(fold_data_list,fp, indent=4, cls=NumPyArangeEncoder)
         else:
             joblib.dump(fold_data_list,save_path,compress=True)
-
+    ## 
+    if "save_edge_result_cv" in config and config["save_edge_result_cv"] is not None:
+        result_cv=[]
+        for j,fold_data in enumerate(fold_data_list):
+            pred_score = np.array(fold_data.prediction_data)
+            true_label = np.array(fold_data.test_labels)
+            test_idx=fold_data.test_data_idx
+            score_list=[]
+            for pair in true_label[0]:
+                i1,_,j1,i2,_,j2=pair
+                s1=pred_score[0,i1,j1]
+                s2=pred_score[0,i2,j2]
+                score_list.append([s1,s2])
+            fold={}
+            fold["output"]=output_data_list[j][0]
+            fold["score"]=np.array(score_list)
+            fold["test_data_idx"]=test_idx
+            result_cv.append(fold)
+        save_path=config["save_edge_result_cv"]
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        print("[SAVE] ",save_path)
+        _,ext=os.path.splitext(save_path)
+        if ext==".json":
+            fp=open(save_path,"w")
+            json.dump(result_cv,fp, indent=4, cls=NumPyArangeEncoder)
+        else:
+            joblib.dump(result_cv,save_path,compress=True)
+    #
     #
     if "save_result_cv" in config and config["save_result_cv"] is not None:
         result_cv=[]
@@ -429,7 +460,31 @@ def infer(sess,graph,config):
         save_prediction(filename,prediction_data)
     if config["make_plot"]:
         plot_auc(config,all_data.labels,np.array(prediction_data))
-
+    if "save_edge_result_test" in config and config["save_edge_result_test"] is not None:
+        output_data=model.output(all_data)
+        pred_score = np.array(prediction_data)
+        true_label = np.array(all_data.label_list)
+        test_idx=all_data.test_data_idx
+        score_list=[]
+        print(true_label.shape)
+        for pair in true_label[0]:
+            i1,_,j1,i2,_,j2=pair
+            s1=pred_score[0,i1,j1]
+            s2=pred_score[0,i2,j2]
+            score_list.append([s1,s2])
+        fold={}
+        fold["output"]=output_data[0]
+        fold["score"]=np.array(score_list)
+        save_path=config["save_edge_result_test"]
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        print("[SAVE] ",save_path)
+        _,ext=os.path.splitext(save_path)
+        if ext==".json":
+            fp=open(save_path,"w")
+            json.dump(fold,fp, indent=4, cls=NumPyArangeEncoder)
+        else:
+            joblib.dump(fold,save_path,compress=True)
+    #
 #-------------------------------------------------------------------------------
 # counterfactualを計算する
 #-------------------------------------------------------------------------------

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./default.png" type="Source" xmlns="http://knime.org/node/v2.8" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+    <name>GCNVisualizer</name>
+    
+    <shortDescription>
+        Generate data for displaying the contribution of each compound of the testset to the predicted value
+    </shortDescription>
+    
+    <fullDescription>
+        <intro>Generate data for displaying the contribution of each compound of the testset to the predicted value</intro>
+        
+        <option name="model.py">model python script</option>
+        <option name="With Feature">In GCN, a node has feature or not.</option>
+        <option name="With Node Embedding">In GCN, a node has embedding vector or not.</option>
+        <option name="Embedding Dim">When with_node_embedding=True, The dimension of an embedding vector.</option>
+        <option name="Normalize Adj Flag">enables normalization of adjacency matrices</option>
+        <option name="Split Adj Flag">enables splitting adjacency matrices using dgree of a node</option>
+        <option name="Order">order of adjacency matrices</option>
+        <option name="Save Interval">save interval</option>
+    </fullDescription>
+    
+    <ports>
+        <inPort  index="0" name="Model"             >Prediction model</inPort>
+        <inPort  index="1" name="Dataset"           >Dataset for visualization</inPort>
+        <outPort index="0" name="Visualization Data">Data for visualization</outPort>
+    </ports>    
+</knimeNode>

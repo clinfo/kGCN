@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./default.png" type="Source" xmlns="http://knime.org/node/v2.8" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+    <name>GCNPredictor</name>
+    
+    <shortDescription>
+        Predict test dataset with model.
+    </shortDescription>
+    
+    <fullDescription>
+        <intro>Predict test dataset with model.</intro>
+        
+        <option name="model.py">model python script</option>
+        <option name="With Feature">In GCN, a node has feature or not.</option>
+        <option name="With Node Embedding">In GCN, a node has embedding vector or not.</option>
+        <option name="Make Plot">enables plotting results</option>
+    </fullDescription>
+    
+    <ports>
+        <inPort index="0" name="Model"  >Prediction model</inPort>
+        <inPort index="1" name="Dataset">Dataset for testing</inPort>
+        <outPort index="0" name="Prediction">Prediction for the test dataset</outPort>
+    </ports>
+</knimeNode>

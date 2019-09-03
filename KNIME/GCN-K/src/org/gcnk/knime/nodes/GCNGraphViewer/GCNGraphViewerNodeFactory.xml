@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./default.png" type="Source" xmlns="http://knime.org/node/v2.8" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+    <name>GCNGraphViewer</name>
+    
+    <shortDescription>
+        Display graphically the contribution of each atom of each test compound in the test set to the predicted value on the compound from the output of the GCNVisualizer
+    </shortDescription>
+    
+    <fullDescription>
+        <intro>Display graphically the contribution of each atom of each test compound in the test set to the predicted value on the compound from the output of the GCNVisualizer</intro>
+        
+    </fullDescription>
+    
+    <ports>
+        <inPort  index="0" name="Visualization Data List">Visualization data list of each molecule.</inPort>
+    </ports>    
+</knimeNode>

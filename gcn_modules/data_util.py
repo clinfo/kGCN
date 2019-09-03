@@ -103,8 +103,15 @@ def split_adj(adjs,min_deg=1,max_deg=5):
                     new_adjs[split_ch[k]][0].append(e)
                     new_adjs[split_ch[k]][1].append(v)
             for m in new_adjs:
+                # duplicated elements at [0, 0] causes an error in gcn.
+                # if m[0] = [[0, 0], [0, 0], ...] and m[1] = [0, 1, ...], then
+                # the first elements of m[0] and m[1] should be removed.
+                if len(m[0]) > 2 and all(m[0][1] == [0, 0]):
+                    m[0]=m[0][1:]
+                    m[1]=m[1][1:]
                 m[0]=np.array(m[0],np.int32)
                 m[1]=np.array(m[1],np.float32)
+
             new_adjs_all.extend(new_adjs)
         adjs[gid]=new_adjs_all
     return adjs
@@ -119,12 +126,8 @@ def normalize_adj(adjs):
             adj[1][adj[1]>0]=1
             A_tilde = coo_matrix((adj[1], (adj[0][:,0],adj[0][:,1])),shape=adj[2])
             degrees=np.squeeze(np.asarray(np.sum(A_tilde, 0)))
-            D_sqrt_inverse = np.asmatrix(np.diag(np.reciprocal(np.sqrt(degrees))))
-            D_sqrt_inverse[D_sqrt_inverse==np.inf] = 0
-            D_sqrt_inverse[D_sqrt_inverse==-np.inf] = 0
-            D_sqrt_inverse=coo_matrix(D_sqrt_inverse).tocsr()
-            A_tilde=A_tilde.astype(np.float32).tocsr()
-            A_hat = D_sqrt_inverse*A_tilde*D_sqrt_inverse
+            degrees[degrees==0] = 1
+            A_hat = A_tilde / np.sqrt(np.expand_dims(degrees, 1)) / np.sqrt(degrees)
             normalized_adj = dense_to_sparse(A_hat)
             normalized_adj_set.append(normalized_adj)
 
@@ -213,7 +216,7 @@ def load_data(config,filename="data.jbl",prohibit_shuffle=False):
             enabled_node_nums=[adj[0][2][0] for adj in adjs]
             #maxN=np.max([adj[2][0] for adj in adjs])
             align_size(adjs,maxN)
-        
+
         else:
             enabled_node_nums=[max([len(mat) for mat in list_mat]) for list_mat in data["multi_dense_adj"]]
             adjs=[[dense_to_sparse(mat) for mat in list_mat] for list_mat in data["multi_dense_adj"]]

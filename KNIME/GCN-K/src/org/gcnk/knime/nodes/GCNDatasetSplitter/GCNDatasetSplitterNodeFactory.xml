@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./default.png" type="Source" xmlns="http://knime.org/node/v2.8" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+    <name>GCNDatasetSplitter</name>
+    
+    <shortDescription>
+        Split dataset into two parts.
+    </shortDescription>
+    
+    <fullDescription>
+        <intro>Split dataset into two parts.</intro>
+        
+        <option name="ratio">Ratio of 1st part of GCN dataset.</option>
+        
+    </fullDescription>
+    
+    <ports>
+        <inPort  index="0" name="GCN Dataset">GCN Dataset to be splitted.</inPort>
+        <outPort index="0" name="GCN Dataset">1st part of GCN Dataset.</outPort>
+        <outPort index="1" name="GCN Dataset">2nd part of GCN Dataset.</outPort>
+    </ports>    
+</knimeNode>

@@ -15,39 +15,35 @@ You can have multiple files for training, etc.Alternatively, you can just have o
 The format of serialized data in .tfrecords:
 
 features = {
-        'label': tf.FixedLenFeature([label_length], tf.float32),
-        'mask_label': tf.FixedLenFeature([label_length], tf.float32),
-        'adj_row': tf.VarLenFeature(tf.int64),
-        'adj_column': tf.VarLenFeature(tf.int64),
-        'adj_values': tf.VarLenFeature(tf.float32),
-        'adj_elem_len': tf.FixedLenFeature([1], tf.int64),
-        'adj_degrees': tf.VarLenFeature(tf.int64),
-        'feature_row': tf.VarLenFeature(tf.int64),
-        'feature_column': tf.VarLenFeature(tf.int64),
-        'feature_values': tf.VarLenFeature(tf.float32),
-        'feature_elem_len': tf.FixedLenFeature([1], tf.int64),
-        'size': tf.FixedLenFeature([2], tf.int64)
+        'label': tf.io.FixedLenFeature([label_length], tf.float32),
+        'mask_label': tf.io.FixedLenFeature([label_length], tf.float32),
+        'adj_row': tf.io.VarLenFeature(tf.int64),
+        'adj_column': tf.io.VarLenFeature(tf.int64),
+        'adj_values': tf.io.VarLenFeature(tf.float32),
+        'adj_elem_len': tf.io.FixedLenFeature([1], tf.int64),
+        'adj_degrees': tf.io.VarLenFeature(tf.int64),
+        'feature_row': tf.io.VarLenFeature(tf.int64),
+        'feature_column': tf.io.VarLenFeature(tf.int64),
+        'feature_values': tf.io.VarLenFeature(tf.float32),
+        'feature_elem_len': tf.io.FixedLenFeature([1], tf.int64),
+        'size': tf.io.FixedLenFeature([2], tf.int64)
 }
 
 2. python task_sparse_gcn.py --dataset your_dataset --other_flags
 
 @author: taro.kiritani
 """
-import ast
-from distutils.version import StrictVersion
+import argparse
+import importlib
 import json
+import math
 import os
-import random
-import re
-import shutil
-import tempfile
+import sys
+import time
 
 import numpy as np
-from tensorboard.backend.event_processing import event_accumulator
 import tensorflow as tf
-from tensorflow.python.lib.io.file_io import FileIO, get_matching_files, delete_file
-
-tf.logging.set_verbosity(tf.logging.INFO)
+from tfdata_util.tools import split_dataset
 
 try:
     from .model_functions import gcn_multitask_model_sparse
@@ -55,305 +51,383 @@ except ModuleNotFoundError:
     from model_functions import gcn_multitask_model_sparse
 
 
-def make_parse_fn(example_proto, label_length):
-    features = {
-        "label": tf.FixedLenFeature([label_length], tf.int64),
-        "mask_label": tf.FixedLenFeature([label_length], tf.int64),
-        "adj_row": tf.VarLenFeature(tf.int64),
-        "adj_column": tf.VarLenFeature(tf.int64),
-        "adj_values": tf.VarLenFeature(tf.float32),
-        "adj_elem_len": tf.FixedLenFeature([1], tf.int64),
-        "adj_degrees": tf.VarLenFeature(tf.int64),
-        "feature_row": tf.VarLenFeature(tf.int64),
-        "feature_column": tf.VarLenFeature(tf.int64),
-        "feature_values": tf.VarLenFeature(tf.float32),
-        "feature_elem_len": tf.FixedLenFeature([1], tf.int64),
-        "size": tf.FixedLenFeature([2], tf.int64),
-    }
-
-    parsed_features = tf.parse_single_example(example_proto, features)
-    return parsed_features, parsed_features["label"]
+tf.enable_eager_execution() # only to count num of elements in datasets
+tf.logging.set_verbosity(tf.logging.INFO)
 
 
-def make_input_fn(dataset):
+class dotdict(dict):
+    """dot.notation access to dictionary attributes"""
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+    def __getstate__(self):
+        return self.__dict__
+    def __setstate__(self, dict):
+        self.__dict__ = dict
+
+class NumPyArangeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.int64):
+            return int(obj)
+        if isinstance(obj, np.float64):
+            return float(obj)
+        if isinstance(obj, np.int32):
+            return int(obj)
+        if isinstance(obj, np.float32):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist() # or map(int, obj)
+        return json.JSONEncoder.default(self, obj)
+
+def get_default_config():
+    config={}
+    config["model.py"]="model"
+    config["dataset"]="data.jbl"
+    config["validation_dataset"]=None
+    # optimization parameters
+    config["epoch"]=50
+    config["batch_size"]=10
+    config["patience"]=0
+    config["learning_rate"]=0.3
+    config["validation_data_rate"]=0.3
+    config["shuffle_data"]=False
+    config["k-fold_num"] = 2
+    # model parameters
+    config["with_feature"]=True
+    config["with_node_embedding"]=False
+    config["embedding_dim"]=10
+    config["normalize_adj_flag"]=False
+    config["split_adj_flag"]=False
+    config["order"] = 1
+    config["param"]=None
+    # model
+    config["save_interval"]=10
+    config["save_model_path"]="model"
+    # result/info
+    #config["save_result_train"]=None
+    config["save_result_valid"]=None
+    config["save_result_test"]=None
+    config["save_result_cv"]=None
+    config["save_info_train"]=None
+    config["save_info_valid"]=None
+    config["save_info_test"]=None
+    config["save_info_cv"]=None
+    config["make_plot"]=False
+    config["plot_path"]="./result/"
+    config["plot_multitask"]=False
+    config["task"]="classification"
+    config["retrain"]=None
+    #
+    config["profile"]=False
+    config["export_model"]=None
+    config["stratified_kfold"] = False
+
+    return config
+
+
+def make_parse_fn(example_proto, feature_spec):
+    """Parses example proto
+    Args:
+        example_proto
+        feature_spec
+    """
+    parsed_features = tf.io.parse_single_example(example_proto, feature_spec)
+    label = parsed_features.pop("label")
+    return parsed_features, label
+
+
+def make_input_fn(files, input_parser, cache, shuffle_on_memory, epoch_num, split=None, take_these_splits=None):
     def input_fn():
-        iterator = dataset.make_one_shot_iterator()
-        features, labels = iterator.get_next()
-        return features, labels
+        dataset = collect_data(files, input_parser, split, take_these_splits)
 
-    return input_fn
+        if cache:
+            dataset = dataset.cache()
+        # elif cache == "temp_file":
+        #    tempd = tempfile.mkdtemp()
+        #    tempds.append(tempd)
+        #    dataset.cache(tempd)
+        if shuffle_on_memory > 0:
+            dataset = dataset.shuffle(shuffle_on_memory, reshuffle_each_iteration=True)
+        dataset = dataset.batch(config['batch_size'])
+        dataset = dataset.prefetch(buffer_size=config['batch_size'])
+        dataset = dataset.repeat(epoch_num)
+        return dataset
+
+    def collect_data(files, input_parser, split, take_these_splits):
+        file_list = tf.data.Dataset.list_files(files, shuffle=True, seed=24)
+        dataset = tf.data.TFRecordDataset(file_list)
+        dataset = dataset.map(input_parser,)# num_parallel_calls=8)
+        if split is None:
+            return dataset
+        else:
+            datasets = split_dataset(dataset, split)
+            dataset = datasets[take_these_splits[0]]
+            if len(take_these_splits) > 2:
+                for i in range(1, take_these_splits):
+                    dataset = dataset.concatenate(datasets[take_these_splits[i]])
+            return dataset
+
+    dataset = collect_data(files, input_parser, split, take_these_splits)
+    num_elements = 0
+    for d in dataset:
+        num_elements += 1
+    if num_elements == 0:
+        input_dim = None
+    else:
+        input_dim = d[0]['size'][1].numpy()
+    info = {'num_elements': num_elements, 'input_dim': input_dim}
+
+    return input_fn, info
 
 
-def main(args):
-    FLAGS = tf.app.flags.FLAGS
-    gcn_dims = ast.literal_eval(FLAGS.gcn_dims)
-    if not all([isinstance(d, int) for d in gcn_dims]):
-        raise ValueError("gcn_dims should be a list of integers.")
+def train(config):
 
-    # convention: dataset_folder/*_[fold_num]_['train' or 'eval' or 'test'].tfrecords
-    dataset_folder = FLAGS.dataset
-    with FileIO(get_matching_files(os.path.join(dataset_folder, "tasks.txt"))[0], "r") as text_file:
+    with tf.io.gfile.GFile(
+        tf.io.gfile.glob(os.path.join(os.path.dirname(config['dataset']), "tasks.txt"))[0], "r"
+    ) as text_file:
         task_names = text_file.readlines()
     task_num = len(task_names)
-    if FLAGS.how_to_split == "tet":
-        files_train = os.path.join(dataset_folder, "*train*.tfrecords")
-        files_eval = os.path.join(dataset_folder, "*eval*.tfrecords")
-        files_test = os.path.join(dataset_folder, "*test*.tfrecords")
-        folds = [
-            [
-                get_matching_files(files_train),
-                get_matching_files(files_eval),
-                get_matching_files(files_test),
-            ]
-        ]
-    elif FLAGS.how_to_split == "kfold":
-        all_fold_strs = [str(k) for k in range(FLAGS.fold_num)]
-        folds = []
-        for fold_num in range(FLAGS.fold_num):
-            files_eval = os.path.join(
-                dataset_folder, "*_" + str(fold_num) + "_*.tfrecords"
-            )
-            files_test = os.path.join(
-                dataset_folder, "*_" + str(fold_num) + "_*.tfrecords"
-            )
-            train_folds = [fold for fold in all_fold_strs if fold != fold_num]
-            train_folds_str = "[" + ",".join(train_folds) + "]"
-            files_train = os.path.join(
-                dataset_folder, "*_" + train_folds_str + "_*.tfrecords"
-            )
-            folds.append(
-                [
-                    get_matching_files(files_train),
-                    get_matching_files(files_eval),
-                    get_matching_files(files_test),
-                ]
-            )
-    elif FLAGS.how_to_split == "811":
-        files = os.path.join(dataset_folder, "*.tfrecords")
-        files = get_matching_files(files)
-        random.shuffle(files)
-        files_train = files[: int(len(files) * 0.8)]
-        files_eval = files[int(len(files) * 0.8) : int(len(files) * 0.9)]
-        files_test = files[int(len(files) * 0.9) :]
-        folds = [[files_train, files_eval, files_test]]
-    parser = lambda example_proto: make_parse_fn(example_proto, task_num)
-    tf.logging.info(FLAGS["job-dir"].value)
-    for fold_num, fold in enumerate(folds):
-        if len(folds) > 1:
-            model_dir = FLAGS["job-dir"].value + "_fold_" + str(fold_num)
+    config['task_names'] = task_names
+    config['task_num'] = task_num
+
+    feature_spec = {
+        "adj_column": tf.io.VarLenFeature(tf.int64),
+        "adj_degrees": tf.io.VarLenFeature(tf.int64),
+        "adj_elem_len": tf.io.FixedLenFeature([1], tf.int64),
+        "adj_row": tf.io.VarLenFeature(tf.int64),
+        "adj_values": tf.io.VarLenFeature(tf.float32),
+        "feature_column": tf.io.VarLenFeature(tf.int64),
+        "feature_elem_len": tf.io.FixedLenFeature([1], tf.int64),
+        "feature_row": tf.io.VarLenFeature(tf.int64),
+        "feature_values": tf.io.VarLenFeature(tf.float32),
+        "label": tf.io.FixedLenFeature([task_num], tf.int64),
+        "mask_label": tf.io.FixedLenFeature([task_num], tf.int64),
+        "size": tf.io.FixedLenFeature([2], tf.int64),
+    }
+    input_parser = lambda example_proto: make_parse_fn(example_proto, feature_spec)
+    shuffle_on_memory = 1000
+
+    if config["mode"] == "train_cv":
+        folds = config['k-fold_num']
+        split = [1] * folds
+        valid_dataset = config["dataset"]
+    elif config["validation_dataset"] is None:
+        folds = 1
+        split = [100 - 100 * config['validation_data_rate'], 100 * config['validation_data_rate']]
+        split = [int(s) for s in split]
+        divisor = math.gcd(split[0], split[1])
+        split = [s // divisor for s in split]
+        train_portions = [0]
+        valid_portions = [1]
+        valid_dataset = config["dataset"]
+    else:
+        folds = 1
+        split = None
+        train_portions = None
+        valid_portions = None
+        valid_dataset = config["validation_dataset"]
+
+    for fold_num in range(folds):
+        if config["mode"] == "train_cv":
+            train_portions = list(range(folds)) - fold_num
+            valid_portions = [fold_num]
+            config["model_dir"] = config["job_dir"] + "_fold_" + str(fold_num)
         else:
-            model_dir = FLAGS["job-dir"].value
-            count_examples = len(fold[0])
-        steps_per_epoch = count_examples // FLAGS.batch_size
+            config["model_dir"] = config["job_dir"]
+
+        train_input_fn, info = make_input_fn(
+            config["dataset"], input_parser, True, shuffle_on_memory, config['epoch'], split, train_portions)
+        valid_input_fn, valid_info = make_input_fn(
+            valid_dataset, input_parser, True, 0, 1, split, valid_portions)
+        config['input_dim'] = info['input_dim']
+
+        steps_per_epoch = math.ceil(info['num_elements'] / config['batch_size'])
         tf.logging.info(
             "example num: {}, steps per epoch: {}".format(
-                count_examples, steps_per_epoch
+                info['num_elements'], steps_per_epoch
             )
         )
-        count_examples_eval = len(fold[1])
-        steps_per_epoch_eval = count_examples_eval // FLAGS.batch_size
+        steps_per_epoch_eval = math.ceil(valid_info['num_elements'] / config['batch_size'])
         tf.logging.info(
             "example num: {}, steps per epoch: {}".format(
-                count_examples_eval, steps_per_epoch_eval
+                valid_info['num_elements'], steps_per_epoch_eval
             )
         )
-        session_config = tf.ConfigProto()
-        session_config.gpu_options.allow_growth = True
-        with tf.Session(config=session_config) as sess:
-            record = next(tf.python_io.tf_record_iterator(fold[0][0]))
-            input_dim = parser(record)[0]["size"][1].eval()
-        train_eval_test_datasets = []
-        tempds = []
-        for k, files in enumerate(fold):
-            if k == 0:
-                epoch_num = FLAGS.epochs
-            else:
-                epoch_num = 1
-            dataset = tf.data.TFRecordDataset(files, )
-            dataset = dataset.map(parser)
-            if FLAGS.cache == "memory":
-                dataset.cache()
-            elif FLAGS.cache == "temp_file":
-                tempd = tempfile.mkdtemp()
-                tempds.append(tempd)
-                dataset.cache(tempd)
-            if k == 0:
-                if FLAGS.shuffle_on_memory == -1:
-                    dataset = dataset.shuffle(
-                        count_examples, reshuffle_each_iteration=True
-                    )
-                elif FLAGS.shuffle_on_memory > 0:
-                    dataset = dataset.shuffle(
-                        FLAGS.shuffle_on_ememory, reshuffle_each_iteration=True
-                    )
-            dataset = dataset.batch(FLAGS.batch_size)
-            dataset = dataset.prefetch(buffer_size=1)
-            if StrictVersion(tf.__version__) > StrictVersion("1.9.0"):
-                dataset = dataset.repeat(epoch_num)
-                throttle_secs = 1
-            else:
-                dataset = dataset.repeat(1)
-                throttle_secs = 6000000
-            train_eval_test_datasets.append(dataset)
-        session_config = tf.ConfigProto()
-        session_config.gpu_options.allow_growth = True
-        estimator_config = tf.estimator.RunConfig(
-            session_config=session_config,
-            save_checkpoints_steps=steps_per_epoch,
-            keep_checkpoint_max=0,
-        )
-        gcn_classifier = tf.estimator.Estimator(
-            model_fn=gcn_multitask_model_sparse,
-            model_dir=model_dir,
-            params={
-                "learning_rate": FLAGS.learning_rate,
-                "task_names": task_names,
-                "do_rate": FLAGS.dropout,
-                "task_num": task_num,
-                "out_dims": gcn_dims,
-                "dtype": tf.float32,
-                "use_bias": True,
-                "dense_dim": FLAGS.dense_node_num,
-                "mltask": FLAGS.mltask,
-                "input_dim": input_dim,
-                "batch_normalize": FLAGS.batch_normalize,
-                "max_pool": FLAGS.max_pool,
-                "max_degree": FLAGS.max_degree,
-                "normalize": FLAGS.normalize_adj,
-                "multitask": FLAGS.multitask,
-                "num_classes": FLAGS.num_classes
-            },
-            config=estimator_config,
-        )
-        tf.logging.info(FLAGS.epochs)
-        train_spec = tf.estimator.TrainSpec(
-            input_fn=make_input_fn(train_eval_test_datasets[0]),
-            max_steps=(steps_per_epoch * FLAGS.epochs),
-        )
-        eval_spec = tf.estimator.EvalSpec(
-            input_fn=make_input_fn(train_eval_test_datasets[1]),
-            steps=steps_per_epoch_eval,
-            throttle_secs=throttle_secs,
-        )
-        tf.estimator.train_and_evaluate(gcn_classifier, train_spec, eval_spec)
-        ea = event_accumulator.EventAccumulator(os.path.join(model_dir, "eval"))
-        ea.Reload()
-        keys = ea.scalars.Keys()
-        loss = [scalar.value for scalar in ea.Scalars("loss")]
-        smallest_index = loss.index(min(loss))
-        smallest_step = ea.Scalars("loss")[smallest_index].step
-        if FLAGS.run_test:
-            test_result = gcn_classifier.evaluate(
-                input_fn=make_input_fn(train_eval_test_datasets[2]),
-                steps=steps_per_epoch_eval,
-                checkpoint_path=os.path.join(
-                    model_dir, "model.ckpt-{}".format(smallest_step)
-                ),
-            )
-            try:
-                os.mkdir(os.path.join(model_dir, "test"))
-            except FileExistsError:
-                pass
+#                if flags.shuffle_on_memory == -1:
+#                    shuffle_on_memory = count_examples
+#                elif flags.shuffle_on_memory > 0:
+#                    shuffle_on_memory = flags.shuffle_on_memory
 
-            test_result = {k: np.float(v) for k, v in test_result.items()}
-            with open(os.path.join(model_dir, "test", "test.json"), "w") as outfile:
-                json.dump(test_result, outfile)
-        recorded_models = get_matching_files(
-            os.path.join(model_dir, "model.ckpt-*.index")
-        )
-        models_to_be_deleted = [
-            re.search("model.ckpt-\d+", model).group(0)[11:]
-            for model in recorded_models
-        ]
-        models_to_be_deleted.remove("0")
-        models_to_be_deleted.remove(str(smallest_step))
-        if len(models_to_be_deleted) > 0:
-            max_step = max([int(num) for num in models_to_be_deleted])
-            models_to_be_deleted.remove(str(max_step))
-            for model in models_to_be_deleted:
-                delete_this = get_matching_files(
-                    os.path.join(model_dir, "model.ckpt-" + model + ".*")
-                )
-                for f in delete_this:
-                    delete_file(f)
-        feature_spec = {
-            "label": tf.FixedLenFeature([task_num], tf.float32),
-            "mask_label": tf.FixedLenFeature([task_num], tf.float32),
-            "adj_row": tf.VarLenFeature(tf.int64),
-            "adj_column": tf.VarLenFeature(tf.int64),
-            "adj_values": tf.VarLenFeature(tf.float32),
-            "adj_elem_len": tf.FixedLenFeature([1], tf.int64),
-            "adj_degrees": tf.VarLenFeature(tf.int64),
-            "feature_row": tf.VarLenFeature(tf.int64),
-            "feature_column": tf.VarLenFeature(tf.int64),
-            "feature_values": tf.VarLenFeature(tf.float32),
-            "feature_elem_len": tf.FixedLenFeature([1], tf.int64),
-            "size": tf.FixedLenFeature([2], tf.int64),
-        }
+        config['steps_per_epoch'] = steps_per_epoch
+        model = importlib.import_module(config["model.py"]).build(config)
 
+        tf.io.gfile.makedirs(model.eval_dir())
+        feature_spec_predict = feature_spec.copy()
+        feature_spec_predict.pop("label")
+        feature_spec_predict.pop("mask_label")
         serving_input_receiver_fn = tf.estimator.export.build_parsing_serving_input_receiver_fn(
-            feature_spec
+            feature_spec_predict
         )
-        gcn_classifier.export_savedmodel(
-            os.path.join(model_dir, "export_dir"),
-            serving_input_receiver_fn,
-            checkpoint_path=os.path.join(model_dir, "model.ckpt-" + str(smallest_step)),
-            as_text=True,
+        exporter = tf.estimator.BestExporter(
+            serving_input_receiver_fn=serving_input_receiver_fn, exports_to_keep=1
         )
-        for tmpd in tempds:
-            shutil.rmtree(tmpd)
+
+        train_spec = tf.estimator.TrainSpec(
+            input_fn=train_input_fn,
+        )
+        if valid_info['num_elements'] > 0:
+            eval_spec = tf.estimator.EvalSpec(
+                input_fn=valid_input_fn,
+                steps=steps_per_epoch_eval,
+                throttle_secs=0,
+                exporters=exporter,
+            )
+            tf.estimator.train_and_evaluate(model, train_spec, eval_spec)
+        else:
+            t = time.time()
+            model.train(train_input_fn)
+            elapsed = time.time() - t
+            print("elapsed time: {}".format(elapsed))
+            sys.exit(0)
+        checkpoint_path = tf.io.gfile.glob(
+            os.path.join(model.model_dir, "export/best_exporter/*/variables")
+        )[0]
+        checkpoint_path = checkpoint_path + "/variables"
+        metafile = tf.io.gfile.glob(os.path.join(model.model_dir, "*.meta"))[
+            -1
+        ]
+        tf.io.gfile.copy(metafile, checkpoint_path + ".meta", overwrite=True)
+        test_result = model.evaluate(
+            input_fn=valid_input_fn,
+            steps=steps_per_epoch_eval,
+            checkpoint_path=checkpoint_path,
+        )
+        tf.io.gfile.mkdir(os.path.join(model.model_dir, "test"))
+        test_result = {k: np.float(v) for k, v in test_result.items()}
+        with tf.io.gfile.GFile(
+            os.path.join(model.model_dir, "test", "test.json"), "w"
+        ) as outfile:
+            json.dump(test_result, outfile)
 
 
 if __name__ == "__main__":
-    FLAGS = tf.app.flags.FLAGS
-    tf.app.flags.DEFINE_string(
-        "job-dir", "./train", "directory path for checkpoints and training results."
-    )
-    tf.app.flags.DEFINE_float("learning_rate", 0.003, "set learning rate.")
-    tf.app.flags.DEFINE_float("dropout", 0.2, "set dropout rate.")
-    tf.app.flags.DEFINE_integer("batch_size", 128, "set batch size.")
-    tf.app.flags.DEFINE_integer("epochs", 200, "set the number of epochs.")
-    tf.app.flags.DEFINE_integer(
-        "dense_node_num", 128, "set the number of nodes in last dense layer."
-    )
-    tf.app.flags.DEFINE_string(
-        "mltask",
-        "classification",
-        "set a type of learning task. [classfication, regression]",
-    )
-    tf.app.flags.DEFINE_string(
-        "dataset", "solubility", "choose a directory containing .tfrecords files."
-    )
-    tf.app.flags.DEFINE_string(
-        "gcn_dims",
-        "[64, 64]",
-        "List of dimensions in each gcn layer. The number of numbers determine the number of layers. Use list espression in  quotation marks.",
-    )
-    tf.app.flags.DEFINE_string("how_to_split", "tet", "either '811', 'tet' or 'kfold'")
-    tf.app.flags.DEFINE_integer(
-        "fold_num", 5, "fold number, only used with --how_to_split kfold"
-    )
-    tf.app.flags.DEFINE_integer(
-        "shuffle_on_memory",
-        0,
-        "the buffer size for shuffling of train data. 0 for no shuffling. -1 for perfect shuffling. Note that file names are shuffled anyway.",
-    )
-    tf.app.flags.DEFINE_string("cache", None, "'memory' or 'temp_file', or undefined")
-    tf.app.flags.DEFINE_boolean(
-        "run_test",
-        True,
-        "if true, run prediction after training, with the model with the lowest eval loss.",
-    )
-    tf.app.flags.DEFINE_boolean(
-        "batch_normalize", False, "if true, use graph batch normalization."
-    )
-    tf.app.flags.DEFINE_boolean("max_pool", False, "if true, use graph max pooling.")
-    tf.app.flags.DEFINE_integer(
-        "max_degree",
-        0,
-        "adjacency matrices are split into max_degree matrices, based on the degrees of nodes. Assumes the matrices are already split into channels by the preprocessing program. The nodes with the degree larger than this number will be collected in a single matrix. Degree is the number of edges connected to a node, excluding the one to itself.",
-    )
-    tf.app.flags.DEFINE_boolean("normalize_adj", False, "if true, adjacency matrix is normalized.")
-    tf.app.flags.DEFINE_boolean("multitask", True, "True for binary classification of multi-tasks, False for multi-class classification of a single task")
-    tf.app.flags.DEFINE_integer("num_classes", 2, "number of classes for multi-class classificatoin.")
-    tf.app.run()
+    # set random seed
+    seed = 1234
+    np.random.seed(seed)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('mode', type=str,
+            help='train/infer/train_cv/visualize')
+    parser.add_argument('--config', type=str,
+            default=None,
+            nargs='?',
+            help='config json file')
+    parser.add_argument('--save-config',
+            default=None,
+            nargs='?',
+            help='save config json file')
+    parser.add_argument('--retrain', type=str,
+            default=None,
+            help='retrain from checkpoint')
+    parser.add_argument('--no-config',
+            action='store_true',
+            help='use default setting')
+    parser.add_argument('--model', type=str,
+            default=None,
+            help='model')
+    parser.add_argument('--dataset', type=str,
+            default=None,
+            help='dataset')
+    parser.add_argument('--gpu', type=str,
+            default=None,
+            help='constraint gpus (default: all) (e.g. --gpu 0,2)')
+    parser.add_argument('--cpu',
+            action='store_true',
+            help='cpu mode (calcuration only with cpu)')
+    parser.add_argument('--bspmm',
+            action='store_true',
+            help='bspmm')
+    parser.add_argument('--bconv',
+            action='store_true',
+            help='bconv')
+    parser.add_argument('--batched',
+            action='store_true',
+            help='batched')
+    parser.add_argument('--profile',
+            action='store_true',
+            help='')
+    parser.add_argument('--skfold',
+            action='store_true',
+            help='stratified k-fold')
+    parser.add_argument('--param', type=str,
+            default=None,
+            help='parameter')
+    parser.add_argument('--ig_targets', type=str,
+            default='all',
+            choices=['all', 'profeat', 'features', 'adjs', 'dragon'],
+            help='[deplicated (use ig_modal_target)]set scaling targets for Integrated Gradients')
+    parser.add_argument('--ig_modal_target', type=str,
+            default='all',
+            choices=['all', 'profeat', 'features', 'adjs', 'dragon'],
+            help='set scaling targets for Integrated Gradients')
+    parser.add_argument('--ig_label_target', type=str,
+            default='max',
+            help='[visualization mode only] max/all/(label index)')
+    parser.add_argument('--job_dir', type=str,
+            default='train',
+            help='Directory in which log is stored.')
+    args=parser.parse_args()
+
+    # config
+    config=get_default_config()
+    if args.config is None:
+        pass
+        #parser.print_help()
+        #quit()
+    else:
+        print("[LOAD] ",args.config)
+        fp = open(args.config, 'r')
+        config.update(json.load(fp))
+    # option
+    if args.model is not None:
+        config["load_model"]=args.model
+    if args.dataset is not None:
+        config["dataset"]=args.dataset
+    # param
+    if args.param is not None:
+        config["param"]=args.param
+    # option
+    if args.retrain is not None:
+        config["retrain"]=args.retrain
+    # gpu/cpu
+    if args.cpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = ""
+    elif args.gpu is not None:
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    #
+    if args.profile:
+        config["profile"]=True
+    if args.skfold is not None:
+        config["stratified_kfold"] = args.skfold
+    # bspmm
+    #if args.disable_bspmm:
+    #    print("[INFO] disabled bspmm")
+    #else:
+    #print("[INFO] enabled bspmm")
+    # depricated options
+    if args.ig_targets!="all":
+        args.ig_model_target=args.ig_targets
+    # directory for logging
+    config['job_dir'] = args.job_dir
+    # setup
+    # mode
+    config["mode"]=args.mode
+    if args.mode in ["train", "train_cv"]:
+        train(config)
+    elif args.mode=="infer":
+        infer(config)
+    if args.save_config is not None:
+        print("[SAVE] ",args.save_config)
+        os.makedirs(os.path.dirname(args.save_config), exist_ok=True)
+        fp=open(args.save_config,"w")
+        json.dump(config,fp, indent=4, cls=NumPyArangeEncoder)

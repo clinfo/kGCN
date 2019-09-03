@@ -1,0 +1,67 @@
+package org.gcnk.knime.nodes.GCNPredictor;
+
+import org.knime.core.node.defaultnodesettings.DefaultNodeSettingsPane;
+import org.knime.core.node.defaultnodesettings.DialogComponentNumber;
+import org.knime.core.node.defaultnodesettings.DialogComponentNumberEdit;
+import org.knime.core.node.defaultnodesettings.DialogComponentString;
+import org.knime.core.node.defaultnodesettings.DialogComponentBoolean;
+import org.knime.core.node.defaultnodesettings.SettingsModelIntegerBounded;
+import org.knime.core.node.defaultnodesettings.SettingsModelDoubleBounded;
+import org.knime.core.node.defaultnodesettings.SettingsModelString;
+import org.knime.core.node.defaultnodesettings.SettingsModelBoolean;
+
+/**
+ * <code>NodeDialog</code> for the "GCNPredictor" Node.
+ * Predict test dataset with model.
+ *
+ * This node dialog derives from {@link DefaultNodeSettingsPane} which allows
+ * creation of a simple dialog with standard components. If you need a more 
+ * complex dialog please derive directly from 
+ * {@link org.knime.core.node.NodeDialogPane}.
+ * 
+ * @author org.gcnk
+ */
+public class GCNPredictorNodeDialog extends DefaultNodeSettingsPane {
+
+    /**
+     * New pane for configuring GCNPredictor node dialog.
+     * This is just a suggestion to demonstrate possible default dialog
+     * components.
+     */
+    protected GCNPredictorNodeDialog() {
+        super();
+        
+        addDialogComponent(new DialogComponentString(
+                new SettingsModelString(
+                    GCNLearnerNodeModel.CFGKEY_MODEL_PY,
+                    GCNLearnerNodeModel.DEFAULT_MODEL_PY),
+                    "model.py"));
+
+        addDialogComponent(new DialogComponentBoolean(
+                new SettingsModelBoolean(
+                    GCNLearnerNodeModel.CFGKEY_WITH_FEATURE,
+                    GCNLearnerNodeModel.DEFAULT_WITH_FEATURE),
+                    "With Feature"));
+        
+        addDialogComponent(new DialogComponentBoolean(
+                new SettingsModelBoolean(
+                    GCNLearnerNodeModel.CFGKEY_WITH_NODE_EMBEDDING,
+                    GCNLearnerNodeModel.DEFAULT_WITH_NODE_EMBEDDING),
+                    "With Node Embedding"));
+
+        addDialogComponent(new DialogComponentNumber(
+                new SettingsModelIntegerBounded(
+                    GCNLearnerNodeModel.CFGKEY_SAVE_INTERVAL,
+                    GCNLearnerNodeModel.DEFAULT_SAVE_INTERVAL,
+                    1, Integer.MAX_VALUE),
+                    "Save Interval", /*step*/ 1, /*componentwidth*/ 5));
+        
+        
+        addDialogComponent(new DialogComponentBoolean(
+                new SettingsModelBoolean(
+                    GCNLearnerNodeModel.CFGKEY_MAKE_PLOT,
+                    GCNLearnerNodeModel.DEFAULT_MAKE_PLOT),
+                    "Make Plot"));
+    }
+}
+

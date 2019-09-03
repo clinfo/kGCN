@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./default.png" type="Source" xmlns="http://knime.org/node/v2.8" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+    <name>GCNLearner</name>
+    
+    <shortDescription>
+        Generate prediction model with training dataset.
+    </shortDescription>
+    
+    <fullDescription>
+        <intro>Generate prediction model with training dataset.</intro>
+        
+        <option name="model.py">model python script</option>
+        <option name="Validation Data Rate">generating validation dataset by splitting training dataset with validation_data_rate</option>
+        <option name="Epoch">the maximum numeber of epochs</option>
+        <option name="Batch Size">the number of samples in a minibatch</option>
+        <option name="Patience">patience parameter for early stopping</option>
+        <option name="Learning Rate">(initial) learning rate</option>
+        <option name="Shuffle Data">shuffling data after loading dataset</option>
+        <option name="With Feature">In GCN, a node has feature or not.</option>
+        <option name="With Node Embedding">In GCN, a node has embedding vector or not.</option>
+        <option name="Embedding Dim">When with_node_embedding=True, The dimension of an embedding vector.</option>
+        <option name="Normalize Adj Flag">enables normalization of adjacency matrices</option>
+        <option name="Split Adj Flag">enables splitting adjacency matrices using dgree of a node</option>
+        <option name="Order">order of adjacency matrices</option>
+        <option name="Save Interval">save interval</option>
+        <option name="Make Plot">enables plotting results</option>
+        <option name="Profile">for profiling using the tensorflow profiler</option>
+    </fullDescription>
+    
+    <ports>
+        <inPort  index="0" name="Dataset">Dataset for training</inPort>
+        <outPort index="0" name="Model"  >Prediction model</outPort>
+    </ports>    
+</knimeNode>

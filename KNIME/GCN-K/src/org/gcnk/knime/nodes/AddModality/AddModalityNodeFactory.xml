@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<knimeNode icon="./default.png" type="Source" xmlns="http://knime.org/node/v2.8" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://knime.org/node/v2.10 http://knime.org/node/v2.10.xsd">
+    <name>AddModality</name>
+    
+    <shortDescription>
+        Add the new modality data to the GCN Dataset with the output of the GCNDatasetBuilder node and the output from the AdditionalModalityPreprocessor node as input
+    </shortDescription>
+    
+    <fullDescription>
+        <intro>Add the new modality data to the GCN Dataset with the output of the GCNDatasetBuilder node and the output from the AdditionalModalityPreprocessor node as input</intro>
+        
+    </fullDescription>
+    
+    <ports>
+        <inPort  index="0" name="GCN Dataset">GCN Dataset.</inPort>
+        <inPort  index="1" name="Modality List">Modality data list of each molecule.</inPort>
+        <outPort index="0" name="GCN Dataset">GCN Dataset.</outPort>
+    </ports>    
+</knimeNode>

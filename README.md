@@ -95,32 +95,6 @@ For example, in training phases, you can specify a dataset as follows:
 python gcn.py train --config example_config/sample.json --dataset example_jbl/sample.jbl
 ```
 
-## Additional example
-We provide additional example using synthetic data to discriminate 5-node rings and 6-node rings.
-The following command generates synthetic data as text formats:
-```bash
-pyhton data_generator/synth_generator_ring.py
-```
-
-The following command generates .jbl from text:
-```bash
-python make_synth.py
-```
-
-The following command carries out cross-validation: 
-```bash
-python gcn.py train_cv --config example_config/synth.json
-```
-Accuracy and the other scores are stored in:
-```
-result/synth_cv_result.json
-```
-
-More information is stored in:
-```
-result/synth_info.json
-```
-
 ## Configuration
 
 You can specify a configuration file (example_config/sample.json) as follows:
@@ -129,6 +103,7 @@ You can specify a configuration file (example_config/sample.json) as follows:
 python gcn.py train  --config example_config/sample.json
 ```
 ## The commands of gcn.py
+
 gcn.py has three commands: *train*/*infer*/*train_cv*.
 You can specify a command from those as follows:
 ```bash
@@ -355,7 +330,6 @@ where the lengths of "adj" ("dense_adj"), "feature", "label",and "node" need to 
      └── synth_generator_ring.py : random graph with ring
 
 ```
-
 ## Additional samples
 
 We prepared additional samples for multimodal and multitask learning.
@@ -375,6 +349,7 @@ python gcn.py --config example_config/multitask.json train
 In this sample, "multitask" means that multiple labels are allowed for one graph.
 This configuration file specifies the program of model as "model_multitask.py", which includes definition of a loss function for multiple labels.
 Please reffer to sample_data/multi_label.txt and a coverting program (make_sample.py) to prepare multi labeled data, 
+
 ### Reaction prediction and visualization
 This is a sample usage of a reaction prediction.
 - First, create the input dataset from a molecule file and a label file

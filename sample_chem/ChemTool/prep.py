@@ -9,21 +9,15 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
+from rdkit.Chem.rdmolops import FastFindRings
 from sklearn.preprocessing import LabelEncoder
+from sklearn.utils import class_weight
 from tensorflow.python_io import TFRecordWriter
 from tensorflow.train import Feature, Features, FloatList, Int64List, Example
 import joblib
 
 #import oddt.toolkits.extras.rdkit as ordkit
 from mendeleev import element
-
-ELECTRONEGATIVITIES = [element(i).electronegativity('pauling') for i in range(1, 100)]
-ELECTRONEGATIVITIES_NO_NONE = []
-for e in ELECTRONEGATIVITIES:
-    if e is None:
-        ELECTRONEGATIVITIES_NO_NONE.append(0)
-    else:
-        ELECTRONEGATIVITIES_NO_NONE.append(e)
 
 
 def get_parser():
@@ -42,6 +36,9 @@ def get_parser():
     parser.add_argument(
         '-s', '--smarts', default=None, type=str,
         help='help'
+    )
+    parser.add_argument(
+        '--smiles', default=None, type=str,
     )
     parser.add_argument(
         '--sdf', default=None, type=str,
@@ -148,8 +145,33 @@ def get_parser():
         '--use_deepchem_feature', action='store_true', default=False,
         help='75dim used in deepchem default'
     )
+    parser.add_argument(
+        '--tfrecords', action='store_true', default=False,
+        help='output .tfrecords files instead of joblib.'
+    )
     return parser.parse_args()
 
+"""
+def generate_inactive_data(label_data, label_mask):
+    data_index = np.argwhere(label_mask == 1)
+    neg_count=0
+    pos_count=0
+    for data_point in data_index:
+        if label_data[tuple(data_point)] == 0:
+            neg_count+=1
+        else:
+            pos_count+=1
+    print("active count:",pos_count)
+    print("inactive count:",neg_count)
+    actives = np.argwhere(label_data == 1)
+    np.random.shuffle(actives[:, 1])  # in place
+    count=0
+    for inactive_data_point in actives:
+        if label_data[tuple(inactive_data_point)] == 0:
+            label_mask[tuple(inactive_data_point)] = 1
+            count+=1
+    print("pseudo inactive count:",count)
+"""
 
 def generate_inactive_data(label_data, label_mask):
     data_index = np.argwhere(label_mask == 1)
@@ -172,6 +194,8 @@ def generate_inactive_data(label_data, label_mask):
                 count+=1
         print("pseudo inactive count:",count)
 
+#make def negative_generate part
+#def generate_multimodal_inactive_data(adj, feature, seq, seq_symbol, dragon_data, label_data, mol_id, protein):
 def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
     """make inactive data with mol data and protein data & count active = inactive, inactive = over300000
         
@@ -218,12 +242,32 @@ def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_
 
     #convert_multimodal_label
     x=np.where(label_mask==1)
+    ## to identify a pair of mol and task
+    filename="multimodal_data_index.csv"
+    print("[save] mol & task:",filename)
+    fp=open(filename,"w")
+    for x0,x1 in zip(x[0],x[1]):
+        fp.write(str(x0))
+        fp.write(",")
+        fp.write(str(x1))
+        try:
+            m=mol_obj_list[x0]
+            smi=Chem.MolToSmiles(m)
+            fp.write(",")
+            fp.write(str(smi))
+            t1=task_name_list[x1]
+            fp.write(",")
+            fp.write(str(t1))
+        except:
+            pass
+        fp.write("\n")
+    ##
     print("#data",x[0].shape)
     ll=label_data[x[0],x[1]]
     if dragon_data is not None:
         dragon_data=dragon_data[x[0]]
     if mol_obj_list is not None:
-        mol_obj_list=np.array(mol_obj_list)[x[0]]
+        new_mol_obj_list=np.array(mol_obj_list)[x[0]]
     if seq is not None:
         seq=seq[x[1]]
         seq_symbol=seq_symbol[x[1]]
@@ -248,7 +292,7 @@ def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_
             new_label_data[i,int(l)]=1
         new_mask_label=np.ones_like(new_label_data)
 
-    return mol_obj_list, new_label_data, new_mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat
+    return new_mol_obj_list, new_label_data, new_mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat
 
 def dense_to_sparse(dense):
     from scipy.sparse import coo_matrix
@@ -287,7 +331,7 @@ def read_profeat():
         return None
 
 # Get the information from atom
-def atom_features(atom, explicit_H=False, use_sybyl=False, use_electronegativity=False, use_gasteiger=False,degree_dim=11):
+def atom_features(atom, en_list=None, explicit_H=False, use_sybyl=False, use_electronegativity=False, use_gasteiger=False,degree_dim=17):
     if use_sybyl:
         import oddt.toolkits.extras.rdkit as ordkit
         atom_type = ordkit._sybyl_atom_type(atom)
@@ -314,7 +358,7 @@ def atom_features(atom, explicit_H=False, use_sybyl=False, use_electronegativity
                                      Chem.rdchem.HybridizationType.SP3D2]) + \
               [atom.GetIsAromatic()]
     if use_electronegativity:
-        results = results + [ELECTRONEGATIVITIES_NO_NONE[atom.GetAtomicNum() - 1]]
+        results = results + [en_list[atom.GetAtomicNum() - 1]]
 
     if use_gasteiger:
         gasteiger = atom.GetDoubleProp('_GasteigerCharge')
@@ -601,6 +645,11 @@ def extract_mol_info(args):
         with open(args.smarts, "r") as f:
             lines = f.readlines()
         mol_obj_list = [Chem.MolFromSmarts(line) for line in lines]
+    elif args.smiles is not None:
+        task_name_list, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
+        with open(args.smiles, "r") as f:
+            lines = f.readlines()
+        mol_obj_list = [Chem.MolFromSmiles(line) for line in lines]
     elif args.sdf_dir is not None:
         filename = os.path.join(args.sdf_dir, "SDF_wash.sdf")
         if not os.path.exists(filename):
@@ -638,52 +687,61 @@ def create_adjancy_matrix(mol):
     return adj
 
 
-def create_feature_matrix(mol, args):
+def create_feature_matrix(mol, args, en_list=None):
     if args.use_sybyl or args.use_gasteiger:
         Chem.SanitizeMol(mol)
     if args.use_gasteiger:
         ComputeGasteigerCharges(mol)
     feature = [atom_features(atom,
+        en_list=en_list,
         use_sybyl=args.use_sybyl,
         use_electronegativity=args.use_electronegativity,
         use_gasteiger=args.use_gasteiger,
         degree_dim=args.degree_dim) for atom in mol.GetAtoms()]
-    if not args.csv_reaxys:
+    if not args.tfrecords:
         for _ in range(args.atom_num_limit - len(feature)):
             feature.append(np.zeros(len(feature[0]), dtype=np.int))
     return feature
 
 
-def write_to_tfrecords(adj, feature, label_data, label_mask, tfrname):
+
+def convert_to_example(adj, feature, label_data=None, label_mask=None,):
     """
     Writes graph related data to disk.
     """
     adj_row, adj_col = np.nonzero(adj)
     adj_values = adj[adj_row, adj_col]
     adj_elem_len = len(adj_row)
+    degrees = np.sum(adj, 0)
+    adj_degrees = []
+    for ar, ac in zip(adj_row, adj_col):
+        if ar==ac:
+            adj_degrees.append(0)
+        else:
+            adj_degrees.append(int(degrees[ar]))
     feature = np.array(feature)
     feature_row, feature_col = np.nonzero(feature)
     feature_values = feature[feature_row, feature_col]
     feature_elem_len = len(feature_row)
-    features = Features(
-        feature={
-            'label': Feature(int64_list=Int64List(value=label_data)),
-            'mask_label': Feature(int64_list=Int64List(value=label_mask)),
+    feature = {
             'adj_row': Feature(int64_list=Int64List(value=list(adj_row))),
             'adj_column': Feature(int64_list=Int64List(value=list(adj_col))),
             'adj_values': Feature(float_list=FloatList(value=list(adj_values))),
             'adj_elem_len': Feature(int64_list=Int64List(value=[adj_elem_len])),
+            'adj_degrees': Feature(int64_list=Int64List(value=adj_degrees)),
             'feature_row': Feature(int64_list=Int64List(value=list(feature_row))),
             'feature_column': Feature(int64_list=Int64List(value=list(feature_col))),
             'feature_values': Feature(float_list=FloatList(value=list(feature_values))),
             'feature_elem_len': Feature(int64_list=Int64List(value=[feature_elem_len])),
             'size': Feature(int64_list=Int64List(value=list(feature.shape)))
-        }
-    )
+            }
+    if label_data is not None:
+        label_data = np.nan_to_num(label_data)
+        feature['label'] = Feature(int64_list=Int64List(value=label_data.astype(int)))
+        feature['mask_label'] = Feature(int64_list=Int64List(value=label_mask.astype(int))),
+    features = Features(feature=feature)
     ex = Example(features=features)
-    with TFRecordWriter(tfrname) as single_writer:
-        single_writer.write(ex.SerializeToString())
-
+    return ex
 
 def main():
     args = get_parser()
@@ -714,7 +772,7 @@ def main():
     if args.assay_dir is not None:
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol,profeat, publication_years = extract_mol_info(args)
     else:
-        mol_obj_list, label_data, label_mask, _, _, _, _, _, publication_years = extract_mol_info(args)
+        mol_obj_list, label_data, label_mask, _, task_name_list, _, _, _, publication_years = extract_mol_info(args)
 
     if args.vector_modal is not None:
         dragon_data = build_vector_modal(args)
@@ -727,6 +785,10 @@ def main():
             Chem.SanitizeMol(mol, sanitizeOps=Chem.SANITIZE_ADJUSTHS)
             if args.atom_num_limit < mol.GetNumAtoms():
                 args.atom_num_limit=mol.GetNumAtoms()
+
+    if args.use_electronegativity:
+        ELECTRONEGATIVITIES = [element(i).electronegativity('pauling') for i in range(1, 100)]
+        ELECTRONEGATIVITIES = [e if e is not None else 0 for e in ELECTRONEGATIVITIES]
 
     for index, mol in enumerate(mol_obj_list):
         if mol is None:
@@ -743,16 +805,19 @@ def main():
         mol_list.append(mol)
         mol_name_list.append(name)
         adj = create_adjancy_matrix(mol)
-        feature = create_feature_matrix(mol, args)
-        if args.csv_reaxys:
-            pathlib.Path(args.output).mkdir(parents=True, exist_ok=True)
-            if publication_years[index] < 2015:
-                name += "_train"
-            else:
-                name += random.choice(["_test", "_eval"])
-            tfrname = os.path.join(args.output, str(publication_years[index]), name + '_.tfrecords')
+        feature = create_feature_matrix(mol, args) if not args.use_electronegativity else create_feature_matrix(mol, args, en_list=ELECTRONEGATIVITIES)
+        if args.tfrecords:
+            tfrname = os.path.join(args.output, name + '_.tfrecords')
+            if args.csv_reaxys:
+                if publication_years[index] < 2015:
+                    name += "_train"
+                else:
+                    name += random.choice(["_test", "_eval"])
+                tfrname = os.path.join(args.output, str(publication_years[index]), name + '_.tfrecords')
             pathlib.Path(os.path.dirname(tfrname)).mkdir(parents=True, exist_ok=True)
-            write_to_tfrecords(adj, feature, label_data[index], label_mask[index], tfrname)
+            ex = convert_to_example(adj, feature, label_data[index], label_mask[index])
+            with TFRecordWriter(tfrname) as single_writer:
+                single_writer.write(ex.SerializeToString())
             continue
 
         atom_num_list.append(mol.GetNumAtoms())
@@ -785,7 +850,9 @@ def main():
                     seq_list, seq_symbol_list = [], []
                 seq_list.append(seq[index])
                 seq_symbol_list.append(seq[index])
-    if args.csv_reaxys:
+    if args.tfrecords:
+        with open(os.path.join(args.output, "tasks.txt"), "w") as f:
+            f.write("\n".join(task_name_list))
         sys.exit(0)
     # joblib output
     obj = {"feature": np.asarray(feature_list),
@@ -812,12 +879,14 @@ def main():
     obj["max_node_num"] = args.atom_num_limit
     mol_info = {"obj_list": mol_list, "name_list": mol_name_list}
     obj["mol_info"] = mol_info
+    label_int = np.argmax(label_data_list, axis=1)
+    cw = class_weight.compute_class_weight("balanced", np.unique(label_int), label_int)
+    obj["class_weight"] = cw
     if args.generate_mfp:
         from rdkit.Chem import AllChem
         mfps=[]
         for mol in mol_list:
-            smi=Chem.MolToSmiles(mol)
-            mol=Chem.MolFromSmiles(smi)
+            FastFindRings(mol)
             mfp=AllChem.GetMorganFingerprintAsBitVect(mol,2,nBits=2048)
             mfp_vec=np.array([mfp.GetBit(i) for i in range(2048)],np.int32)
             mfps.append(mfp_vec)

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?eclipse version="3.0"?><plugin>
+
+   <!-- This is an example for providing an own category 
+      <extension
+         point="org.knime.workbench.repository.categories">
+      <category
+            description="Category containing my nodes"
+            icon="icons/default.png"
+            level-id="myNodes"
+            name="My nodes"
+            path="/"/>
+   </extension>
+   -->
+   
+   <extension point="org.knime.workbench.repository.nodes">
+      <node category-path="/" factory-class="org.gcnk.knime.nodes.GraphExtractor.GraphExtractorNodeFactory" id="org.gcnk.knime.nodes.GraphExtractor.GraphExtractorNodeFactory"/>
+   <node category-path="/" factory-class="org.gcnk.knime.nodes.AtomFeatureExtractor.AtomFeatureExtractorNodeFactory" id="org.gcnk.knime.nodes.AtomFeatureExtractor.AtomFeatureExtractorNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.SDFReader.SDFReaderNodeFactory" id="org.gcnk.knime.nodes.SDFReader.SDFReaderNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.GCNDatasetBuilder.GCNDatasetBuilderNodeFactory" id="org.gcnk.knime.nodes.GCNDatasetBuilder.GCNDatasetBuilderNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.GCNLearner.GCNLearnerNodeFactory" id="org.gcnk.knime.nodes.GCNLearner.GCNLearnerNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.CSVLabelExtractor.CSVLabelExtractorNodeFactory" id="org.gcnk.knime.nodes.CSVLabelExtractor.CSVLabelExtractorNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.GCNPredictor.GCNPredictorNodeFactory" id="org.gcnk.knime.nodes.GCNPredictor.GCNPredictorNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.GCNScore.GCNScoreNodeFactory" id="org.gcnk.knime.nodes.GCNScore.GCNScoreNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.GCNScoreViewer.GCNScoreViewerNodeFactory" id="org.gcnk.knime.nodes.GCNScoreViewer.GCNScoreViewerNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.GCNVisualizer.GCNVisualizerNodeFactory" id="org.gcnk.knime.nodes.GCNVisualizer.GCNVisualizerNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.GCNGraphViewer.GCNGraphViewerNodeFactory" id="org.gcnk.knime.nodes.GCNGraphViewer.GCNGraphViewerNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.AdditionalModalityPreprocessor.AdditionalModalityPreprocessorNodeFactory" id="org.gcnk.knime.nodes.AdditionalModalityPreprocessor.AdditionalModalityPreprocessorNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.AddModality.AddModalityNodeFactory" id="org.gcnk.knime.nodes.AddModality.AddModalityNodeFactory"/>
+<node category-path="/" factory-class="org.gcnk.knime.nodes.GCNDatasetSplitter.GCNDatasetSplitterNodeFactory" id="org.gcnk.knime.nodes.GCNDatasetSplitter.GCNDatasetSplitterNodeFactory"/>
+</extension>
+   
+</plugin>

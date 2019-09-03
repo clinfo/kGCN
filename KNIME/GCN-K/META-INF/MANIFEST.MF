@@ -1,0 +1,28 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Node extension for GCN-K
+Bundle-SymbolicName: org.gcnk.knime.nodes;singleton:=true
+Bundle-Version: 1.0.0
+Bundle-ClassPath: graphextractor.jar
+Bundle-Activator: org.gcnk.knime.nodes.Activator
+Bundle-Vendor: org.gcnk
+Require-Bundle: org.eclipse.core.runtime,
+ org.knime.workbench.core,
+ org.knime.workbench.repository,
+ org.knime.base
+Bundle-ActivationPolicy: lazy
+Export-Package: org.gcnk.knime.nodes.AddModality,
+ org.gcnk.knime.nodes.AdditionalModalityPreprocessor,
+ org.gcnk.knime.nodes.AtomFeatureExtractor,
+ org.gcnk.knime.nodes.CSVLabelExtractor,
+ org.gcnk.knime.nodes.GCNDatasetBuilder,
+ org.gcnk.knime.nodes.GCNDatasetSplitter,
+ org.gcnk.knime.nodes.GCNGraphViewer,
+ org.gcnk.knime.nodes.GCNLearner,
+ org.gcnk.knime.nodes.GCNPredictor,
+ org.gcnk.knime.nodes.GCNScore,
+ org.gcnk.knime.nodes.GCNScoreViewer,
+ org.gcnk.knime.nodes.GCNVisualizer,
+ org.gcnk.knime.nodes.GraphExtractor,
+ org.gcnk.knime.nodes.SDFReader
+

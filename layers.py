@@ -180,7 +180,7 @@ class GraphBatchNormalization(Layer):
     def build(self, input_shape):
         self.data_shape=input_shape
         super(GraphBatchNormalization, self).build(input_shape)
-    def call(self, data,shape=None,max_node_num=None,training=True,enabled_node_nums=None):
+    def call(self, inputs, enabled_node_nums=None,shape=None,max_node_num=None,training=True,):
         #shape needs to be explicitly specified. tf cannot automatically keep track of the size.
         # initialize
         if shape is None:
@@ -193,10 +193,10 @@ class GraphBatchNormalization(Layer):
             input_dim=shape[2]
         # computing
         if enabled_node_nums is not None:
-            data.set_shape([batch_size,node_num,input_dim])
-            extracted_nodes=[feature_map[:enabled_node_num] for feature_map, enabled_node_num in zip(tf.unstack(data), tf.unstack(enabled_node_nums))]
+            inputs.set_shape([batch_size,node_num,input_dim])
+            extracted_nodes=[feature_map[:enabled_node_num] for feature_map, enabled_node_num in zip(tf.unstack(inputs), tf.unstack(enabled_node_nums))]
             stacked_nodes=tf.concat(extracted_nodes,0)
-            normalized_data=tf.layers.batch_normalization(stacked_nodes,training=training,name=self.bn_name)
+            normalized_data=tf.keras.layers.BatchNormalization(trainable=training, name=self.bn_name)(stacked_nodes)
             split_data=tf.split(normalized_data,enabled_node_nums)
             padded_data=[tf.pad(feature_map, [[0, node_num-tf.shape(feature_map)[0]], [0, 0]]) for feature_map in split_data]
             output = tf.stack(padded_data)
@@ -205,10 +205,9 @@ class GraphBatchNormalization(Layer):
         else:
             #if node_num is not None and input_dim is not None:
             #
-            normalize_axis_dim=node_num*input_dim
-            layer=tf.reshape(data,(batch_size, normalize_axis_dim))
-            layer=tf.layers.batch_normalization(layer,training=training,name=self.bn_name)
-            layer=tf.reshape(layer,(batch_size,node_num,input_dim))
+            layer=tf.reshape(inputs,(-1, input_dim))
+            layer=tf.keras.layers.BatchNormalization(trainable=training, name=self.bn_name)(layer)
+            layer=tf.reshape(layer,(batch_size, -1,input_dim))
             return layer
 
     def compute_output_shape(self, input_shape):
@@ -217,22 +216,42 @@ class GraphBatchNormalization(Layer):
 class GraphDense(Dense):
     def __init__(self, output_dim, **kwargs):
         self.output_dim=output_dim
-        super(GraphDense, self).__init__(output_dim,**kwargs)
+        super(GraphDense, self).__init__(output_dim, **kwargs)
     # input: batch_size x node_num x #inputs
     def build(self, input_shape):
+        self.data_shape=input_shape
         super(GraphDense, self).build(input_shape)
-    def call(self, inputs,**kwargs):
+    def call(self, inputs,enabled_node_nums=None,shape=None,max_node_num=None,**kwargs):
         # initialize
         # Dynamic
         #dims=tf.shape(inputs)
         #batch_size,node_num,dim_in=dims[0],dims[1],dims[2]
-        dims=inputs.shape
-        batch_size,node_num,dim_in=dims[0],dims[1],dims[2]
-        # computing
-        data=tf.reshape(inputs,(-1,dim_in))
-        out=super(GraphDense, self).call(data,**kwargs)
-        out=tf.reshape(out,(batch_size,-1,self.output_dim))
-        return out
+        if shape is None:
+            batch_size=self.data_shape[0]
+            node_num=max_node_num
+            input_dim=self.data_shape[2]
+        else:
+            batch_size=shape[0]
+            node_num=shape[1]
+            input_dim=shape[2]
+        if enabled_node_nums is not None:
+            inputs.set_shape([batch_size,node_num,input_dim])
+            extracted_nodes=[feature_map[:enabled_node_num] for feature_map, enabled_node_num in zip(tf.unstack(inputs), tf.unstack(enabled_node_nums))]
+            stacked_nodes=tf.concat(extracted_nodes,0)
+            out=super(GraphDense, self).call(stacked_nodes,**kwargs)
+            split_data=tf.split(out,enabled_node_nums)
+            padded_data=[tf.pad(feature_map, [[0, node_num-tf.shape(feature_map)[0]], [0, 0]]) for feature_map in split_data]
+            output = tf.stack(padded_data)
+            output.set_shape([batch_size,node_num,self.output_dim])
+            return output
+        else:
+            dims=inputs.shape
+            batch_size,node_num,dim_in=dims[0],dims[1],dims[2]
+            # computing
+            data=tf.reshape(inputs,(-1,dim_in))
+            out=super(GraphDense, self).call(data,**kwargs)
+            out=tf.reshape(out,(batch_size,-1,self.output_dim))
+            return out
     def compute_output_shape(self, input_shape):
         return (input_shape[0],input_shape[1], self.output_dim)
 
