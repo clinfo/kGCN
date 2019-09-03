@@ -1,4 +1,9 @@
-# Graph Convolutional Networks
+
+# kGCN: Graph Convolutional Network tools for life science
+
+<img src="https://user-images.githubusercontent.com/1664861/64188778-f9601b00-cead-11e9-8922-da7167fbf9a2.png" height="320px">
+
+## Graph Convolutional Networks
 
 This is a TensorFlow implementation of Graph Convolutional Networks for the task of classification of graphs.
 
@@ -330,7 +335,33 @@ where the lengths of "adj" ("dense_adj"), "feature", "label",and "node" need to 
      └── synth_generator_ring.py : random graph with ring
 
 ```
-## Additional samples
+## Additional sample1
+We provide additional example using synthetic data to discriminate 5-node rings and 6-node rings.
+The following command generates synthetic data as text formats:
+```bash
+pyhton data_generator/synth_generator_ring.py
+```
+
+The following command generates .jbl from text:
+```bash
+python make_synth.py
+```
+
+The following command carries out cross-validation: 
+```bash
+python gcn.py train_cv --config example_config/synth.json
+```
+Accuracy and the other scores are stored in:
+```
+result/synth_cv_result.json
+```
+
+More information is stored in:
+```
+result/synth_info.json
+```
+
+## Additional sample2
 
 We prepared additional samples for multimodal and multitask learning.
 You can specify a configuration file (sample_multimodal_config.json/sample_multitask_config.json) as follows:
