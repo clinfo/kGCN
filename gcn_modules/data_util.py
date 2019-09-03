@@ -172,12 +172,19 @@ def shuffle_data(data):
 def load_and_split_data(config,filename="data.jbl",valid_data_rate=0.2):
     all_data,info=load_data(config,filename)
     train_data,valid_data=split_data(all_data,valid_data_rate)
+    return all_data,train_data,valid_data,info
 
+def build_and_split_data(config,data,valid_data_rate=0.2):
+    all_data,info=build_data(config,data)
+    train_data,valid_data=split_data(all_data,valid_data_rate)
     return all_data,train_data,valid_data,info
 
 def load_data(config,filename="data.jbl",prohibit_shuffle=False):
     print("[LOAD]",filename)
     data=joblib.load(filename)
+    return build_data(config,data,prohibit_shuffle=False)
+
+def build_data(config,data,prohibit_shuffle=False):
     # data
     ## Num x N x F
     features=None
