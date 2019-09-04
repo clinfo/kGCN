@@ -107,7 +107,7 @@ You can specify a configuration file (example_config/sample.json) as follows:
 ```bash
 python gcn.py train  --config example_config/sample.json
 ```
-## The commands of gcn.py
+## Command-line tool: gcn.py
 
 gcn.py has three commands: *train*/*infer*/*train_cv*.
 You can specify a command from those as follows:
