@@ -533,7 +533,7 @@ def visualize(sess, config, args):
                        args.ig_modal_target,args.ig_label_target, logger=tf.logging, model=_model)
 
 
-if __name__ == '__main__':
+def main():
     # set random seed
     seed = 1234
     np.random.seed(seed)
@@ -659,3 +659,6 @@ if __name__ == '__main__':
         os.makedirs(os.path.dirname(args.save_config), exist_ok=True)
         fp=open(args.save_config,"w")
         json.dump(config,fp, indent=4, cls=NumPyArangeEncoder)
+
+if __name__ == '__main__':
+    main()
