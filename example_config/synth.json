@@ -1,5 +1,5 @@
 {
-    "model.py": "example_model.model",
+    "model.py": "example_model.model:GCN",
     "load_model": "./model/synth.last.ckpt",
     "validation_data_rate": 0.2,
     "epoch": 10,
@@ -14,7 +14,7 @@
     "patience": 0,
     "dataset": "example_jbl/synthetic.jbl",
     "split_adj_flag": false,
-    "plot_path": "result",
+    "plot_path": "result/",
     "make_plot": true,
     "shuffle_data": true,
     "save_result_test": "./result/synth_test.csv",

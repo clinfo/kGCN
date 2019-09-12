@@ -1,98 +1,74 @@
 import tensorflow as tf
-import numpy as np
-import joblib
-import layers
+import kgcn.layers
+from kgcn.default_model import DefaultModel
+import tensorflow.contrib.keras as K
 
-def build_placeholders(info,batch_size=4,adj_channel_num=1,embedding_dim=10):
-    placeholders = {
-        'adjs':[[tf.sparse_placeholder(tf.float32,name="adj_"+str(a)+"_"+str(b)) for a in range(adj_channel_num)] for b in range(batch_size)],
-        'nodes': tf.placeholder(tf.int32, shape=(batch_size,info.graph_node_num),name="node"),
-        'labels': tf.placeholder(tf.float32, shape=(batch_size,info.label_dim),name="label"),
-        'mask': tf.placeholder(tf.float32, shape=(batch_size,),name="mask"),
-        'dropout_rate': tf.placeholder(tf.float32, name="dropout_rate"),
-    }
-    if info.feature_enabled:
-        placeholders['features']=tf.placeholder(tf.float32, shape=(batch_size,info.graph_node_num,info.feature_dim),name="feature")
-    else:
-        placeholders['features']=None
-    return  placeholders
+class GCN(DefaultModel):
+    def build_placeholders(self,info,config,batch_size):
+        # input data types (placeholders) of this neural network
+        return self.get_placeholders(info,config,batch_size,
+            ['adjs','nodes','labels','mask','dropout_rate',
+            'enabled_node_nums','is_train','features'])
+ 
+    def build_model(self,placeholders,info,config,batch_size):
+        adj_channel_num=info.adj_channel_num
+        in_adjs=placeholders["adjs"]
+        features=placeholders["features"]
+        in_nodes=placeholders["nodes"]
+        labels=placeholders["labels"]
+        mask=placeholders["mask"]
+        enabled_node_nums=placeholders["enabled_node_nums"]
+        is_train=placeholders["is_train"]
+        dropout_rate=placeholders["dropout_rate"]
 
-def build_model(placeholders,info,batch_size=4,adj_channel_num=1,embedding_dim=10):
-    in_adjs=placeholders["adjs"]
-    features=placeholders["features"]
-    in_nodes=placeholders["nodes"]
-    labels=placeholders["labels"]
-    mask=placeholders["mask"]
-    dropout_rate=placeholders["dropout_rate"]
-    wd_b=None
-    wd_w=0.1
+        layer=features
+        layer=kgcn.layers.GraphConv(64,adj_channel_num)(layer,adj=in_adjs)
+        layer=tf.nn.relu(layer)
+        layer=kgcn.layers.GraphMaxPooling(adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphBatchNormalization()(
+            layer,max_node_num=info.graph_node_num,
+            enabled_node_nums=enabled_node_nums)
+        layer=K.layers.Dropout(dropout_rate)(layer)
 
-    layer=features
-    input_dim=info.feature_dim
-    if features is None:
-        layer=emmbeding_layer("embeding",in_nodes,info.all_node_num,embedding_dim,init_params_flag=True,params=None)
-        input_dim=embedding_dim
-    # layer: batch_size x graph_node_num x dim
-    with tf.variable_scope("gcn_1") as scope:
-        output_dim=64
-        layer = layers.gcn_layer("graph_conv",layer,in_adjs,input_dim,output_dim,
-                adj_channel_num=adj_channel_num,node_num=info.graph_node_num,batch_size=batch_size)
-        layer = tf.nn.relu(layer)
-        input_dim=output_dim
-    with tf.variable_scope("pooling_1") as scope:
-        layer = layers.graph_max_pooling_layer(layer,in_adjs, input_dim,
-                adj_channel_num=adj_channel_num,node_num=info.graph_node_num,batch_size=batch_size)
-    with tf.variable_scope("bn_1") as scope:
-        layer=layers.graph_batch_normalization("bn",layer,input_dim,info.graph_node_num,init_params_flag=True,params=None)
-    with tf.variable_scope("do_1") as scope:
-        layer=layers.graph_dropout_layer(layer,info.graph_node_num,input_dim,dropout_rate)
+        layer=kgcn.layers.GraphConv(128,adj_channel_num)(layer,adj=in_adjs)
+        layer=tf.nn.relu(layer)
+        layer=kgcn.layers.GraphMaxPooling(adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphBatchNormalization()(
+            layer,max_node_num=info.graph_node_num,
+            enabled_node_nums=enabled_node_nums)
+        layer=K.layers.Dropout(dropout_rate)(layer)
 
-    with tf.variable_scope("gcn_2") as scope:
-        output_dim=128
-        layer = layers.gcn_layer("graph_conv",layer,in_adjs,input_dim,output_dim,adj_channel_num=adj_channel_num,node_num=info.graph_node_num,batch_size=batch_size)
-        layer = tf.sigmoid(layer)
-        input_dim=output_dim
-    with tf.variable_scope("pooling_2") as scope:
-        layer = layers.graph_max_pooling_layer(layer,in_adjs, input_dim,
-                adj_channel_num=adj_channel_num,node_num=info.graph_node_num,batch_size=batch_size)
-    with tf.variable_scope("bn_2") as scope:
-        layer=layers.graph_batch_normalization("bn",layer,input_dim,info.graph_node_num,init_params_flag=True,params=None)
-    with tf.variable_scope("do_2") as scope:
-        layer=layers.graph_dropout_layer(layer,info.graph_node_num,input_dim,dropout_rate)
+        layer=kgcn.layers.GraphConv(128,adj_channel_num)(layer,adj=in_adjs)
+        layer=tf.nn.relu(layer)
+        layer=kgcn.layers.GraphMaxPooling(adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphBatchNormalization()(
+            layer,max_node_num=info.graph_node_num,
+            enabled_node_nums=enabled_node_nums)
+        layer=K.layers.Dropout(dropout_rate)(layer)
 
-    with tf.variable_scope("gcn_3") as scope:
-        output_dim=128
-        layer = layers.gcn_layer("graph_conv",layer,in_adjs,input_dim,output_dim,adj_channel_num=adj_channel_num,node_num=info.graph_node_num,batch_size=batch_size)
-        layer = tf.sigmoid(layer)
-        input_dim=output_dim
-    with tf.variable_scope("pooling_3") as scope:
-        layer = layers.graph_max_pooling_layer(layer,in_adjs, input_dim,
-                adj_channel_num=adj_channel_num,node_num=info.graph_node_num,batch_size=batch_size)
-    with tf.variable_scope("bn_3") as scope:
-        layer=layers.graph_batch_normalization("bn",layer,input_dim,info.graph_node_num,init_params_flag=True,params=None)
-    with tf.variable_scope("do_3") as scope:
-        layer=layers.graph_dropout_layer(layer,info.graph_node_num,input_dim,dropout_rate)
+        layer=kgcn.layers.GraphConv(64,adj_channel_num)(layer,adj=in_adjs)
+        layer=tf.nn.relu(layer)
+        layer=kgcn.layers.GraphMaxPooling(adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphBatchNormalization()(
+            layer,max_node_num=info.graph_node_num,
+            enabled_node_nums=enabled_node_nums)
+        layer=K.layers.Dropout(dropout_rate)(layer)
 
+        layer=kgcn.layers.GraphDense(64)(layer)
+        layer=tf.sigmoid(layer)
 
-    with tf.variable_scope("fc4") as scope:
-        output_dim=64
-        layer = layers.graph_fc_layer("fc",layer,input_dim, output_dim,info.graph_node_num, init_params_flag=True,params=None,wd_w=wd_w,wd_b=wd_b,activate=tf.sigmoid,with_bn=False)
-        input_dim=output_dim
-    with tf.variable_scope("gathering") as scope:
-        layer = layers.graph_gathering_layer(layer)
-    with tf.variable_scope("fc5") as scope:
-        output_dim=2
-        model = layers.fc_layer("fc3",layer,input_dim, output_dim, init_params_flag=True,params=None,wd_w=wd_w,wd_b=wd_b,activate=None,with_bn=False)
+        layer=kgcn.layers.GraphGather()(layer)
+        layer=K.layers.Dense(2)(layer)
+        prediction=tf.nn.softmax(layer,name="output")
+        ###
+        # computing cost and metrics
+        cost=mask*tf.nn.softmax_cross_entropy_with_logits(labels=labels,logits=layer)
+        cost_opt=tf.reduce_mean(cost)
 
-    prediction=tf.nn.softmax(model)
-    # computing cost and metrics
-    cost=mask*tf.nn.softmax_cross_entropy_with_logits(labels=labels,logits=model)
-    cost_opt=tf.reduce_mean(cost)
+        metrics={}
+        cost_sum=tf.reduce_sum(cost)
 
-    metrics={}
-    cost_sum=tf.reduce_sum(cost)
-
-    correct_count=mask*tf.cast(tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1)),tf.float32)
-    metrics["correct_count"]=tf.reduce_sum(correct_count)
-    return model,prediction,cost_opt,cost_sum,metrics
+        correct_count=mask*tf.cast(tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1)),tf.float32)
+        metrics["correct_count"]=tf.reduce_sum(correct_count)
+        return layer,prediction,cost_opt,cost_sum,metrics
 

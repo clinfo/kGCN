@@ -1,5 +1,5 @@
 {
-    "model.py": "example_model.model_multimodal",
+    "model.py": "example_model.model_multimodal:GCN",
     "save_result_test": "./result/test.multimodal.csv",
     "save_result_train": "./result/train.multimodal.csv",
     "load_model": "./model/model.sample_multimodal.ckpt",

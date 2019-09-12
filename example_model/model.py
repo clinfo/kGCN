@@ -22,7 +22,6 @@ class GCN(DefaultModel):
         dropout_rate=placeholders["dropout_rate"]
 
         layer=features
-        input_dim=info.feature_dim
         layer=kgcn.layers.GraphConv(50,adj_channel_num)(layer,adj=in_adjs)
         layer=tf.sigmoid(layer)
         layer=kgcn.layers.GraphConv(50,adj_channel_num)(layer,adj=in_adjs)

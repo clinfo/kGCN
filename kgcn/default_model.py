@@ -14,6 +14,8 @@ class DefaultModel:
             'enabled_node_nums': tf.placeholder(tf.int32, shape=(batch_size,), name="enabled_node_nums"),
             'is_train': tf.placeholder(tf.bool, name="is_train"),
             'enabled_node_nums': tf.placeholder(tf.int32, shape=(batch_size,), name="enabled_node_nums"),
+            'sequences': tf.placeholder(tf.int32,shape=(batch_size,info.sequence_max_length),name="sequences"),
+            'sequences_len': tf.placeholder(tf.int32,shape=(batch_size,2), name="sequences_len"),
         }
 
         placeholders['preference_label_list']= tf.placeholder(tf.int64, shape=(batch_size,None,6),name="preference_label_list")
