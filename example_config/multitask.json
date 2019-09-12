@@ -1,5 +1,5 @@
 {
-    "model.py": "example_model.model_multitask",
+    "model.py": "example_model.model_multitask:GCN",
     "save_result_test": "./result/test.multitask.csv",
     "save_result_train": "./result/train.multitask.csv",
     "load_model": "./model/model.sample_multitask.ckpt",

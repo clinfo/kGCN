@@ -10,6 +10,8 @@ class DefaultModel:
             'mask_node_label': tf.placeholder(tf.float32, shape=(batch_size,info.graph_node_num),name="node_mask_label"),
             'labels': tf.placeholder(tf.float32, shape=(batch_size,info.label_dim),name="label"),
             'mask': tf.placeholder(tf.float32, shape=(batch_size,),name="mask"),
+            'mask_label': tf.placeholder(tf.float32, shape=(batch_size,info.label_dim),name="mask_label"),
+            'mask_node': tf.placeholder(tf.float32, shape=(batch_size,info.graph_node_num),name="mask_node"),
             'dropout_rate': tf.placeholder(tf.float32, name="dropout_rate"),
             'enabled_node_nums': tf.placeholder(tf.int32, shape=(batch_size,), name="enabled_node_nums"),
             'is_train': tf.placeholder(tf.bool, name="is_train"),
