@@ -1,5 +1,5 @@
 {
-    "model.py": "example_model.model",
+    "model.py": "example_model.model:GCN",
     "save_result_test": "./result/test.csv",
     "save_result_train": "./result/train.csv",
     "save_result_valid": "result/valid_result",
