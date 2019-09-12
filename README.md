@@ -41,9 +41,14 @@ conda install tensorflow
 conda install tensorflow-gpu
 ```
 
-Finally, please clone this repositpry
+Finally, please install kGCN
 ```
-git clone <this repository URL>
+pip install --upgrade git+https://github.com/clinfo/kGCN.git
+```
+
+Sample programs can be downloaded by git clone from this repositpry:
+```
+git clone https://github.com/clinfo/kGCN.git
 ```
 
 Optional library
@@ -51,6 +56,7 @@ Optional library
 sudo apt install -y libfontconfig1 libxrender1
 conda install rdkit -c rdkit
 ```
+
 
 ### Installation (for CentOS 7)
 
@@ -72,11 +78,16 @@ conda install tensorflow
 conda install tensorflow-gpu
 ```
 
-Finally, please clone this repositpry
+Finally, please install kGCN
+```
+pip install --upgrade git+https://github.com/clinfo/kGCN.git
+```
+
+Sample programs can be downloaded by git clone from this repositpry:
 ```
 # if you don't have git 
 sudo yum install git
-git clone <this repository URL>
+git clone https://github.com/clinfo/kGCN.git
 ```
 
 Optional library
