@@ -10,7 +10,7 @@ class GCN(DefaultModel):
             ['adjs','nodes','labels','mask','dropout_rate',
             'enabled_node_nums','is_train','features'])
 
-    def build_model(placeholders,info,config,batch_size=4):
+    def build_model(self,placeholders,info,config,batch_size):
         adj_channel_num=info.adj_channel_num
         in_adjs=placeholders["adjs"]
         features=placeholders["features"]
