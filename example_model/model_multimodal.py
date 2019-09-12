@@ -37,7 +37,8 @@ class GCN(DefaultModel):
             layer=kgcn.layers.GraphConv(50,adj_channel_num)(layer,adj=in_adjs)
             layer=kgcn.layers.GraphMaxPooling(adj_channel_num)(layer,adj=in_adjs)
             layer=kgcn.layers.GraphBatchNormalization()(layer,
-                max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
+                max_node_num=info.graph_node_num,
+                enabled_node_nums=enabled_node_nums)
             layer=tf.sigmoid(layer)
             layer=K.layers.Dropout(dropout_rate)(layer)
             layer=kgcn.layers.GraphDense(50)(layer)

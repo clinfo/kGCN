@@ -11,7 +11,7 @@ class GCN(DefaultModel):
             'enabled_node_nums','is_train','features',
             'mask_label','mask_node'])
 
-    def build_model(placeholders,info,config,batch_size=4):
+    def build_model(self,placeholders,info,config,batch_size=4):
         adj_channel_num=info.adj_channel_num
         embedding_dim=config["embedding_dim"]
         in_adjs=placeholders["adjs"]
@@ -31,20 +31,20 @@ class GCN(DefaultModel):
             layer=K.layers.Embedding(info.all_node_num,embedding_dim)(in_nodes)
             input_dim=embedding_dim
         # layer: batch_size x graph_node_num x dim
-        layer=layers.GraphConv(256,adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphConv(256,adj_channel_num)(layer,adj=in_adjs)
         layer=tf.sigmoid(layer)
-        layer=layers.GraphConv(256,adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphConv(256,adj_channel_num)(layer,adj=in_adjs)
         layer=tf.sigmoid(layer)
-        layer=layers.GraphDense(256)(layer)
+        layer=kgcn.layers.GraphDense(256)(layer)
         layer=tf.sigmoid(layer)
-        layer=layers.GraphConv(50,adj_channel_num)(layer,adj=in_adjs)
-        #layer=layers.GraphMaxPooling(adj_channel_num)(layer,adj=in_adjs)
-        layer=layers.GraphBatchNormalization()(layer,
-            max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
+        layer=kgcn.layers.GraphConv(50,adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphBatchNormalization()(layer,
+            max_node_num=info.graph_node_num,
+            enabled_node_nums=enabled_node_nums)
         layer=tf.sigmoid(layer)
-        layer=layers.GraphDense(50)(layer)
+        layer=kgcn.layers.GraphDense(50)(layer)
         layer=tf.sigmoid(layer)
-        layer=layers.GraphGather()(layer)
+        layer=kgcn.layers.GraphGather()(layer)
         layer=K.layers.Dense(info.label_dim)(layer)
         ###
         ### multi-task loss

@@ -1,5 +1,5 @@
 {
-    "model.py": "example_model.model_node_label",
+    "model.py": "example_model.model_node_label:GCN",
     "save_result_test": "./result/test.csv",
     "save_result_train": "./result/train.csv",
     "load_model": "./model/model.node_label.last.ckpt",
