@@ -100,13 +100,13 @@ conda install rdkit -c rdkit
 
 For training
 ```bash
-python gcn.py train --config example_config/sample.json
+kgcn train --config example_config/sample.json
 ```
 where sample.json is a config file.
 
 For testing and inferrence
 ```bash
-python gcn.py infer --config example_config/sample.json --model model/model.sample.last.ckpt
+kgcn infer --config example_config/sample.json --model model/model.sample.last.ckpt
 ```
 where model/model.sample.last.ckpt is a trained model file.
 
@@ -116,7 +116,7 @@ where model/model.sample.last.ckpt is a trained model file.
 Our sample dataset file (example.jbl) is created by the following command:
 
 ```bash
-python make_example.py
+python example_script/make_example.py
 ```
 
 When you create your own dataset, you can refer make_sample.py.
@@ -125,7 +125,7 @@ This script converts adjacency matrices (example_data/adj.txt), features (exampl
 For example, in training phases, you can specify a dataset as follows:
 
 ```bash
-python gcn.py train --config example_config/sample.json --dataset example_jbl/sample.jbl
+kgcn train --config example_config/sample.json --dataset example_jbl/sample.jbl
 ```
 
 ## Configuration
@@ -133,14 +133,14 @@ python gcn.py train --config example_config/sample.json --dataset example_jbl/sa
 You can specify a configuration file (example_config/sample.json) as follows:
 
 ```bash
-python gcn.py train  --config example_config/sample.json
+kgcn train --config example_config/sample.json
 ```
 ## The commands of gcn.py
 
-gcn.py has three commands: *train*/*infer*/*train_cv*.
-You can specify a command from those as follows:
+kgcn has three commands: *train*/*infer*/*train_cv*.
+You can specify a command as follows:
 ```bash
-python gcn.py <command> --config example_config/sample.json
+kgcn <command> --config example_config/sample.json
 ```
 - *train* command: 
 The script trains a model and saves it.
@@ -322,29 +322,21 @@ where the lengths of "adj" ("dense_adj"), "feature", "label",and "node" need to 
 ├── example_jbl/     : examples of jbl. files
 ├── example_model/   : examples of model files
 ├── example_param/   : examples of parameter domain files
+├── example_script/ : scripts for the examples
 ├── gcn.py           : the main engin of this project
 ├── gcn_gen.py       : an engin for generative models
 ├── gcn_pair.py      : an engin for ranking models
 ├── opt_hyperparam.py        :an engin for optimization of hyper parameters
-├── gcn_modules
+├── kgcn
 │   ├── core.py          : a main program files for the GCN model 
 │   ├── data_util.py     : utilities for data handling
 │   ├── error_checker.py : error checker
 │   ├── feed.py          : functions to build feed dictionaries
 │   ├── feed_index.py    : functions to build feed dictionaries (index base)
 │   ├── make_plots.py    : functions to plot graphs
+│   ├── layers.py            : GCN-related layers
 │   └── visualization.py : functions to visualize trained models
 ├── graph_kernel/        : graph kernel SVM
-├── layers.py            : GCN-related layers
-├── layers_op.py         : GCN-related operations (Deprecated)
-├── make_compare_dataset.py  : a script to compare multiple datasets
-├── make_example.py          : a script for the first example
-├── make_example_adj.py      : a script for an example for multiple adj. matrices
-├── make_example_node_label.py  : a script for an example for node-centric data, where several nodes in a graph have labels
-├── make_kg_datapair.py      : a script for an example for knowledge graphs with graph pair
-├── make_kg_dataset.py       : a script for an example for knowledge graphs
-├── make_synth.py            : a script for an example for synthetic data
-├── make_synth_sp.py         : a script for an example for synthetic data with sparse adj. matrices
 ├── logs/   : output directory for exmaples
 ├── model/  : output directory for exmaples
 ├── result/ : output directory for exmaples
@@ -367,17 +359,17 @@ where the lengths of "adj" ("dense_adj"), "feature", "label",and "node" need to 
 We provide additional example using synthetic data to discriminate 5-node rings and 6-node rings.
 The following command generates synthetic data as text formats:
 ```bash
-pyhton data_generator/synth_generator_ring.py
+python data_generator/synth_generator_ring.py
 ```
 
 The following command generates .jbl from text:
 ```bash
-python make_synth.py
+python example_script/make_synth.py
 ```
 
 The following command carries out cross-validation: 
 ```bash
-python gcn.py train_cv --config example_config/synth.json
+kgcn train_cv --config example_config/synth.json
 ```
 Accuracy and the other scores are stored in:
 ```
@@ -395,14 +387,14 @@ We prepared additional samples for multimodal and multitask learning.
 You can specify a configuration file (sample_multimodal_config.json/sample_multitask_config.json) as follows:
 
 ```bash
-python gcn.py --config example_config/multimodal.json train
+kgcn --config example_config/multimodal.json train
 ```
 For multimodal, symbolic sequences and graph data are used as the inputs of a neural network.
 This configuration file specifies the program of model as "model_multimodal.py", which includes definition of neural networks for graphs, sequences, and combining them.
 Please reffer to sample/seq.txt and a coverting program (make_example.py) to prepare sequence data, 
 
 ```bash
-python gcn.py --config example_config/multitask.json train
+kgcn --config example_config/multitask.json train
 ```
 
 In this sample, "multitask" means that multiple labels are allowed for one graph.
@@ -419,17 +411,17 @@ pip install mendeleev
 ```
 - First, create the input dataset from a molecule file and a label file
 ```bash
-python sample_chem/ChemTool/prep.py -s example_data/mol.sma -l example_data/reaction_label.csv --no_header -o example_jbl/reaction.jbl -a 203 --sparse_label
+kgcn-chem -s example_data/mol.sma -l example_data/reaction_label.csv --no_header -o example_jbl/reaction.jbl -a 203 --sparse_label
 ```
 - Then, run "gcn.py" by "infer" command to get the accuracy.
 ```bash
-python gcn.py infer --config example_config/reaction.json
+kgcn infer --config example_config/reaction.json
 ```
 This is a sample usage of visualization of the prediction.  
 - First, install the gcnvisualizer following "kGCN/gcnvisualizer" instruction.  
 - Then, prepare the input files for gcnvisualizer.
 ```bash
-python gcn.py visualize --config example_config/reaction.json
+kgcn visualize --config example_config/reaction.json
 ```
 - Finally, run "gcnv" command to create the figures of the visualization.
 ```bash
@@ -453,7 +445,7 @@ example_config/vae.json is a setting for VAE (Variational Auto-encoder) that is 
 ### Hyperparamter optimization
 
 ```bash
-python3 opt_hyperparam.py --config ./example_config/opt_param.json  --domain ./example_param/domain.json
+python opt_hyperparam.py --config ./example_config/opt_param.json  --domain ./example_param/domain.json
 ```
 
 opt_hyperparam.py is a script for hyperparameter optimization using GPyOpt library (https://github.com/SheffieldML/GPyOpt), a Bayesian optimization libraly.
