@@ -18,5 +18,5 @@
     "patience": 0,
 	"split_adj_flag": false,
 "reconstruction_test":"recons.jbl",
-    "dataset": "sample_dataset_tox21/multitask.jbl"
+    "dataset": "example_jbl/synthetic.jbl"
 }

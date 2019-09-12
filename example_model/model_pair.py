@@ -1,7 +1,5 @@
 import tensorflow as tf
-import numpy as np
-import joblib
-import layers
+import kgcn.layers
 import tensorflow.contrib.keras as K
 
 def build_placeholders(info,config,batch_size=4):
@@ -36,19 +34,19 @@ def build_nn(inputs,info,config,batch_size=4):
         layer=K.layers.Embedding(info.all_node_num,embedding_dim)(in_nodes)
         input_dim=embedding_dim
     # layer: batch_size x graph_node_num x dim
-    layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
+    layer=kgcn.layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
     layer=tf.sigmoid(layer)
-    layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
+    layer=kgcn.layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
     layer=tf.sigmoid(layer)
-    layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
-    layer=layers.GraphMaxPooling(adj_channel_num)(layer,adj=in_adjs)
-    layer=layers.GraphBatchNormalization()(layer,
+    layer=kgcn.layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
+    layer=kgcn.layers.GraphMaxPooling(adj_channel_num)(layer,adj=in_adjs)
+    layer=kgcn.layers.GraphBatchNormalization()(layer,
         max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
     layer=tf.sigmoid(layer)
     layer=K.layers.Dropout(dropout_rate)(layer)
-    layer=layers.GraphDense(internal_dim)(layer)
+    layer=kgcn.layers.GraphDense(internal_dim)(layer)
     layer=tf.sigmoid(layer)
-    layer=layers.GraphGather()(layer)
+    layer=kgcn.layers.GraphGather()(layer)
     layer=K.layers.Dense(info.label_dim)(layer)
     return model
 

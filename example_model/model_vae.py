@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import joblib
-import layers
+import kgcn.layers
 #import tensorflow.contrib.keras as K
 from tensorflow.python.keras.layers import Dense
 
@@ -36,17 +36,17 @@ def encode(name,inputs,info,batch_size):
 
     with tf.variable_scope(name):
         layer=features
-        layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
-        layer=layers.GraphBatchNormalization()(layer,
+        layer=kgcn.layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphBatchNormalization()(layer,
             max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
         layer = tf.tanh(layer)
-        layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
-        layer=layers.GraphBatchNormalization()(layer,
+        layer=kgcn.layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphBatchNormalization()(layer,
             max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
         layer = tf.tanh(layer)
-        layer=layers.GraphDense(internal_dim)(layer)
+        layer=kgcn.layers.GraphDense(internal_dim)(layer)
         layer=tf.sigmoid(layer)
-        layer=layers.GraphGather()(layer)
+        layer=kgcn.layers.GraphGather()(layer)
 
         mean_layer=Dense(encoder_output_dim,kernel_initializer='random_uniform')(layer)
         std_layer=Dense(encoder_output_dim)(layer)
@@ -65,7 +65,7 @@ def decode_nodes(name,inputs,info):
     is_train=inputs["is_train"]
     enabled_node_nums=inputs['enabled_node_nums']
     with tf.variable_scope(name):
-        layer=layers.GraphDense(decoded_output_dim,kernel_initializer='random_uniform',name="dense_1")(layer)
+        layer=kgcn.layers.GraphDense(decoded_output_dim,kernel_initializer='random_uniform',name="dense_1")(layer)
     return layer
 
 def decode_links(name,inputs,info):
@@ -77,14 +77,14 @@ def decode_links(name,inputs,info):
     node_num=inputs["decoded_node_num"]
     enabled_node_nums=inputs['enabled_node_nums']
     with tf.variable_scope(name):
-        layer=layers.GraphDense(internal_dim,name="dense_1")(layer)
-        layer=layers.GraphBatchNormalization(name="bn_1")(layer,
+        layer=kgcn.layers.GraphDense(internal_dim,name="dense_1")(layer)
+        layer=kgcn.layers.GraphBatchNormalization(name="bn_1")(layer,
             max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
         layer=tf.sigmoid(layer)
-        layer=layers.GraphDense(internal_dim,name="dense_2")(layer)
+        layer=kgcn.layers.GraphDense(internal_dim,name="dense_2")(layer)
         layer=tf.sigmoid(layer)
-        #layer=layers.GraphDecoderInnerProd()(layer)
-        layer=layers.GraphDecoderDistMult()(layer)
+        #layer=kgcn.layers.GraphDecoderInnerProd()(layer)
+        layer=kgcn.layers.GraphDecoderDistMult()(layer)
     return layer
 
 
@@ -128,7 +128,6 @@ def build_model(placeholders,info,config,batch_size=4):
     layer_std=tf.tile(layer_std,(1,info.graph_node_num,1))
 
     layer=layer_mean+layer_std*placeholders["epsilon"] # reparameterization trick
-    print(layer.shape)
     # TODO: use stable cost function
     e=1.0e-10
     klqp_loss_el=1+2*tf.log(layer_std+e)-layer_mean**2-layer_std
@@ -141,7 +140,7 @@ def build_model(placeholders,info,config,batch_size=4):
     input_decoder={
         "input_layer":layer,
         "input_layer_dim":64,
-        "output_layer_dim":75,
+        "output_layer_dim":features.shape[2],
         "decoded_node_num":decoded_node_num,
         "dropout_rate":placeholders["dropout_rate"],
         "is_train":placeholders["is_train"],
