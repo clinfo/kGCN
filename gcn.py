@@ -8,10 +8,10 @@ import importlib
 import os
 ## gcn project
 #import model
-import layers
-from gcn_modules.data_util import load_and_split_data, load_data, split_data
-from gcn_modules.core import CoreModel
-from gcn_modules.feed import construct_feed
+import kgcn.layers
+from kgcn.data_util import load_and_split_data, load_data, split_data
+from kgcn.core import CoreModel
+from kgcn.feed import construct_feed
 #align_size dense_to_sparse high_order_adj split_adj normalize_adj shuffle_data
 from tensorflow.python.framework import graph_util
 
@@ -110,7 +110,7 @@ def get_default_config():
 
 
 def plot_cost(config,data,model,prefix=""):
-    from gcn_modules.make_plots import make_cost_acc_plot
+    from kgcn.make_plots import make_cost_acc_plot
     data_idx=list(range(data.num))
     # plot cost
     result_path = config["plot_path"]
@@ -121,7 +121,7 @@ def plot_cost(config,data,model,prefix=""):
 
 #def plot_auc(config,data,pred_data,prefix=""):
 def plot_auc(config,labels,pred_data,prefix=""):
-    from gcn_modules.make_plots import make_auc_plot,make_multitask_auc_plot
+    from kgcn.make_plots import make_auc_plot,make_multitask_auc_plot
     result_path = config["plot_path"]
     os.makedirs(result_path, exist_ok=True)
     if config["plot_multitask"]:
@@ -130,7 +130,7 @@ def plot_auc(config,labels,pred_data,prefix=""):
         make_auc_plot(labels, pred_data, result_path+prefix)
 
 def plot_r2(config,labels,pred_data,prefix=""):
-    from gcn_modules.make_plots import make_r2_plot
+    from kgcn.make_plots import make_r2_plot
     result_path = config["plot_path"]
     os.makedirs(result_path, exist_ok=True)
     if config["plot_multitask"]:
@@ -203,7 +203,7 @@ def train(sess,graph,config):
 
 def train_cv(sess,graph,config):
     from sklearn.model_selection import KFold, StratifiedKFold
-    from gcn_modules.make_plots import make_auc_plot, make_cost_acc_plot
+    from kgcn.make_plots import make_auc_plot, make_cost_acc_plot
     import sklearn
     from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
     from scipy import interp
@@ -510,7 +510,7 @@ def cal_counterfactual(data, coef):
 #------------------------------------------------------------------------------
 def visualize(sess, config, args):
     from tensorflow.python import debug as tf_debug
-    from gcn_modules.visualization import cal_feature_IG
+    from kgcn.visualization import cal_feature_IG
     # 入力は１分子づつ
     batch_size = 1
     # 入力データから、全データの情報, 学習用データの情報, 検証用データの情報, および

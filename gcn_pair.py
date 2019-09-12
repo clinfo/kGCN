@@ -8,11 +8,11 @@ import importlib
 
 ## gcn project
 #import model
-import layers
+import kgcn.layers
 from gcn import dotdict,NumPyArangeEncoder
-from gcn_modules.data_util import align_size,dense_to_sparse,high_order_adj,split_adj,normalize_adj,DataLoadError,load_data
+from kgcn.data_util import align_size,dense_to_sparse,high_order_adj,split_adj,normalize_adj,DataLoadError,load_data
 from scipy.sparse import coo_matrix
-from gcn_modules.core import EarlyStopping
+from kgcn.core import EarlyStopping
 from gcn import get_default_config
 
 def construct_feed(batch_idx,placeholders,data,graph_index_list,batch_size,dropout_rate=0.0):

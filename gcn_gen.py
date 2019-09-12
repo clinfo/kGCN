@@ -9,16 +9,16 @@ import os
 
 ## gcn project
 #import model
-import layers
+import kgcn.layers
 from scipy.sparse import coo_matrix
 
 from gcn import dotdict,NumPyArangeEncoder
-from gcn_modules.data_util import align_size,dense_to_sparse,high_order_adj,split_adj,normalize_adj,DataLoadError
+from kgcn.data_util import align_size,dense_to_sparse,high_order_adj,split_adj,normalize_adj,DataLoadError
 from gcn import get_default_config, save_prediction
 
-from gcn_modules.data_util import load_and_split_data, load_data, split_data
-from gcn_modules.core import CoreModel,EarlyStopping
-from gcn_modules.feed_index import construct_feed
+from kgcn.data_util import load_and_split_data, load_data, split_data
+from kgcn.core import CoreModel,EarlyStopping
+from kgcn.feed_index import construct_feed
 
 def get_pos_weight(data):
     adjs=data.adjs
