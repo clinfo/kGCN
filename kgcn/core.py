@@ -6,13 +6,13 @@ import json
 import argparse
 import importlib
 import os
-from gcn_modules.feed import construct_feed
+from kgcn.feed import construct_feed
 # for profiler
 from tensorflow.python.client import timeline
 ## gcn project
 #import model
 
-from gcn_modules.data_util import shuffle_label_list
+from kgcn.data_util import shuffle_label_list
 
 
 class EarlyStopping:
