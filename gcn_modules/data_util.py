@@ -103,10 +103,11 @@ def split_adj(adjs,min_deg=1,max_deg=5):
                     new_adjs[split_ch[k]][0].append(e)
                     new_adjs[split_ch[k]][1].append(v)
             for m in new_adjs:
-                # duplicated elements at [0, 0] causes an error in gcn.
+                # duplicated elements at [0, 0] causes an error during the
+                # conversion to dense.
                 # if m[0] = [[0, 0], [0, 0], ...] and m[1] = [0, 1, ...], then
                 # the first elements of m[0] and m[1] should be removed.
-                if len(m[0]) > 2 and all(m[0][1] == [0, 0]):
+                if len(m[0]) > 1 and all(m[0][1] == [0, 0]):
                     m[0]=m[0][1:]
                     m[1]=m[1][1:]
                 m[0]=np.array(m[0],np.int32)
@@ -392,8 +393,8 @@ def build_data(config,data,prohibit_shuffle=False):
     info.graph_index_list=graph_index_list
     #used for class weights
     if all_data["mask_label"] is not None and all_data["labels"] is not None:
-        sum_all = np.sum(all_data["mask_label"],axis=0)
-        sum_positive =  np.sum(all_data["labels"],axis=0)
+        sum_all = np.nansum(all_data["mask_label"],axis=0)
+        sum_positive =  np.nansum(all_data["labels"],axis=0)
         sum_negative = sum_all-sum_positive
         pos_weight_epsilon=0.01
         info.pos_weight= (sum_negative+pos_weight_epsilon) / (sum_positive+pos_weight_epsilon)
@@ -515,3 +516,163 @@ def split_label_list(all_data,valid_data_rate=0.2,indices_for_train_data=None,in
     return train_data, valid_data
 
 
+def construct_batched_adjacency_and_feature_matrices(
+    size,
+    adj_row,
+    adj_column,
+    adj_values,
+    adj_elem_len,
+    adj_degrees,
+    feature_row,
+    feature_column,
+    feature_values,
+    feature_elem_len,
+    input_dim,
+    max_degree=5,
+    normalize=True,
+    split_adj=False,
+):
+    """
+    Constructs a batched, sparse adjacency matrix.
+    For example to make a batch of two adjacency matrices of 2 and 3 nodes:
+    ```
+    Example:
+        >>> # first adjacency matrix: [[1, 1], [1, 1]]
+        >>> # second adjacency matrix: [[1, 1, 0], [1, 1, 1], [0, 1, 1]]
+        >>> import tensorflow as tf
+        >>> tf.enable_eager_execution()
+        >>> size = tf.contant([2, 3], tf.int64)
+        >>> adj_row = tf.constant([0, 0, 1, 1, 0, 0, 1, 1, 1, 2, 2], tf.int64)
+        >>> adj_column = tf.constant([0, 1, 0, 1, 0, 1, 0, 1, 2, 1, 2], tf.int64)
+        >>> adj_values = tf.constant([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], tf.float32)
+        >>> adj_elem_len = tf.constant([2, 3], tf.int64)
+        >>> feature_row = tf.constant([0, 1, 0, 1, 2], tf.int64)
+        >>> feature_column = tf.constant([2, 3, 1, 2, 3], tf.int64)
+        >>> feature_values = tf.constant([4, 5, 1, 2, 3], tf.int64)
+        >>> feature_elem_len = tf.constant([2, 3], tf.int64)
+        >>> diagonalized_adj, feature_mat = construct_batched_adjacency_matrix(size, adj_row, adj_column, adj_values, adj_elem_len, adj_degrees, feature_row, feature_column, feature_values, feature_elem_len, 10, normalize=False, split_adj=False)
+        >>> tf.sparse.to_dense(diagonalized_adj[0]).numpy()
+        array([[1., 1., 0., 0., 0].,
+               [1., 1., 0., 0., 0].,
+               [0., 0., 1., 1., 0].,
+               [0., 0., 1., 1., 1].,
+               [0., 0., 0., 1., 1]]
+        >>> feature_mat.numpy()
+        array([[0, 0, 4, 0, 0, 0, 0, 0, 0, 0],
+               [0, 0, 0, 5, 0, 0, 0, 0, 0, 0],
+               [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+               [0, 0, 2, 0, 0, 0, 0, 0, 0, 0],
+               [0, 0, 0, 3, 0, 0, 0, 0, 0, 0], dtype=int32)
+
+    Parameters:
+        size: sizes of adjacency matrices.
+        adj_row: concatenated row indices of all matrices in a batch.
+        adj_column: concatenated column indices of all matrices in a batch.
+        adj_values: concatenated values of elements of all matrices in a batch
+        adj_elem_len: number of non-zero elements in all matrices.
+        adj_degrees: degree of each node
+        feature_row: concatenated row indices of all feature matrices.
+        feature_column: concatenated column indices of all feature matrices.
+        feature_values: concatenated values in all feature matrices.
+        feature_elem_len: number of non-zero elements n all feature matrices.
+        input_dim: dimension of each node in feature matrices.
+        normalize: normalizes the adjacency matrix if True.
+        split_adj: splits the adjacency matrix based on degrees of nodes if True.
+    Returns:
+        Batched adjacency matrix.
+
+    """
+    with tf.device("/cpu:0"):
+        cumsum = tf.cumsum(size)
+
+        adj_row = adj_row
+        adj_col = adj_column
+        adj_elem_len = adj_elem_len
+        start = tf.cumsum(adj_elem_len, exclusive=True)
+        offset = tf.cumsum(size, exclusive=True)
+        start_size_offset = tf.stack([start, adj_elem_len, offset], 1)
+
+    def offset_index(row_or_column):
+        def split_sum(a, x):
+            padded_index = tf.concat(
+                [
+                    tf.zeros(x[0], tf.int64),
+                    row_or_column[x[0] : x[0] + x[1]] + x[2],
+                    tf.zeros(
+                        tf.shape(row_or_column, out_type=tf.int64)[0] - x[0] - x[1],
+                        tf.int64,
+                    ),
+                ],
+                0,
+            )
+            return padded_index
+
+        return split_sum
+
+    with tf.device("/cpu:0"):
+        padded_rows = tf.scan(
+            offset_index(adj_row), start_size_offset, initializer=adj_row
+        )
+        padded_columns = tf.scan(
+            offset_index(adj_col), start_size_offset, initializer=adj_col
+        )
+    diagonal_row = tf.reduce_sum(padded_rows, axis=0)
+    diagonal_col = tf.reduce_sum(padded_columns, axis=0)
+    adj_shape = [tf.reduce_sum(size), tf.reduce_sum(size)]
+    if normalize:
+        diagonalized_adj = tf.SparseTensor(
+            indices=tf.transpose(tf.stack([diagonal_row, diagonal_col])),
+            values=adj_values,
+            dense_shape=adj_shape,
+        )
+        degree_hat = tf.sparse.reduce_sum(diagonalized_adj, axis=0)
+        diagonalized_adj = (
+            diagonalized_adj
+            / tf.sqrt(degree_hat)
+            / tf.expand_dims(tf.sqrt(degree_hat), 1)
+        )
+        diagonalized_adj = [diagonalized_adj]  # number of channel is 1.
+    elif split_adj:
+        adj_degrees = adj_degrees
+
+        adj_degrees = tf.clip_by_value(
+            adj_degrees, 0, max_degree
+        )  # degree is the number of edges on each node, including the one to itself. A node with degree 1 is not connected with any other node.
+        diagonalized_adj = []
+        for degree in range(1, max_degree + 1):
+            row_deg = tf.boolean_mask(diagonal_row, tf.equal(adj_degrees, degree))
+            row_col = tf.boolean_mask(diagonal_col, tf.equal(adj_degrees, degree))
+            diagonalized_adj.append(
+                tf.SparseTensor(
+                    indices=tf.transpose(tf.stack([row_deg, row_col])),
+                    values=tf.boolean_mask(adj_values, tf.equal(adj_degrees, degree)),
+                    dense_shape=adj_shape,
+                )
+            )
+        diagonalized_adj.append(tf.sparse.eye(adj_shape[0]))  # connection to self
+    else:
+        diagonalized_adj = tf.SparseTensor(
+            indices=tf.transpose(tf.stack([diagonal_row, diagonal_col])),
+            values=adj_values,
+            dense_shape=adj_shape,
+        )
+        diagonalized_adj = [diagonalized_adj]
+
+
+    start_feature = tf.cumsum(feature_elem_len, exclusive=True)
+    start_size_offset_feature = tf.stack([start_feature, feature_elem_len, offset], 1)
+    with tf.device("/cpu:0"):
+        padded_rows_feature = tf.scan(
+            offset_index(feature_row),
+            start_size_offset_feature,
+            initializer=feature_row,
+        )
+    stacked_row = tf.reduce_sum(padded_rows_feature, axis=0)
+    net = tf.SparseTensor(
+        indices=tf.transpose(tf.stack([stacked_row, feature_column])),
+        values=feature_values,
+        dense_shape=[tf.reduce_sum(size), input_dim],
+    )
+    net = tf.sparse_reorder(net)
+    net = tf.sparse_tensor_to_dense(net)
+    return diagonalized_adj, net

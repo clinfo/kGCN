@@ -21,51 +21,68 @@ Now, you have to execute the python codes directly.
   * tensorflow (>0.12)
   * joblib
 
-### Anaconda install
-First, please install anaconda by the official anaconda instruction [https://conda.io/docs/user-guide/install/linux.html].
-#### Reference
+### Installation (for Ubuntu 18.04)
 
-- Installing pyenv
+First, please install anaconda by the anaconda instruction.
 ```
-git clone https://github.com/yyuu/pyenv.git ~/.pyenv
-echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bashrc
-echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bashrc
-echo 'eval "$(pyenv init -)"' >> ~/.bashrc
-source ~/.bashrc
-```
-
-- Found latest version of anaconda
-```
-pyenv install -l | grep ana
-```
-
-- Installing anaconda
-```
-pyenv install anaconda3-4.3.1
-pyenv rehash
-pyenv global anaconda3-4.3.1
-echo 'export PATH="$PYENV_ROOT/versions/anaconda3-4.3.1/bin/:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-conda update conda
+wget https://repo.anaconda.com/archive/Anaconda3-2019.07-Linux-x86_64.sh
+sh ./Anaconda3-2019.07-Linux-x86_64.sh
 ```
 
 Next, please install following libraries.
 ```
-# for CPU-only
-pip install --ignore-installed --upgrade tensorflow==1.12.0
-# with GPU support
-pip install --ignore-installed --upgrade tensorflow_gpu==1.12.0
+source ~/.bashrc
+conda update conda
+conda install joblib
 
-pip install joblib
+# for CPU-only
+conda install tensorflow
+# with GPU support
+conda install tensorflow-gpu
+```
+
+Finally, please clone this repositpry
+```
+git clone <this repository URL>
 ```
 
 Optional library
 ```
-pip install keras
-pip install matplotlib
-pip install seaborn
-conda install -c rdkit rdkit
-pip install IPython
+sudo apt install -y libfontconfig1 libxrender1
+conda install rdkit -c rdkit
+```
+
+### Installation (for CentOS 7)
+
+First, please install anaconda by the anaconda instruction.
+```
+curl -O  https://repo.anaconda.com/archive/Anaconda3-2019.07-Linux-x86_64.sh
+sh ./Anaconda3-2019.07-Linux-x86_64.sh
+```
+
+Next, please install following libraries.
+```
+source ~/.bashrc
+conda update conda
+conda install joblib
+
+# for CPU-only
+conda install tensorflow
+# with GPU support
+conda install tensorflow-gpu
+```
+
+Finally, please clone this repositpry
+```
+# if you don't have git 
+sudo yum install git
+git clone <this repository URL>
+```
+
+Optional library
+```
+sudo yum -y install fontconfig-devel libXrender libXext
+conda install rdkit -c rdkit
 ```
 
 ## Run the demo
@@ -107,7 +124,7 @@ You can specify a configuration file (example_config/sample.json) as follows:
 ```bash
 python gcn.py train  --config example_config/sample.json
 ```
-## Command-line tool: gcn.py
+## The commands of gcn.py
 
 gcn.py has three commands: *train*/*infer*/*train_cv*.
 You can specify a command from those as follows:
@@ -382,7 +399,13 @@ This configuration file specifies the program of model as "model_multitask.py", 
 Please reffer to sample_data/multi_label.txt and a coverting program (make_sample.py) to prepare multi labeled data, 
 
 ### Reaction prediction and visualization
+
+
 This is a sample usage of a reaction prediction.
+- The following additional library is required:
+```
+pip install mendeleev
+```
 - First, create the input dataset from a molecule file and a label file
 ```bash
 python sample_chem/ChemTool/prep.py -s example_data/mol.sma -l example_data/reaction_label.csv --no_header -o example_jbl/reaction.jbl -a 203 --sparse_label
