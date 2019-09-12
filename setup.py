@@ -3,10 +3,7 @@ import shutil
 import os
 from pathlib import Path
 path=os.path.dirname(os.path.abspath(__file__))
-shutil.copyfile(path+"/layers.py", path+"/gcn_modules/layers.py")
-if not os.path.isdir(path+"/kgcn"):
-    shutil.copytree(path+"/gcn_modules",path+"/kgcn")
-Path(path+"/kgcn/__init__.py").touch()
+shutil.copyfile(path+"/gcn.py", path+"/kgcn/gcn.py")
 
 setuptools.setup(
     name="kGCN",
@@ -18,6 +15,11 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/clinfo/kGCN",
     packages=setuptools.find_packages(),
+    entry_points = {
+        'console_scripts' : [
+            'kgcn = kgcn.gcn:main',
+            'kgcn-chem = kgcn.preprocessing.chem:main',],
+    },
     classifiers=[
         "Programming Language :: Python :: 3.6",
         "License :: OSI Approved :: MIT License",
