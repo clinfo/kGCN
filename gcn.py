@@ -14,6 +14,7 @@ from kgcn.core import CoreModel
 from kgcn.feed import construct_feed
 #align_size dense_to_sparse high_order_adj split_adj normalize_adj shuffle_data
 from tensorflow.python.framework import graph_util
+import sys
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
@@ -139,6 +140,16 @@ def plot_r2(config,labels,pred_data,prefix=""):
     else:
         make_r2_plot(labels, pred_data, result_path+prefix)
 
+def load_model_py(model,model_py,is_train=True):
+    pair=model_py.split(":")
+    sys.path.append(os.getcwd())
+    if len(pair)>=2:
+        mod=importlib.import_module(pair[0])
+        cls = getattr(mod, pair[1])
+        model.build(cls(),is_train)
+    else:
+        model.build(importlib.import_module(pair[0]),is_train)
+
 def train(sess,graph,config):
     batch_size=config["batch_size"]
     learning_rate=config["learning_rate"]
@@ -154,7 +165,8 @@ def train(sess,graph,config):
         info["graph_num"] = info["graph_num"] + valid_info["graph_num"]
 
     model = CoreModel(sess,config,info)
-    model.build(importlib.import_module(config["model.py"]))
+    load_model_py(model,config["model.py"])
+
     if config["profile"]:
         vars_to_train = tf.trainable_variables()
         print(vars_to_train)
@@ -213,7 +225,8 @@ def train_cv(sess,graph,config):
 
     all_data,info=load_data(config,filename=config["dataset"],prohibit_shuffle=True) # shuffle is done by KFold
     model = CoreModel(sess,config,info)
-    model.build(importlib.import_module(config["model.py"]))
+    load_model_py(model,config["model.py"])
+
     # Training
     if config["stratified_kfold"]:
         print("[INFO] use stratified K-fold")
@@ -421,14 +434,13 @@ def train_cv(sess,graph,config):
 
 def infer(sess,graph,config):
     batch_size=config["batch_size"]
-    model = importlib.import_module(config["model.py"])
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
         dataset_filename=config["dataset_test"]
     all_data,info=load_data(config,filename=dataset_filename)
 
     model = CoreModel(sess,config,info)
-    model.build(importlib.import_module(config["model.py"]),is_train=False)
+    load_model_py(model,config["model.py"],is_train=False)
 
     # Initialize session
     saver = tf.train.Saver()
@@ -632,7 +644,7 @@ def main():
     #if args.disable_bspmm:
     #    print("[INFO] disabled bspmm")
     #else:
-    layers.load_bspmm(args)
+    kgcn.layers.load_bspmm(args)
     #print("[INFO] enabled bspmm")
     # depricated options
     if args.ig_targets!="all":
