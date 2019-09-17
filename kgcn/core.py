@@ -345,7 +345,7 @@ class CoreModel:
             saver.save(sess,save_path)
 
 
-    def pred_and_eval(self,data):
+    def pred_and_eval(self,data, local_init=True):
         sess=self.sess
         config=self.config
         info=self.info
@@ -358,8 +358,9 @@ class CoreModel:
         prediction_data=None
         concat_flag=False
 
-        local_init_op = tf.local_variables_initializer()
-        sess.run(local_init_op)
+        if local_init:
+            local_init_op = tf.local_variables_initializer()
+            sess.run(local_init_op)
         for itr in range(itr_num):
             offset_b=itr*batch_size
             batch_idx=data_idx[offset_b:offset_b+batch_size]
