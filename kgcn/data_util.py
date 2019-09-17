@@ -183,7 +183,7 @@ def build_and_split_data(config,data,valid_data_rate=0.2):
 def load_data(config,filename="data.jbl",prohibit_shuffle=False):
     print("[LOAD]",filename)
     data=joblib.load(filename)
-    return build_data(config,data,prohibit_shuffle=False)
+    return build_data(config,data,prohibit_shuffle=prohibit_shuffle)
 
 def build_data(config,data,prohibit_shuffle=False):
     # data
