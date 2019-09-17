@@ -185,7 +185,7 @@ def load_data(config,filename="data.jbl",prohibit_shuffle=False):
     data=joblib.load(filename)
     return build_data(config,data,prohibit_shuffle=prohibit_shuffle)
 
-def build_data(config,data,prohibit_shuffle=False):
+def build_data(config,data,prohibit_shuffle=False, verbose=True):
     # data
     ## Num x N x F
     features=None
@@ -373,7 +373,8 @@ def build_data(config,data,prohibit_shuffle=False):
     if ( (features is None or features.shape[0]==info.graph_num)
             and (nodes is None or nodes.shape[0]==info.graph_num)
             and (nodes is None or len(adjs)==info.graph_num)):
-        print("[OK] checking #graphs")
+        if verbose:
+            print("[OK] checking #graphs")
     else:
         print("[ERROR] checking not  [0 dim of features] = [0 dim of nodes] = [length of adjacency matrices]")
         print(">> ",info.graph_num)
@@ -405,14 +406,15 @@ def build_data(config,data,prohibit_shuffle=False):
     if "mol_info" in data:
             info.mol_info = data["mol_info"]
 
-    print("The number of graphs                   =",info.graph_num)
-    print("Dimension of a feature                 =",info.feature_dim)
-    print("The maximum number of nodes in a graph =",info.graph_node_num)
-    print("The number of nodes in all graphs      =",info.all_node_num)
-    print("Dimension of a label                   =",info.label_dim)
-    print("The number of adj. matrices in a graph =",info.adj_channel_num)
-    if graph_index_list is not None:
-        print("The number of graph_index_lists         =",len(info.graph_index_list))
+    if verbose:
+        print("The number of graphs                   =",info.graph_num)
+        print("Dimension of a feature                 =",info.feature_dim)
+        print("The maximum number of nodes in a graph =",info.graph_node_num)
+        print("The number of nodes in all graphs      =",info.all_node_num)
+        print("Dimension of a label                   =",info.label_dim)
+        print("The number of adj. matrices in a graph =",info.adj_channel_num)
+        if graph_index_list is not None:
+            print("The number of graph_index_lists         =",len(info.graph_index_list))
 
     return all_data,info
 
