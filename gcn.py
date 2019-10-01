@@ -156,6 +156,7 @@ def load_model_py(model,model_py,is_train=True):
 
 
 def train(sess,graph,config):
+    from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
     batch_size=config["batch_size"]
     learning_rate=config["learning_rate"]
 
