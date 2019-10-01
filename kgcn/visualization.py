@@ -2,7 +2,6 @@ import time
 import pickle
 import collections
 from collections import OrderedDict
-from logging import getLogger
 from pathlib import Path
 import string
 
@@ -13,8 +12,6 @@ from rdkit import Chem
 
 from .feed import construct_feed
 
-_default_logger = getLogger("visualization")
-_default_logger.setLevel('DEBUG')
 
 
 def sparse_to_dense(sparse):
@@ -66,7 +63,7 @@ class CompoundVisualizer(object):
         scaling_target:
     """
     def __init__(self, outdir, idx, info, batch_idx, placeholders, all_data, prediction, mol, name, assay_str,
-                 target_label, true_label, *, model=None, logger=None, scaling_target='all'):
+                 target_label, true_label, *, model=None, logger=None, ig_modal_target='all', scaling_target='all'):
         self.logger = _default_logger if logger is None else logger
         self.outdir = outdir
         self.idx = idx
@@ -81,10 +78,11 @@ class CompoundVisualizer(object):
         self.model = model
         self.assay_str = assay_str
         self.info = info
-        self.scaling_target = scaling_target
         self.shapes = OrderedDict()
         self.vector_modal = None
         self.sum_of_ig = 0.0
+        self.scaling_target = scaling_target
+        self.ig_modal_target = ig_modal_target
 
         try:
             self.amino_acid_seq = self.all_data.sequence_symbol[idx]
@@ -95,10 +93,21 @@ class CompoundVisualizer(object):
         if self.scaling_target == 'all':
             self.scaling_target = self._set_ig_modal_target()
         elif self.scaling_target == 'profeat':
+            self._set_ig_modal_target()
             self.scaling_target = ['embedded_layer', 'profeat']
+        else:
+            self._set_ig_modal_target()
+            self.scaling_target = [self.scaling_target]
+
+        if self.ig_modal_target == 'all':
+            self.ig_modal_target = self.scaling_target
+        else:
+            self.ig_modal_target = [self.ig_modal_target]
+
+        self.logger.debug(f"self.ig_modal_target = {self.ig_modal_target}")
 
     def _set_ig_modal_target(self):
-        self.ig_modal_target = []
+        all_ig_modal_target = []
         self.ig_modal_target_data = OrderedDict()
 
         _features_flag = False
@@ -107,13 +116,13 @@ class CompoundVisualizer(object):
 
         if self.all_data.features is not None:
             _features_flag = True
-            self.ig_modal_target.append('features')
+            all_ig_modal_target.append('features')
             self.shapes['features'] = (self.info.graph_node_num, self.info.feature_dim)
             self.ig_modal_target_data['features'] = self.all_data.features[self.idx]
 
         if self.all_data.adjs is not None:
             _adjs_flag = True
-            self.ig_modal_target.append('adjs')
+            all_ig_modal_target.append('adjs')
             self.shapes['adjs'] = (self.info.graph_node_num, self.info.graph_node_num)
             self.ig_modal_target_data['adjs'] = sparse_to_dense(self.all_data.adjs[self.idx][0])
 
@@ -121,29 +130,29 @@ class CompoundVisualizer(object):
             for key, ele in self.info.vector_modal_name.items():
                 self.logger.debug(f"for {key}, {ele} in self.info.vector_modal_name.items()")
                 if self.all_data['sequences'] is not None:
-                    self.ig_modal_target.append('embedded_layer')
+                    all_ig_modal_target.append('embedded_layer')
                     _shape = (1, self.info.sequence_max_length, self.info.sequence_symbol_num)
                     self.shapes['embedded_layer'] = _shape
                     _data = self.all_data['sequences']
                     _data = np.expand_dims(_data[self.idx, ...], axis=0)
                     _data = self.model.embedding(_data)
-                    self.ig_modal_target_data['embedded_layer'] = _data
+                    all_ig_modal_target_data['embedded_layer'] = _data
                 else:
-                    self.ig_modal_target.append(key)
+                    all_ig_modal_target.append(key)
                     self.shapes[key] = (1, self.info.vector_modal_dim[ele])
                     self.ig_modal_target_data[key] = self.all_data.vector_modal[ele][self.idx]
 
-        self.logger.debug(f"self.ig_modal_target = {self.ig_modal_target}")
-        return self.ig_modal_target
+        return all_ig_modal_target
 
     def dump(self, filename=None):
         if filename is None:
             filename = Path(self.outdir) / f"mol_{self.idx:05d}_{self.assay_str}.pkl"
         else:
             filename = Path(self.outdir) / filename
+        self.logger.info(f'filename = {filename}')
         suffix = filename.suffix
-        support_suffixes = ['.pkl', '.npy', '.jbl']
-        assert suffix in support_suffixes, "You have to choose a filetype in ['pkl', 'npy', 'jbl']"
+        support_suffixes = ['.pkl', '.npz', '.jbl', '.gml']
+        assert suffix in support_suffixes, "You have to choose a filetype in ['pkl', 'npz', 'jbl', '.gml']"
         _out_dict = dict(mol=self.mol)
         try:
             _out_dict['amino_acid_seq'] = ''.join([string.ascii_uppercase[int(i)] for i in self.amino_acid_seq])
@@ -161,6 +170,7 @@ class CompoundVisualizer(object):
         _out_dict["check_score"] = self.end_score - self.start_score
         _out_dict["sum_of_IG"] = self.sum_of_ig
 
+        self.logger.info(f"[SAVE] {filename}")
         with open(filename, 'wb') as f:
             if suffix == '.jbl':
                 joblib.dump(_out_dict, f)
@@ -187,6 +197,7 @@ class CompoundVisualizer(object):
         """
         IGs = OrderedDict()
         for key in self.ig_modal_target:
+            self.logger.debug(f'initialize itegrated values: {key} ')
             IGs[key] = np.zeros(self.shapes[key])
 
         ig_placeholders = self.get_placeholders(placeholders)
@@ -239,6 +250,160 @@ class CompoundVisualizer(object):
         self.end_score = self._get_prediction_score(sess, 1, self.batch_idx, self.placeholders, self.all_data,
                                                     prediction)
 
+class KnowledgeGraphVisualizer:
+    def __init__(self, outdir, info, config, batch_idx, placeholders, all_data, prediction,
+                  *, model=None, logger=None):
+        self.outdir = outdir
+        self.info = info
+        self.config = config
+        self.batch_idx = batch_idx
+        self.logger = logger
+        self.placeholders = placeholders
+        self.all_data = all_data
+
+        self.prediction = prediction
+        self.model = model
+
+        # set `adjs` as visuzalization target
+        self.scaling_target = ['embedded_layer',]
+        self.ig_modal_target = ['embedded_layer',]
+        self.shapes = dict(embedded_layer=(1, # batch_size
+                                           info.all_node_num,
+                                           config["embedding_dim"]))
+        self.ig_modal_target_data = {}
+        _data = self.all_data['nodes']
+        _data = np.expand_dims(_data[0, ...], axis=0)
+
+        _data = self.model.embedding(_data)
+        self.ig_modal_target_data['embedded_layer'] = _data
+
+    def cal_integrated_gradients(self, sess, placeholders, prediction, divide_number):
+        """
+        Args:
+            sess: Tensorflowのセッションオブジェクト
+            placeholders: プレースホルダ
+            prediction: 予測スコア（ネットワークの最終出力）
+            divide_number: 予測スコアの分割数
+        """
+        ig_placeholders = placeholders["embedded_layer"]
+        tf_grads = tf.gradients(prediction, ig_placeholders)
+        IGs = OrderedDict()
+
+        self.logger.debug(f"self.ig_modal_target = {self.ig_modal_target}")
+        for key in self.ig_modal_target:
+            self.logger.info(f"{key}: np.zeros({self.shapes[key]})")
+            IGs[key] = np.zeros(self.shapes[key], dtype=np.float32)
+
+        for k in range(divide_number):
+            s = time.time()
+            scaling_coef = (k + 1) / float(divide_number)
+            feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data,
+                                       config=self.config, info=self.info, scaling=scaling_coef,
+                                       ig_modal_target=self.scaling_target)
+            out_grads = sess.run(tf_grads, feed_dict=feed_dict)
+            for idx, modal_name in enumerate(IGs):
+                _target_data = self.ig_modal_target_data[modal_name]
+                IGs[modal_name] += out_grads[idx][0] * _target_data / float(divide_number)
+            self.logger.info(f'[IG] {k:3d}th / {divide_number} : '
+                             f'[TIME] {(time.time() - s):7.4f}s')
+        self.IGs = IGs
+
+        # I.G.の計算が正しく行われているならば、「I.G.の和」≒「スケーリング係数１の予測スコアとスケーリング係数０の予測スコアの差」
+        # になるはずなので、計算の妥当性検証用にIGの和を保存しておく
+        self.sum_of_ig = 0
+        for values in self.IGs.values():
+            self.sum_of_ig += np.sum(values)
+
+    def dump(self, filename=None, vis_nodes=None):
+        self._dump_dml(filename, self.IGs['embedded_layer'], vis_nodes)
+
+    def _dump_dml(self, filename, ig, vis_nodes):
+        import networkx as nx
+        from scipy.sparse import coo_matrix
+        import matplotlib.cm as cm
+        index, data, shape = self.all_data.adjs[0][0]
+        ig = np.squeeze(ig)
+        ig = np.sum(ig, axis=-1)
+        coo = coo_matrix((data, (index[:, 0], index[:, 1])), shape)
+        G = nx.from_scipy_sparse_matrix(coo)
+
+        # set attribute
+        norm_ig = (ig - np.mean(ig)) / np.std(ig)
+        igs = {idx: _ig for idx, (node, _ig) in enumerate(zip(G.nodes, norm_ig))}
+        nx.set_node_attributes(G, igs, 'ig')
+
+        graph_distance = self.config['graph_distance']
+        self.logger.info(f'graph_distance = {graph_distance}')
+        nodes = set(vis_nodes)
+        for k in range(graph_distance):
+            _nodes = set()
+            for n in nodes:
+                _nodes.add(n)
+                for m in G.neighbors(n):
+                    _nodes.add(m)
+            nodes = nodes.union(_nodes)
+        H = G.subgraph(list(nodes))
+        self.logger.info(f"graph_output = {filename}")
+
+        edgefile = Path(self.outdir) / (filename + '-edge.csv')
+        self.logger.info(f'dump {edgefile.resolve()}')
+        nx.readwrite.edgelist.write_edgelist(H, edgefile, delimiter=',', data=False)
+
+        nodefile = Path(self.outdir) / (filename + '-node.csv')
+        self.logger.info(f'dump {nodefile.resolve()}')
+        with nodefile.open('w') as f:
+            f.write('label,ig\n')
+            for node in H.nodes.data():
+                f.write(f'{node[0]},{node[1]["ig"]}\n')
+
+
+def cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction,
+                          model=None, logger=None, verbosity=None, args=None):
+    divide_number = 30
+    outdir = "visualization"
+    batch_idx = [0,] # assume batch size is only one.
+    feed_dict = construct_feed(batch_idx, placeholders, all_data, config=config, batch_size=1, info=info)
+
+    if not 'visualize_target' in config.keys():
+        raise ValueError('set "visualize_target" in your config.')
+    logger.info(f"config['visualize_target'] = {config['visualize_target']}")
+
+    if config['visualize_target'] is None:
+        if 'edge' in config['visualize_type']:
+            n_samples = all_data.label_list.shape[1]
+        else:
+            n_samples = prediction.shape[1]
+        logger.info(f'visualization targets are all.')
+        logger.info(f'n_samples = {n_samples}')
+        targets = range(n_samples)
+    else:
+        targets = [config['visualize_target'],]
+
+    for target in targets:
+        if 'edge' in config['visualize_type']:
+            if config['visualize_type'] == 'edge_score':
+                _prediction = model.score[target]
+            elif config['visualize_type'] == 'edge_loss':
+                _prediction = model.loss[target]
+            node1 = all_data.label_list[0, target, 0]
+            node2 = all_data.label_list[0, target, 1]
+            logger.info(f"edge target = {target} => {node1}-{node2}")
+            filename = f'edgepred-{node1}-{node2}'
+            vis_nodes = [node1, node2]
+        else:
+            # for node visualzation
+            out_prediction = sess.run(prediction, feed_dict=feed_dict)
+            target_index = np.argmax(out_prediction[:, target, :])
+            _prediction = prediction[:, target, target_index]
+            logger.info(f"target_index = {target_index}")
+            filename = f'nodepred-{target}'
+            vis_nodes = [target,]
+
+        visualizer = KnowledgeGraphVisualizer(outdir, info, config, batch_idx, placeholders, all_data, _prediction,
+                                              logger=logger, model=model)
+        visualizer.cal_integrated_gradients(sess, placeholders, _prediction, divide_number)
+        visualizer.dump(filename, vis_nodes)
+
 
 def cal_feature_IG(sess, all_data, placeholders, info, prediction, ig_modal_target, ig_label_target, *,
                    model=None, logger=None, verbosity=None, args=None):
@@ -258,7 +423,6 @@ def cal_feature_IG(sess, all_data, placeholders, info, prediction, ig_modal_targ
     """
     divide_number = 100
     outdir = "visualization"
-
     mol_obj_list = info.mol_info["obj_list"] if "mol_info" in info else None
     if verbosity is None:
         logger.set_verbosity(logger.DEBUG)
@@ -266,7 +430,8 @@ def cal_feature_IG(sess, all_data, placeholders, info, prediction, ig_modal_targ
     if hasattr(model, 'sess'):
         _sess = tf.Session(config=tf.ConfigProto(log_device_placement=False, device_count={"GPU":0}))
         model.sess = _sess
-
+    all_count=0
+    correct_count=0
     for compound_id in range(all_data.num):
         s = time.time()
         batch_idx = [compound_id]
@@ -290,6 +455,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, prediction, ig_modal_targ
             # ターゲットとする出力ラベル
             target_score = 0
             true_label = np.argmax(all_data.labels[compound_id])
+
             if ig_label_target == "max":
                 target_index = np.argmax(_out_prediction)
                 if len(prediction.shape) == 3:  # multitask
@@ -333,7 +499,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, prediction, ig_modal_targ
             # --- 各化合物に対応した可視化オブジェクトにより可視化処理を実行
             visualizer = CompoundVisualizer(outdir, compound_id, info, batch_idx, placeholders, all_data,
                                             target_score, mol_obj, mol_name, assay_str, target_index, true_label,
-                                            logger=logger, model=model, scaling_target=ig_modal_target)
+                                            logger=logger, model=model, ig_modal_target=ig_modal_target, scaling_target=ig_modal_target)
             visualizer.cal_integrated_gradients(sess, placeholders, target_prediction, divide_number)
             visualizer.check_IG(sess, target_prediction)
             visualizer.dump(f"mol_{compound_id:04d}_task_{idx}_{assay_str}_{ig_modal_target}_scaling.jbl")
@@ -341,3 +507,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, prediction, ig_modal_targ
                   f"check score: {visualizer.end_score - visualizer.start_score}\n"
                   f"sum of IG: {visualizer.sum_of_ig}\n"
                   f"time : {time.time() - s}")
+            all_count+=1
+            if np.argmax(_out_prediction) == true_label:
+                correct_count+=1
+    print(correct_count/all_count)
