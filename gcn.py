@@ -8,7 +8,7 @@ import importlib
 import os
 ## gcn project
 #import model
-import kgcn.layers
+import layers
 from kgcn.data_util import load_and_split_data, load_data, split_data
 from kgcn.core import CoreModel
 from kgcn.feed import construct_feed
@@ -105,6 +105,9 @@ def get_default_config():
     #
     config["profile"]=False
     config["export_model"]=None
+    # for visualization options
+    config["visualize_kg"]=None
+
     config["stratified_kfold"] = False
 
     return config
@@ -140,15 +143,17 @@ def plot_r2(config,labels,pred_data,prefix=""):
     else:
         make_r2_plot(labels, pred_data, result_path+prefix)
 
+
 def load_model_py(model,model_py,is_train=True):
-    pair=model_py.split(":")
-    sys.path.append(os.getcwd())
-    if len(pair)>=2:
-        mod=importlib.import_module(pair[0])
-        cls = getattr(mod, pair[1])
-        model.build(cls(),is_train)
-    else:
-        model.build(importlib.import_module(pair[0]),is_train)
+     pair=model_py.split(":")
+     sys.path.append(os.getcwd())
+     if len(pair)>=2:
+         mod=importlib.import_module(pair[0])
+         cls = getattr(mod, pair[1])
+         model.build(cls(),is_train)
+     else:
+         model.build(importlib.import_module(pair[0]),is_train)
+
 
 def train(sess,graph,config):
     batch_size=config["batch_size"]
@@ -226,7 +231,6 @@ def train_cv(sess,graph,config):
     all_data,info=load_data(config,filename=config["dataset"],prohibit_shuffle=True) # shuffle is done by KFold
     model = CoreModel(sess,config,info)
     load_model_py(model,config["model.py"])
-
     # Training
     if config["stratified_kfold"]:
         print("[INFO] use stratified K-fold")
@@ -332,7 +336,7 @@ def train_cv(sess,graph,config):
             json.dump(fold_data_list,fp, indent=4, cls=NumPyArangeEncoder)
         else:
             joblib.dump(fold_data_list,save_path,compress=True)
-    ## 
+    ##
     if "save_edge_result_cv" in config and config["save_edge_result_cv"] is not None:
         result_cv=[]
         for j,fold_data in enumerate(fold_data_list):
@@ -433,7 +437,9 @@ def train_cv(sess,graph,config):
 
 
 def infer(sess,graph,config):
+    from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
     batch_size=config["batch_size"]
+    model = importlib.import_module(config["model.py"])
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
         dataset_filename=config["dataset_test"]
@@ -461,6 +467,42 @@ def infer(sess,graph,config):
         result["test_cost"]=test_cost
         result["test_accuracy"]=test_metrics
         result["infer_time"]=infer_time
+        ##
+        pred_score = np.array(prediction_data)
+        if len(pred_score.shape)==3: # multi-label-multi-task
+            # #data x # task x #class
+            # => this program supports only 2 labels
+            pred_score=pred_score[:,:,1]
+        true_label = np.array(all_data.labels)
+        # #data x # task x #class
+        if len(pred_score.shape)==1:
+            pred_score=pred_score[:,np.newaxis]
+        if len(true_label.shape)==1:
+            true_label=true_label[:,np.newaxis]
+        v=[]
+        for i in range(info.label_dim):
+            el={}
+            if config["task"]=="regression":
+                el["r2"] = sklearn.metrics.r2_score(true_label[:,i],pred_score[:,i])
+                el["mse"] = sklearn.metrics.mean_squared_error(true_label[:,i],pred_score[:,i])
+            elif config["task"]=="regression_gmfe":
+                el["gmfe"] = np.exp(np.mean(np.log(true_label[:,i]/pred_score[:,i])))
+            else:
+                pred = np.zeros(pred_score.shape)
+                pred[pred_score>0.5]=1
+                fpr, tpr, _ = roc_curve(true_label[:, i], pred_score[:, i], pos_label=1)
+                roc_auc = auc(fpr, tpr)
+                acc=accuracy_score(true_label[:, i], pred[:, i])
+                scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],average='binary')
+                el["auc"]=roc_auc
+                el["acc"]=acc
+                el["pre"]=scores[0]
+                el["rec"]=scores[1]
+                el["f"]=scores[2]
+                el["sup"]=scores[3]
+            v.append(el)
+        result["test_metrics"]=el
+        ##
         save_path=config["save_info_test"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         print("[SAVE] ",save_path)
@@ -522,30 +564,43 @@ def cal_counterfactual(data, coef):
 #------------------------------------------------------------------------------
 def visualize(sess, config, args):
     from tensorflow.python import debug as tf_debug
-    from kgcn.visualization import cal_feature_IG
+    from kgcn.visualization import cal_feature_IG, cal_feature_IG_for_kg
     # 入力は１分子づつ
     batch_size = 1
     # 入力データから、全データの情報, 学習用データの情報, 検証用データの情報, および
     # グラフに関する情報を順に取得する
     all_data, info = load_data(config, filename=config["dataset"], prohibit_shuffle=True)
-    #all_data.labels = tf.one_hot(tf.cast(tf.squeeze(all_data.labels), tf.int32), depth=2)
+
     model = importlib.import_module(config["model.py"])
-    placeholders = model.build_placeholders(info, config, batch_size=batch_size)
     try:
+        # emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
+        placeholders = model.build_placeholders(info, config, batch_size=batch_size, feed_embedded_layer=True)
+    except:
+        placeholders = model.build_placeholders(info, config, batch_size=batch_size)
+    try:
+        # emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
         _model, prediction, _, _, _ = model.build_model(placeholders, info, config, batch_size=batch_size, feed_embedded_layer=True)
     except:
         _model, prediction, _, _, _ = model.build_model(placeholders, info, config, batch_size=batch_size)
     #--- セッションの初期化
     saver = tf.train.Saver()
-    print("[LOAD]", config["load_model"])
+    #tf.compat.v1.logging.info("[LOAD]", config["load_model"])
+    tf.logging.info("[LOAD]", config["load_model"])
 
     saver.restore(sess, config["load_model"])
     #--- integrated gradientsの計算
-    cal_feature_IG(sess, all_data, placeholders, info, prediction,
-                       args.ig_modal_target,args.ig_label_target, logger=tf.logging, model=_model)
+    if config['visualize_type'] == 'graph':
+        cal_feature_IG(sess, all_data, placeholders, info, prediction,
+                       args.ig_modal_target, args.ig_label_target,
+                       logger=tf.logging, model=_model)
+                       #logger=tf.compat.v1.logging, model=_model)
+    else:
+        cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction,
+                              logger=tf.logging, model=_model)
+                              #logger=tf.compat.v1.logging, model=_model)
 
 
-def main():
+if __name__ == '__main__':
     # set random seed
     seed = 1234
     np.random.seed(seed)
@@ -599,16 +654,37 @@ def main():
             help='parameter')
     parser.add_argument('--ig_targets', type=str,
             default='all',
-            choices=['all', 'profeat', 'features', 'adjs', 'dragon'],
+            choices=['all', 'profeat', 'features', 'adjs', 'dragon','embedded_layer'],
             help='[deplicated (use ig_modal_target)]set scaling targets for Integrated Gradients')
     parser.add_argument('--ig_modal_target', type=str,
             default='all',
-            choices=['all', 'profeat', 'features', 'adjs', 'dragon'],
+            choices=['all', 'profeat', 'features', 'adjs', 'dragon','embedded_layer'],
             help='set scaling targets for Integrated Gradients')
     parser.add_argument('--ig_label_target', type=str,
             default='max',
             help='[visualization mode only] max/all/(label index)')
+    parser.add_argument('--visualize_type', type=str,
+            default='graph',
+            choices=['graph', 'node', 'edge_loss', 'edge_score'],
+            help="graph: visualize graph's property. node: create an integrated gradients map"
+                    " using target node. edge_loss: create an integrated gradients map"
+                    " using target edge and loss function. edge_score: create an integrated gradients map"
+                    " using target edge and score function.")
+    parser.add_argument('--visualize_target', type=int,
+            default=None,
+            help="set the target's number you want to visualize. from: [0, ~)")
+    parser.add_argument('--graph_distance', type=int,
+            default=1,
+            help=("set the distance from target node. An output graph is created within "
+                  "the distance from target node. :[1, ~)"))
+    parser.add_argument('--verbose', type=str,
+            default='INFO',
+            help=("set log level"))
+
     args=parser.parse_args()
+    #tf.compat.v1.logging.set_verbosity(args.verbose.upper())
+    tf.logging.set_verbosity(args.verbose.upper())
+
     # config
     config=get_default_config()
     if args.config is None:
@@ -648,8 +724,14 @@ def main():
     #print("[INFO] enabled bspmm")
     # depricated options
     if args.ig_targets!="all":
-        args.ig_model_target=args.ig_targets
+        args.ig_modal_target=args.ig_targets
     # setup
+
+    config["visualize_type"] = args.visualize_type
+    config["visualize_target"] = args.visualize_target
+    config["graph_distance"] = args.graph_distance
+
+
     with tf.Graph().as_default() as graph:
     #with tf.Graph().as_default(), tf.device('/cpu:0'):
         seed = 1234
@@ -671,6 +753,3 @@ def main():
         os.makedirs(os.path.dirname(args.save_config), exist_ok=True)
         fp=open(args.save_config,"w")
         json.dump(config,fp, indent=4, cls=NumPyArangeEncoder)
-
-if __name__ == '__main__':
-    main()

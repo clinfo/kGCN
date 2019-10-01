@@ -6,15 +6,28 @@ import numpy as np
 import json
 import argparse
 
-opt_cmd="python3 gcn.py --config %s train"
+opt_cmd="kgcn --config %s train --gpu 3"
 domain = [
-        {'name': 'num_gcn_layer', 'type': 'discrete', 'domain': (0,1,2)}
-        ]
+    {'name': 'num_gcn_layer', 'type': 'discrete',   'domain': (0,1,2,3,4),"data_type":"int"},
+    {'name': 'layer_dim0',    'type': 'continuous', 'domain': (0.5,3)},
+    {'name': 'layer_dim1',    'type': 'continuous', 'domain': (0.5,3)},
+    {'name': 'layer_dim2',    'type': 'continuous', 'domain': (0.5,3)},
+    {'name': 'layer_dim3',    'type': 'continuous', 'domain': (0.5,3)},
+    {'name': 'add_dense0',    'type': 'discrete',   'domain': (0,1),"data_type":"int"},
+    {'name': 'add_dense1',    'type': 'discrete',   'domain': (0,1),"data_type":"int"},
+    {'name': 'add_dense2',    'type': 'discrete',   'domain': (0,1),"data_type":"int"},
+    {'name': 'add_dense3',    'type': 'discrete',   'domain': (0,1),"data_type":"int"},
+    {'name': 'num_dense_layer','type': 'discrete',  'domain': (0,1,2),"data_type":"int"},
+    {'name': 'layer_dense_dim0','type': 'continuous', 'domain': (0.5,3)},
+    {'name': 'layer_dense_dim1','type': 'continuous', 'domain': (0.5,3)},
+    {'name': 'learning_rate', 'type': 'continuous', 'domain': (0,0.001)},
+    {'name': 'batch_size',    'type': 'discrete',   'domain': (10, 50, 100),"data_type":"int"},
+    {'name': 'dropout_rate',  'type': 'continuous', 'domain': (0,0.9)},
+    ]
 seed(123)
 
-opt_config_path=None
-opt_result_path=None
-opt_param_path=None
+opt_path=None
+config=None
 
 # multiprocess is not supported
 batch_size=1
@@ -34,27 +47,39 @@ def load_json(path):
         obj=json.load(fp)
     return obj
 
+def make_config(path,config,fid):
+    config["param"]=path+"param.json"
+    config["save_info_valid"]=path+"result.json"
+    config["save_model"]=path+"model."+str(fid)+".ckpt"
+    config["plot_path"]=path
+    return config
+
 def fx(x):
     #worker=multiprocessing.current_process()._identity
     global counter
+    global config
     fid=counter
     counter+=1
 
     # build config
-    opt_param_path=opt_path+"param."+str(fid)+".json"
-    opt_result_path=opt_path+"result."+str(fid)+".json"
-    config["save_info_valid"]=opt_result_path
-    config["param"]=opt_param_path
-    config["save_model"]=opt_path+"model."+str(fid)+".ckpt"
+    config=config   
     opt_config_path=opt_path+"config."+str(fid)+".json"
-    # save config
-    save_json(opt_config_path,config)
-
-    #  save parameters
+    path=opt_path+"trial%03d"%(fid,)+"/"
+    opt_result_path=path+"result.json"
+    os.makedirs(path,exist_ok=True)
+    # save config and  save parameters
+    config=make_config(path,config,fid)
     param={}
     for i,el in enumerate(domain):
         param[el["name"]]=x[0,i]
-    save_json(opt_param_path,param)
+        if el["name"] in config:
+            print(el["name"],"<=",x[0,i])
+            if "data_type" in el and el["data_type"]=="int":
+                config[el["name"]]=int(x[0,i])
+            else:
+                config[el["name"]]=x[0,i]
+    save_json(opt_config_path,config)
+    save_json(config["param"],param)
 
     # exec command
     cmd=opt_cmd%(opt_config_path)
