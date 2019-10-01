@@ -190,18 +190,55 @@ def train(sess,graph,config):
         print("final cost =",validation_cost)
         print("accuracy   =",validation_metrics["accuracy"])
         print("validation time:{0}".format(infer_time) + "[sec]")
-    # Saving
-    if config["save_info_valid"] is not None:
-        result={}
-        result["validation_cost"]=validation_cost
-        result["validation_accuracy"]=validation_metrics
-        result["train_time"]=train_time
-        result["infer_time"]=infer_time
-        save_path=config["save_info_valid"]
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        print("[SAVE] ",save_path)
-        fp=open(save_path,"w")
-        json.dump(result,fp, indent=4, cls=NumPyArangeEncoder)
+        # Saving
+        if config["save_info_valid"] is not None:
+            result={}
+            result["validation_cost"]=validation_cost
+            result["validation_accuracy"]=validation_metrics
+            result["train_time"]=train_time
+            result["infer_time"]=infer_time
+            ##
+            pred_score = np.array(prediction_data)
+            if len(pred_score.shape)==3: # multi-label-multi-task
+                # #data x # task x #class
+                # => this program supports only 2 labels
+                pred_score=pred_score[:,:,1]
+            true_label = np.array(valid_data.labels)
+            # #data x # task x #class
+            if len(pred_score.shape)==1:
+                pred_score=pred_score[:,np.newaxis]
+            if len(true_label.shape)==1:
+                true_label=true_label[:,np.newaxis]
+            v=[]
+            for i in range(info.label_dim):
+                el={}
+                if config["task"]=="regression":
+                    el["r2"] = sklearn.metrics.r2_score(true_label[:,i],pred_score[:,i])
+                    el["mse"] = sklearn.metrics.mean_squared_error(true_label[:,i],pred_score[:,i])
+                elif config["task"]=="regression_gmfe":
+                    el["gmfe"] = np.exp(np.mean(np.log(true_label[:,i]/pred_score[:,i])))
+                else:
+                    pred = np.zeros(pred_score.shape)
+                    pred[pred_score>0.5]=1
+                    fpr, tpr, _ = roc_curve(true_label[:, i], pred_score[:, i], pos_label=1)
+                    roc_auc = auc(fpr, tpr)
+                    acc=accuracy_score(true_label[:, i], pred[:, i])
+                    scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],average='binary')
+                    el["auc"]=roc_auc
+                    el["acc"]=acc
+                    el["pre"]=scores[0]
+                    el["rec"]=scores[1]
+                    el["f"]=scores[2]
+                    el["sup"]=scores[3]
+                v.append(el)
+            result["valid_metrics"]=el
+            ##
+            save_path=config["save_info_valid"]
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            print("[SAVE] ",save_path)
+            fp=open(save_path,"w")
+            json.dump(result,fp, indent=4, cls=NumPyArangeEncoder)
+
 
     if config["export_model"]:
         try:
