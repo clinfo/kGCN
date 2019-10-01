@@ -8,7 +8,7 @@ import importlib
 import os
 ## gcn project
 #import model
-import layers
+import kgcn.layers
 from kgcn.data_util import load_and_split_data, load_data, split_data
 from kgcn.core import CoreModel
 from kgcn.feed import construct_feed
