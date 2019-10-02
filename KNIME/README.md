@@ -7,19 +7,19 @@ KNIME node extension for GCN-K (GraphCNN).
 GraphCNN  
 Anaconda3 and python environment required by GraphCNN
 
-## AnacondaŠÂ‹«‚ÌƒZƒbƒgƒAƒbƒv (ŠJ”­ÒAƒ†[ƒU‹¤’Ê)
+## Anacondaç’°å¢ƒã®ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ— (é–‹ç™ºè€…ã€ãƒ¦ãƒ¼ã‚¶å…±é€š)
 
-ÅV‚ÌAnaconda2018‚ğg‚Á‚½‚Æ‚±‚ëApandas‚ÌƒCƒ“ƒ|[ƒg‚Å–â‘è‚É‚È‚Á‚½‚Ì‚Å‰ß‹‚Ìƒo[ƒWƒ‡ƒ“‚ğg‚¤  
+æœ€æ–°ã®Anaconda2018ã‚’ä½¿ã£ãŸã¨ã“ã‚ã€pandasã®ã‚¤ãƒ³ãƒãƒ¼ãƒˆã§å•é¡Œã«ãªã£ãŸã®ã§éå»ã®ãƒãƒ¼ã‚¸ãƒ§ãƒ³ã‚’ä½¿ã†  
 https://repo.continuum.io/archive/  
-‚©‚ç  
-Anaconda3-5.3.1-Linux-x86_64.sh(Windows‚Å‚ÍAnaconda3-5.3.1-Windows-x86_64.exe)‚ğƒ_ƒEƒ“ƒ[ƒh‚µ‚ÄƒCƒ“ƒXƒg[ƒ‹B  
+ã‹ã‚‰  
+Anaconda3-5.3.1-Linux-x86_64.sh(Windowsã§ã¯Anaconda3-5.3.1-Windows-x86_64.exe)ã‚’ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰ã—ã¦ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã€‚  
 
-’[––(anaconda prompt)‚Å
+ç«¯æœ«(anaconda prompt)ã§
 ```
 conda update conda
-conda create -n GraphCNN python=3.6 # ÅV‚Ì3.7‚Å‚Ítensorflow‚ÌƒCƒ“ƒXƒg[ƒ‹‚ª‚¤‚Ü‚­‚¢‚©‚È‚©‚Á‚½
+conda create -n GraphCNN python=3.6 # æœ€æ–°ã®3.7ã§ã¯tensorflowã®ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ãŒã†ã¾ãã„ã‹ãªã‹ã£ãŸ
 conda activate GraphCNN
-conda install -c rdkit rdkit=2017.* # RDKit‚Í­‚µƒo[ƒWƒ‡ƒ“‚ğ‰º‚°‚é•K—v‚ª‚ ‚Á‚½
+conda install -c rdkit rdkit=2017.* # RDKitã¯å°‘ã—ãƒãƒ¼ã‚¸ãƒ§ãƒ³ã‚’ä¸‹ã’ã‚‹å¿…è¦ãŒã‚ã£ãŸ
 python -m pip install --upgrade pip
 pip install --ignore-installed --upgrade tensorflow
 pip install joblib
@@ -30,25 +30,25 @@ pip install IPython
 pip install scikit-learn
 ```
 
-¦Às‚É  
+â€»å®Ÿè¡Œæ™‚ã«  
 ```
 ImportError: Something is wrong with the numpy installation. 
 While importing we detected an older version of numpy in ['/home/furukawa/anaconda3/envs/GraphCNN/lib/python3.5/site-packages/numpy']. 
 One method of fixing this is to repeatedly uninstall numpy until none is found, then reinstall this version.
 ```
-‚ÆƒGƒ‰[‚ªo‚éê‡‚ÍAŒ¾‚í‚ê‚½‚Æ‚¨‚è
+ã¨ã‚¨ãƒ©ãƒ¼ãŒå‡ºã‚‹å ´åˆã¯ã€è¨€ã‚ã‚ŒãŸã¨ãŠã‚Š
 ```
 pip uninstall numpy
 pip uninstall numpy
 pip uninstall numpy
 pip install numpy
 ```
-‚Æ‚·‚éB
+ã¨ã™ã‚‹ã€‚
 
 
-## GraphCNN‚ÌƒZƒbƒgƒAƒbƒv (ŠJ”­ÒAƒ†[ƒU‹¤’Ê)
+## GraphCNNã®ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ— (é–‹ç™ºè€…ã€ãƒ¦ãƒ¼ã‚¶å…±é€š)
 
-GraphCNN‚ğgithub‚©‚çƒ_ƒEƒ“ƒ[ƒh‚µ‚Ä“WŠJ(‚Ü‚½‚Ígit clone)
+GraphCNNã‚’githubã‹ã‚‰ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰ã—ã¦å±•é–‹(ã¾ãŸã¯git clone)
 
 ```
 pip install -e GraphCNN/gcnvisualizer
@@ -56,48 +56,108 @@ pip install -r GraphCNN/gcnvisualizer/requirements.txt
 pip install bioplot
 ```
 
-ˆÈ‰ºA“®ìŠm”F  
-ŠÂ‹«•Ï”‚ÌGCNK_SOURCE_PATH‚ÉGraphCNN‚ÌƒpƒX‚ğİ’è  
-ŠÂ‹«•Ï”‚ÌGCNK_PYTHON_PATH‚Épython.sh(Windows‚Å‚Ípython.bat)‚ÌƒpƒX‚ğİ’è(Anaconda‰¼‘zŠÂ‹«‚ğg‚Á‚Ä‚¢‚é‚½‚ßactivate‚ª•K—v‚É‚È‚éB‚»‚¤‚Å‚È‚¢ê‡‚Ípython‚ğƒZƒbƒg‚·‚ê‚ÎOK)  
-ŠÂ‹«•Ï”‚ÌPYTHONPATH‚ÉGCNK_SOURCE_PATH‚ğ’Ç‰Á  
-testdata/singletaskƒtƒHƒ‹ƒ_‚Ìrun.sh(Windows‚Å‚Írun.bat)‚ğÀs‚µ‚Ä“®ìŠm”F  
+ä»¥ä¸‹ã€å‹•ä½œç¢ºèª  
+ç’°å¢ƒå¤‰æ•°ã®GCNK_SOURCE_PATHã«GraphCNNã®ãƒ‘ã‚¹ã‚’è¨­å®š  
+ç’°å¢ƒå¤‰æ•°ã®GCNK_PYTHON_PATHã«python.sh(Windowsã§ã¯python.bat)ã®ãƒ‘ã‚¹ã‚’è¨­å®š(Anacondaä»®æƒ³ç’°å¢ƒã‚’ä½¿ã£ã¦ã„ã‚‹ãŸã‚activateãŒå¿…è¦ã«ãªã‚‹ã€‚ãã†ã§ãªã„å ´åˆã¯pythonã‚’ã‚»ãƒƒãƒˆã™ã‚Œã°OK)  
+ç’°å¢ƒå¤‰æ•°ã®PYTHONPATHã«GCNK_SOURCE_PATHã‚’è¿½åŠ   
+testdata/singletaskãƒ•ã‚©ãƒ«ãƒ€ã®run.sh(Windowsã§ã¯run.bat)ã‚’å®Ÿè¡Œã—ã¦å‹•ä½œç¢ºèª  
 
-## ŠJ”­ŠÂ‹«‚ÌƒZƒbƒgƒAƒbƒv (ŠJ”­Ò‚Ì‚İ)
+## é–‹ç™ºç’°å¢ƒã®ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ— (é–‹ç™ºè€…ã®ã¿)
 
-V3.6‚©‚çSDK‚Ì”z•z‚Í‚µ‚Ä‚¢‚È‚¢‚Ì‚ÅAƒZƒbƒgƒAƒbƒv‚Í­‚µ–Ê“|B  
-v3.5‚Ì‚à‚Ì‚ğg‚¤B
+V3.6ã‹ã‚‰SDKã®é…å¸ƒã¯ã—ã¦ã„ãªã„ã®ã§ã€ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—ã¯å°‘ã—é¢å€’ã€‚  
+v3.5ã®ã‚‚ã®ã‚’ä½¿ã†ã€‚
 
 https://www.knime.com/download-previous-versions  
-‚©‚çKNIME SDK version 3.5.3 for Windows‚ğƒ_ƒEƒ“ƒ[ƒh‚µ‚ÄƒCƒ“ƒXƒg[ƒ‹
+ã‹ã‚‰KNIME SDK version 3.5.3 for Windowsã‚’ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰ã—ã¦ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«
 
-KNIME SDK‚ğ‹N“®  
-Workspace‚ÉƒNƒ[ƒ“‚µ‚½ƒŠƒ|ƒWƒgƒŠ‚ÌƒtƒHƒ‹ƒ_‚ğw’è(ˆÈ‰ºAC:\work\KNIME_GCN-K ‚Æ‚·‚é)
+KNIME SDKã‚’èµ·å‹•  
+Workspaceã«ã‚¯ãƒ­ãƒ¼ãƒ³ã—ãŸãƒªãƒã‚¸ãƒˆãƒªã®ãƒ•ã‚©ãƒ«ãƒ€ã‚’æŒ‡å®š(ä»¥ä¸‹ã€C:\work\KNIME_GCN-K ã¨ã™ã‚‹)
 
 [File]-[Open Projects from File Ssytem...]  
-Import source ‚É C:\work\KNIME_GCN-K\GCN-K ‚ğ‘I‘ğ
+Import source ã« C:\work\KNIME_GCN-K\GCN-K ã‚’é¸æŠ
 
-## ƒfƒoƒbƒOÀs (ŠJ”­Ò‚Ì‚İ)
+## ãƒ‡ãƒãƒƒã‚°å®Ÿè¡Œ (é–‹ç™ºè€…ã®ã¿)
 
-GCN-KƒvƒƒWƒFƒNƒg‚ğ‰EƒNƒŠƒbƒN¨[Run As]-[Eclipse Application]  
+GCN-Kãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã‚’å³ã‚¯ãƒªãƒƒã‚¯â†’[Run As]-[Eclipse Application]  
 [Window]-[Perspective]-[Open Perspective]-[Other]  
-KNIME‚ğ‘I‘ğ‚µ‚ÄOK  
-Node Repository‚Éì¬‚µ‚½ƒm[ƒh‚ª’Ç‰Á‚³‚êAg—p‚Å‚«‚é
+KNIMEã‚’é¸æŠã—ã¦OK  
+Node Repositoryã«ä½œæˆã—ãŸãƒãƒ¼ãƒ‰ãŒè¿½åŠ ã•ã‚Œã€ä½¿ç”¨ã§ãã‚‹
 
-## ƒm[ƒhƒ‚ƒWƒ…[ƒ‹‚Ìì¬ (ŠJ”­Ò‚Ì‚İ)
+## ãƒãƒ¼ãƒ‰ãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ«ã®ä½œæˆ (é–‹ç™ºè€…ã®ã¿)
 
-GCN-KƒvƒƒWƒFƒNƒg‚ğ‰EƒNƒŠƒbƒN¨[Export]  
-[Plug-in Development]-[Deployable plug-ins and fragments]‚ğ‘I‘ğ‚µ‚ÄNext  
-“K“–‚ÈDirectory‚ğ‘I‘ğ‚µ‚ÄFinish  
-‘I‘ğ‚µ‚½Directory‚ÌpluginsˆÈ‰º‚Éjarƒtƒ@ƒCƒ‹‚ª¶¬‚³‚ê‚é
+GCN-Kãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã‚’å³ã‚¯ãƒªãƒƒã‚¯â†’[Export]  
+[Plug-in Development]-[Deployable plug-ins and fragments]ã‚’é¸æŠã—ã¦Next  
+é©å½“ãªDirectoryã‚’é¸æŠã—ã¦Finish  
+é¸æŠã—ãŸDirectoryã®pluginsä»¥ä¸‹ã«jarãƒ•ã‚¡ã‚¤ãƒ«ãŒç”Ÿæˆã•ã‚Œã‚‹
 
-## ƒm[ƒhƒ‚ƒWƒ…[ƒ‹‚ğKNIME‚ÉƒCƒ“ƒXƒg[ƒ‹ (ƒ†[ƒU‚Ì‚İ)
-KNIME‚ğƒCƒ“ƒXƒg[ƒ‹  
+## ãƒãƒ¼ãƒ‰ãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ«ã‚’KNIMEã«ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ« (ãƒ¦ãƒ¼ã‚¶ã®ã¿)
+KNIMEã‚’ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«  
 https://www.knime.com/downloads  
-jarƒtƒ@ƒCƒ‹‚ğKNIME‚ÌdropinsƒfƒBƒŒƒNƒgƒŠ(Windows‚Å‚Í’ÊíC:\Program Files\KNIME\dropins)‚ÉƒRƒs[‚·‚é  
+jarãƒ•ã‚¡ã‚¤ãƒ«ã‚’KNIMEã®dropinsãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒª(Windowsã§ã¯é€šå¸¸C:\Program Files\KNIME\dropins)ã«ã‚³ãƒ”ãƒ¼ã™ã‚‹  
 
-## ƒeƒXƒg(ƒ†[ƒU‚Ì‚İ)
-‰º‹L‚ğQÆ  
-[ƒVƒ“ƒOƒ‹ƒ^ƒXƒN](testdata/singletask/README.md)  
-[ƒ}ƒ‹ƒ`ƒ^ƒXƒN](testdata/multitask/README.md)  
-[ƒ}ƒ‹ƒ`ƒ‚[ƒ_ƒ‹(‰Â‹‰»)](testdata/multimodal/README.md)  
+## ãƒ†ã‚¹ãƒˆ(ãƒ¦ãƒ¼ã‚¶ã®ã¿)
+ä¸‹è¨˜ã‚’å‚ç…§  
+[ã‚·ãƒ³ã‚°ãƒ«ã‚¿ã‚¹ã‚¯](testdata/singletask/README.md)  
+[ãƒãƒ«ãƒã‚¿ã‚¹ã‚¯](testdata/multitask/README.md)  
+[ãƒãƒ«ãƒãƒ¢ãƒ¼ãƒ€ãƒ«(å¯è¦–åŒ–)](testdata/multimodal/README.md)  
+
+## python ã‚¹ã‚¯ãƒªãƒ—ãƒˆ
+
+- GraphExtractor
+```prep_adj.py --mol_info <multimodal>/mol_info.jbl --output <multimodal>/adj.jbl```
+
+- CSVLabelExtractor
+```prep_label.py --label <multimodal>/label.csv --output <multimodal>/label.jbl```
+
+- SDFReader
+```prep_mol_info.py --sdf <multimodal>/5HT1A_HUMAN.sdf --atom_num_limit 70 --output <multimodal>/mol_info.jbl```
+
+- AtomFeatureExtractor
+```prep_feat.py --mol_info <multimodal>/mol_info.jbl --output <multimodal>/feat.jbl```
+
+- AdditionalModalityPreprocessor
+```preprocess_modality.py --profeat <multimodal>/seq_profeat.csv --output <multimodal>/modality1.jbl```
+
+- AddModality
+```add_modality.py --modality <multimodal>/modality0.jbl --dataset <multimodal>/dataset.jbl --output <multimodal>/dataset1.jbl```
+
+- GCNScore
+```gcn_score.py --prediction_data <multitask>/prediction.jbl --output <multitask>/result_predict/prediction.csv```
+
+- GCNScoreViewer
+```gcn_score_viewer.py --prediction_data <multitask>/prediction.jbl --output <multitask>/result_predict/```
+
+- GCNScoreViewer
+```gcn_score_viewer.py --prediction_data <multitask>/prediction.jbl --output <multitask>/result_predict/ --plot_multitask```
+
+- GCNGraphViewer
+```graph_viewer.py --directory <multimodal>/visualization```
+
+- GCNDatasetBuilder
+```
+prep_dataset.py --label <multimodal>/label.jbl --adjacent <multimodal>/adj.jbl --atom_feature <multimodal>/feat.jbl --output <multimodal>/dataset.jbl
+```
+
+- GCNDatasetSplitter
+```
+split_dataset.py --dataset <multimodal>/dataset1.jbl --output1 <multimodal>/dataset1_split1.jbl --output2 <multimodal>/dataset1_split2.jbl --ratio 0.9
+split_dataset.py --dataset <multimodal>/dataset1_split2.jbl --output1 <multimodal>/dataset1_split2_split1.jbl --output2 <multimodal>/dataset1_split2_split2.jbl --ratio 0.9
+```
+- GCNVisualizer
+```
+clean_dataset.py --dataset <multimodal>/dataset3_split2_split2.jbl --output <multimodal>/dataset3_split2_split2_clean.jbl
+<kgcn>/gcn.py visualize --config <multimodal>/visualize.json
+```
+
+- GCNLearner
+```
+clean_dataset.py --dataset <multimodal>/dataset1_split1.jbl --output <multimodal>/dataset1_split1_clean.jbl
+<kgcn>/gcn.py train --config <multimodal>/train.json
+```
+
+- GCNPredictor
+```
+clean_dataset.py --dataset <multimodal>/dataset1_split2.jbl --output <multimodal>/dataset1_split2_clean.jbl
+gcn_infer.py infer --config <multimodal>/test.json
+```
 
