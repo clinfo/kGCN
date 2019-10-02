@@ -101,7 +101,7 @@ jarファイルをKNIMEのdropinsディレクトリ(Windowsでは通常C:\Progra
 [マルチタスク](testdata/multitask/README.md)  
 [マルチモーダル(可視化)](testdata/multimodal/README.md)  
 
-## python スクリプト
+## Python スクリプト(ノード内部で利用)
 
 - GraphExtractor
 ```
