@@ -104,34 +104,54 @@ jarファイルをKNIMEのdropinsディレクトリ(Windowsでは通常C:\Progra
 ## python スクリプト
 
 - GraphExtractor
-```prep_adj.py --mol_info <multimodal>/mol_info.jbl --output <multimodal>/adj.jbl```
+```
+prep_adj.py --mol_info <multimodal>/mol_info.jbl --output <multimodal>/adj.jbl
+```
 
 - CSVLabelExtractor
-```prep_label.py --label <multimodal>/label.csv --output <multimodal>/label.jbl```
+```
+prep_label.py --label <multimodal>/label.csv --output <multimodal>/label.jbl
+```
 
 - SDFReader
-```prep_mol_info.py --sdf <multimodal>/5HT1A_HUMAN.sdf --atom_num_limit 70 --output <multimodal>/mol_info.jbl```
+```
+prep_mol_info.py --sdf <multimodal>/5HT1A_HUMAN.sdf --atom_num_limit 70 --output <multimodal>/mol_info.jbl
+```
 
 - AtomFeatureExtractor
-```prep_feat.py --mol_info <multimodal>/mol_info.jbl --output <multimodal>/feat.jbl```
+```
+prep_feat.py --mol_info <multimodal>/mol_info.jbl --output <multimodal>/feat.jbl
+```
 
 - AdditionalModalityPreprocessor
-```preprocess_modality.py --profeat <multimodal>/seq_profeat.csv --output <multimodal>/modality1.jbl```
+```
+preprocess_modality.py --profeat <multimodal>/seq_profeat.csv --output <multimodal>/modality1.jbl
+```
 
 - AddModality
-```add_modality.py --modality <multimodal>/modality0.jbl --dataset <multimodal>/dataset.jbl --output <multimodal>/dataset1.jbl```
+```
+add_modality.py --modality <multimodal>/modality0.jbl --dataset <multimodal>/dataset.jbl --output <multimodal>/dataset1.jbl
+```
 
 - GCNScore
-```gcn_score.py --prediction_data <multitask>/prediction.jbl --output <multitask>/result_predict/prediction.csv```
+```
+gcn_score.py --prediction_data <multitask>/prediction.jbl --output <multitask>/result_predict/prediction.csv
+```
 
 - GCNScoreViewer
-```gcn_score_viewer.py --prediction_data <multitask>/prediction.jbl --output <multitask>/result_predict/```
+```
+gcn_score_viewer.py --prediction_data <multitask>/prediction.jbl --output <multitask>/result_predict/
+```
 
 - GCNScoreViewer
-```gcn_score_viewer.py --prediction_data <multitask>/prediction.jbl --output <multitask>/result_predict/ --plot_multitask```
+```
+gcn_score_viewer.py --prediction_data <multitask>/prediction.jbl --output <multitask>/result_predict/ --plot_multitask
+```
 
 - GCNGraphViewer
-```graph_viewer.py --directory <multimodal>/visualization```
+```
+graph_viewer.py --directory <multimodal>/visualization
+```
 
 - GCNDatasetBuilder
 ```
