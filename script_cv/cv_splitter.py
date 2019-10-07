@@ -16,7 +16,7 @@ def config_copy(args,src,dest,key,i):
         #path, ext = os.path.splitext(data)
         dest[key]=args.cv_path+"/fold"+str(i)+"/"+data
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str,
             required=True,
@@ -98,7 +98,7 @@ if __name__ == '__main__':
         config_copy(args,config,config_fold,"save_info_cv",i)
         config_copy(args,config,config_fold,"save_model",i)
         config_copy(args,config,config_fold,"load_model",i)
-        config_copy(args,config,config_fold,"plot",i)
+        config_copy(args,config,config_fold,"plot_path",i)
         config_copy(args,config,config_fold,"save_model_path",i)
         #
         name, ext = os.path.splitext( os.path.basename(args.config) )
@@ -116,3 +116,5 @@ if __name__ == '__main__':
 
 
 
+if __name__ == '__main__':
+    main()
