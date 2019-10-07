@@ -104,6 +104,10 @@ def fx(x):
     return result["validation_cost"]
 
 def main():
+    global opt_path
+    global config
+    global opt_arg
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str,
             default=None,
