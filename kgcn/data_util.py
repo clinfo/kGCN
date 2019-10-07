@@ -216,7 +216,7 @@ def split_jbl_obj(obj,train_idx,test_idx,label_list_flag=False,index_list_flag=F
         for key,val in obj.items():
             if key not in direct_copy_keys:
                 #print(key,": split")
-                if key not in sparse_data:
+                if key not in sparse_data_keys:
                     o=np.array(obj[key])
                 dataset_test[key]=o[test_idx]
                 dataset_train[key]=o[train_idx]

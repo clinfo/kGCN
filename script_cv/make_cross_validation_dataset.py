@@ -65,11 +65,11 @@ if __name__ == '__main__':
     idx=np.array(list(range(data_num)))
     np.random.seed(1234)
     np.random.shuffle(idx)
-    fold=0
+    i=0
     kfold = KFold(n_splits=args.fold)
     for train_idx, test_idx in kfold.split(np.zeros(data_num,)):
         ## setting dataset
-        data_train,data_test=kgcn.data_util.split_jbl_obj(obj)
+        data_train,data_test=kgcn.data_util.split_jbl_obj(obj,train_idx,test_idx)
         name, ext = os.path.splitext( os.path.basename(dataset_name) )
         train_filename=cv+"/"+name+".train_"+str(i)+".jbl"
         test_filename=cv+"/"+name+".test_"+str(i)+".jbl"
@@ -97,7 +97,7 @@ if __name__ == '__main__':
         print("[SAVE]",config_filename)
         fp=open(config_filename,"w")
         json.dump(config_fold,fp, indent=4)
-        fold+=1
+        i+=1
 
 
 
