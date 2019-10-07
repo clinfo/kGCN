@@ -21,7 +21,7 @@ setuptools.setup(
         'console_scripts' : [
             'kgcn = kgcn.gcn:main',
             'kgcn-chem = kgcn.preprocessing.chem:main',
-            'kgcn-cv-splitter = kgcn.cv_splitter:main',],
+            'kgcn-cv-splitter = kgcn.cv_splitter:main',
             'kgcn-opt = kgcn.opt:main',],
     },
     classifiers=[
