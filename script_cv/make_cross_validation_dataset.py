@@ -43,7 +43,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int,
             default=1234,
             help='seed')
-    parser.add_argument('--inhibit_shuffle', 
+    parser.add_argument('--prohibit_shuffle', 
             action='store_true',
             help='without shuffle')
 
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
     i=0
     cv_data_info=[]
-    kfold = KFold(n_splits=args.fold,shuffle=not args.inhibit_shuffle)
+    kfold = KFold(n_splits=args.fold,shuffle=not args.prohibit_shuffle)
     for train_idx, test_idx in kfold.split(np.zeros(data_num,)):
         ## setting dataset
         data_train,data_test=kgcn.data_util.split_jbl_obj(obj,train_idx,test_idx)
