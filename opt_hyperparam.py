@@ -107,7 +107,7 @@ def main():
     global opt_path
     global config
     global opt_arg
-
+    global domain
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str,
             default=None,
