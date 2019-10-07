@@ -614,7 +614,7 @@ def visualize(sess, config, args):
     # グラフに関する情報を順に取得する
     all_data, info = load_data(config, filename=config["dataset"], prohibit_shuffle=True)
 
-    model = load_model_py(None,config["model.py"],is_train=False):
+    model = load_model_py(None,config["model.py"],is_train=False)
     try:
         # emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
         placeholders = model.build_placeholders(info, config, batch_size=batch_size, feed_embedded_layer=True)
