@@ -6,7 +6,7 @@ import numpy as np
 import json
 import argparse
 
-opt_cmd="kgcn --config %s train --gpu 3"
+opt_cmd="kgcn --config %s train %s"
 domain = [
     {'name': 'num_gcn_layer', 'type': 'discrete',   'domain': (0,1,2,3,4),"data_type":"int"},
     {'name': 'layer_dim0',    'type': 'continuous', 'domain': (0.5,3)},
@@ -27,6 +27,7 @@ domain = [
 seed(123)
 
 opt_path=None
+opt_arg=""
 config=None
 
 # multiprocess is not supported
@@ -82,7 +83,7 @@ def fx(x):
     save_json(config["param"],param)
 
     # exec command
-    cmd=opt_cmd%(opt_config_path)
+    cmd=opt_cmd%(opt_config_path,opt_arg)
     print("cmd:",cmd)
     os.system(cmd)
 
@@ -91,7 +92,7 @@ def fx(x):
 
     return result["validation_cost"]
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str,
             default=None,
@@ -106,6 +107,12 @@ if __name__ == '__main__':
     parser.add_argument('--domain', type=str,
             default=None,
             help='domain file')
+    parser.add_argument('--gpu', type=str,
+            default=None,
+            help='[kgcn arg]')
+    parser.add_argument('--cpu',
+            action='store_true',
+            help='[kgcn arg]')
     args=parser.parse_args()
     # load config
     if args.config is None:
@@ -113,6 +120,11 @@ if __name__ == '__main__':
         quit()
     else:
         config=load_json(args.config)
+
+    if args.gpu:
+        opt_arg+=" --gpu "+args.gpu
+    if args.cpu:
+        opt_arg+=" --cpu"
 
     print("... preparing optimization")
     # make directory
@@ -153,4 +165,7 @@ if __name__ == '__main__':
     # save optimized parameters
     out_path=opt_path+"opt_param.json"
     save_json(out_path,param)
+
+if __name__ == '__main__':
+    main()
 
