@@ -48,11 +48,22 @@ def load_json(path):
         obj=json.load(fp)
     return obj
 
+def update_config(path,config,fid,key):
+    if key in config:
+        config[key]=path+os.path.basename(config[key])
+
 def make_config(path,config,fid):
     config["param"]=path+"param.json"
     config["save_info_valid"]=path+"result.json"
     config["save_model"]=path+"model."+str(fid)+".ckpt"
+    ###
     config["plot_path"]=path
+    update_config(path,config,fid,"save_info_train")
+    update_config(path,config,fid,"save_info_test")
+    update_config(path,config,fid,"save_result_train")
+    update_config(path,config,fid,"save_result_test")
+    update_config(path,config,fid,"save_result_valid")
+    ###
     return config
 
 def fx(x):
