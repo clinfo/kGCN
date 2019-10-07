@@ -169,7 +169,63 @@ def shuffle_data(data):
 
     return data
 
+direct_copy_keys=["max_node_num","mol_info","node","sequence_symbol"]
+sparse_data_keys=["label_sparse","mask_label_sparse"]
+label_list_keys=["node_label","mask_node_label","label_list"]
+index_llist_keys=["graph_index_list"]
+def get_data_num_jbl_obj(obj,label_list_flag=False,index_list_flag=False):
+    if label_list_flag:# node/edge prediction
+        for key,val in obj.items():
+            if key in label_list_keys:
+                return len(obj[key])
+    elif index_list_flag: # generative model
+        for key,val in obj.items():
+            if key in index_list_keys:
+                return len(obj[key])
+    else:
+        for key,val in obj.items():
+            if key not in direct_copy_keys:
+                return len(obj[key])
 
+def split_jbl_obj(obj,train_idx,test_idx,label_list_flag=False,index_list_flag=False):
+    dataset_test={}
+    dataset_train={}
+    if label_list_flag:# node/edge prediction
+        for key,val in obj.items():
+            if key in label_list_keys:
+                #print(key,": split")
+                o=np.array(obj[key])
+                dataset_test[key]=o[test_idx]
+                dataset_train[key]=o[train_idx]
+            else:
+                #print(key,": direct copy")
+                dataset_test[key]=obj[key]
+                dataset_train[key]=obj[key]
+    elif index_list_flag: # generative model
+        for key,val in obj.items():
+            if key in index_list_keys:
+                #print(key,": split")
+                o=np.array(obj[key])
+                dataset_test[key]=o[test_idx]
+                dataset_train[key]=o[train_idx]
+            else:
+                #print(key,": direct copy")
+                dataset_test[key]=obj[key]
+                dataset_train[key]=obj[key]
+    else:
+        for key,val in obj.items():
+            if key not in direct_copy_keys:
+                #print(key,": split")
+                if key not in sparse_data:
+                    o=np.array(obj[key])
+                dataset_test[key]=o[test_idx]
+                dataset_train[key]=o[train_idx]
+            else:
+                #print(key,": direct copy")
+                dataset_test[key]=obj[key]
+                dataset_train[key]=obj[key]
+    return dataset_train,dataset_test
+    
 def load_and_split_data(config,filename="data.jbl",valid_data_rate=0.2):
     all_data,info=load_data(config,filename)
     train_data,valid_data=split_data(all_data,valid_data_rate)
