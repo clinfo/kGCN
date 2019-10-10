@@ -427,7 +427,7 @@ kgcn visualize --config example_config/reaction.json
 ```bash
 gcnv -i visualization/mol_0000_task_0_active_all_scaling.jbl
 ```
-The implementation of extracting reaction template on GitHub at https://github.com/sishida21/extract_reaction_template.git.  
+The implementation of extracting reaction template on GitHub at https://github.com/clinfo/extract_reaction_template.git.  
 #### Reference
 Shoichi Ishida , Kei Terayama,  Ryosuke Kojima, Kiyosei Takasu, Yasushi Okuno,
 [Prediction and Interpretable Visualization of Synthetic Reactions Using Graph Convolutional Networks](http://dx.doi.org/10.26434/chemrxiv.8343995),
