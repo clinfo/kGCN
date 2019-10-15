@@ -486,7 +486,7 @@ def infer(sess,graph,config):
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
         dataset_filename=config["dataset_test"]
-    all_data,info=load_data(config,filename=dataset_filename)
+    all_data,info=load_data(config,filename=dataset_filename,prohibit_shuffle=True)
 
     model = CoreModel(sess,config,info)
     load_model_py(model,config["model.py"],is_train=False)
@@ -582,28 +582,9 @@ def infer(sess,graph,config):
         else:
             joblib.dump(fold,save_path,compress=True)
     #
-#-------------------------------------------------------------------------------
-# counterfactualを計算する
-#-------------------------------------------------------------------------------
-def cal_counterfactual(data, coef):
-    """
-    counterfactualを計算する
-    【返値】
-    dataと同じ型(dotdict)のcounterfactualオブジェクト
-    【引数】
-    data: 元の入力データ
-    coef: 0以上1以下のスケーリング係数
-    """
-    counterfactual = dotdict({})
-    counterfactual.features = data.features * coef
-    counterfactual.nodes = data.nodes
-    counterfactual.adjs = data.adjs
-    counterfactual.labels = data.labels
-    counterfactual.num = data.num
-    return counterfactual
 
 #------------------------------------------------------------------------------
-# 可視化
+# visualization using IG
 #------------------------------------------------------------------------------
 def visualize(sess, config, args):
     from tensorflow.python import debug as tf_debug
@@ -787,7 +768,7 @@ def main():
                 train(sess,graph,config)
             if args.mode=="train_cv":
                 train_cv(sess,graph,config)
-            elif args.mode=="infer":
+            elif args.mode=="infer" or args.mode=="predict":
                 infer(sess,graph,config)
             elif args.mode=="visualize":
                 visualize(sess, config, args)
