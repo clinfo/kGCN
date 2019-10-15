@@ -163,7 +163,7 @@ def load_model_py(model,model_py,is_train=True):
 def compute_metrics(prediction_data,labels):
     from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
     from sklearn.metrics import average_precision_score
-    from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef, jaccard_score
+    from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
     pred_score = np.array(prediction_data)
     if len(pred_score.shape)==3: # multi-label-multi-task
         # #data x # task x #class
@@ -200,7 +200,11 @@ def compute_metrics(prediction_data,labels):
             el["sup"]=scores[3]
             el["balanced_acc"]=balanced_accuracy_score(true_label[:, i], pred[:, i])
             el["mcc"]=matthews_corrcoef(true_label[:, i], pred[:, i])
-            el["jaccard"]=jaccard_score(true_label[:, i], pred[:, i])
+            try:
+                from sklearn.metrics import jaccard_score
+                el["jaccard"]=jaccard_score(true_label[:, i], pred[:, i])
+            except:
+                pass
         v.append(el)
     return v
 
