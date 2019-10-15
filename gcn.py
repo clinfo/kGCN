@@ -160,7 +160,7 @@ def load_model_py(model,model_py,is_train=True):
             model.build(mod,is_train)
         return mod
 
-def compute_metrics(info,prediction_data,labels):
+def compute_metrics(config,info,prediction_data,labels):
     from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
     from sklearn.metrics import average_precision_score
     from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
@@ -251,7 +251,7 @@ def train(sess,graph,config):
             result["validation_accuracy"]=validation_metrics
             result["train_time"]=train_time
             result["infer_time"]=infer_time
-            result["valid_metrics"]=compute_metrics(info,prediction_data,valid_data.labels)
+            result["valid_metrics"]=compute_metrics(config,info,prediction_data,valid_data.labels)
             ##
             save_path=config["save_info_valid"]
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -425,7 +425,7 @@ def train_cv(sess,graph,config):
     if "save_result_cv" in config and config["save_result_cv"] is not None:
         result_cv=[]
         for j,fold_data in enumerate(fold_data_list):
-            v=compute_metrics(info,fold_data.prediction_data,fold_data.test_labels)
+            v=compute_metrics(config,info,fold_data.prediction_data,fold_data.test_labels)
             result_cv.append(v)
         save_path=config["save_result_cv"]
         print("[SAVE] ",save_path)
@@ -491,7 +491,7 @@ def infer(sess,graph,config):
         result["test_cost"]=test_cost
         result["test_accuracy"]=test_metrics
         result["infer_time"]=infer_time
-        result["test_metrics"]=compute_metrics(info,prediction_data,all_data.labels)
+        result["test_metrics"]=compute_metrics(config,info,prediction_data,all_data.labels)
         save_path=config["save_info_test"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         print("[SAVE] ",save_path)
