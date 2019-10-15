@@ -307,7 +307,7 @@ class CoreModel:
             if (epoch)%config["save_interval"] == 0:
                 # save
                 if k_fold_num is not None:
-                    save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:05d}.{epoch:05d}.ckpt")
+                    save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.{epoch:05d}.ckpt")
                 else:
                     save_path = os.path.join(config["save_model_path"], f"model.{epoch:05d}.ckpt")
                 saver.save(sess,save_path)
@@ -325,16 +325,22 @@ class CoreModel:
             if best_score is None or best_score > validation_cost:
                 best_score = validation_cost
                 best_result=validation_result
-                save_path = os.path.join(config["save_model_path"], "model.best.ckpt")
+                if k_fold_num is not None:
+                    save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.best.ckpt")
+                else:
+                    save_path = os.path.join(config["save_model_path"], "model.best.ckpt")
                 print("[SAVE] ",save_path)
                 saver.save(sess,save_path)
         if best_score is not None:
-                path = os.path.join(config["save_model_path"], "model.best.ckpt")
+                if k_fold_num is not None:
+                    path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.best.ckpt")
+                else:
+                    path = os.path.join(config["save_model_path"], "model.best.ckpt")
                 print("[RESTORE] ",path)
                 saver.restore(sess,path)
         # saving last model
         if k_fold_num is not None:
-            save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:05d}.last.ckpt")
+            save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.last.ckpt")
         else:
             save_path = os.path.join(config["save_model_path"], "model.last.ckpt")
             print("[SAVE] ",save_path)
