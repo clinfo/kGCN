@@ -144,7 +144,7 @@ def plot_r2(config,labels,pred_data,prefix=""):
         make_r2_plot(labels, pred_data, result_path+prefix)
 
 
-def load_model_py(model,model_py,is_train=True):
+def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False):
     pair=model_py.split(":")
     sys.path.append(os.getcwd())
     if len(pair)>=2:
@@ -152,12 +152,12 @@ def load_model_py(model,model_py,is_train=True):
         cls = getattr(mod, pair[1])
         obj=cls()
         if model:
-            model.build(obj,is_train)
+            model.build(obj,is_train,feed_embedded_layer)
         return obj
     else:
         mod=importlib.import_module(pair[0])
         if model:
-            model.build(mod,is_train)
+            model.build(mod,is_train,feed_embedded_layer)
         return mod
 
 def compute_metrics(config,info,prediction_data,labels):
@@ -539,19 +539,15 @@ def visualize(sess, config, args):
     batch_size = 1
     # 入力データから、全データの情報, 学習用データの情報, 検証用データの情報, および
     # グラフに関する情報を順に取得する
-    all_data, info = load_data(config, filename=config["dataset"], prohibit_shuffle=True)
+    dataset_filename=config["dataset"]
+    if "dataset_test" in config:
+        dataset_filename=config["dataset_test"]
+    all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True)
 
-    model = load_model_py(None,config["model.py"],is_train=False)
-    try:
-        # emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
-        placeholders = model.build_placeholders(info, config, batch_size=batch_size, feed_embedded_layer=True)
-    except:
-        placeholders = model.build_placeholders(info, config, batch_size=batch_size)
-    try:
-        # emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
-        _model, prediction, _, _, _ = model.build_model(placeholders, info, config, batch_size=batch_size, feed_embedded_layer=True)
-    except:
-        _model, prediction, _, _, _ = model.build_model(placeholders, info, config, batch_size=batch_size)
+    model = CoreModel(sess,config,info)
+    load_model_py(model,config["model.py"],is_train=False,feed_embedded_layer=True)
+    placeholders = model.placeholders
+    _model, prediction = model.out,model.prediction
     #--- セッションの初期化
     saver = tf.train.Saver()
     #tf.compat.v1.logging.info("[LOAD]", config["load_model"])

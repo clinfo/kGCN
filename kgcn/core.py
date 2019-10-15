@@ -138,7 +138,7 @@ class CoreModel:
             self.construct_feed=construct_feed_callback
         else:
             self.construct_feed=construct_feed
-    def build(self,model,is_train=True):
+    def build(self,model,is_train=True,feed_embedded_layer=False):
         #
         config=self.config
         info=self.info
@@ -153,8 +153,18 @@ class CoreModel:
                 info.param=json.load(fp)
             else:
                 info.param=config["param"]
-        self.placeholders = model.build_placeholders(info,config,batch_size=batch_size)
-        self.out,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size)
+
+        try:
+            # feed_embedded_layer=True => True emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
+            self.placeholders = model.build_placeholders(info, config, batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
+        except:
+            # Deprecated:
+            self.placeholders = model.build_placeholders(info, config, batch_size=batch_size)
+        try:
+            self.out,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
+        except:
+            # Deprecated:
+            self.out,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size)
         if is_train:
             self.train_step=build_optimizer(self.cost,learning_rate)
 
