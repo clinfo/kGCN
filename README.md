@@ -456,10 +456,10 @@ example_config/vae.json is a setting for VAE (Variational Auto-encoder) that is 
 ### Hyperparamter optimization
 
 ```bash
-python opt_hyperparam.py --config ./example_config/opt_param.json  --domain ./example_param/domain.json
+kgcn-opt --config ./example_config/opt_param.json  --domain ./example_param/domain.json
 ```
 
-opt_hyperparam.py is a script for hyperparameter optimization using GPyOpt library (https://github.com/SheffieldML/GPyOpt), a Bayesian optimization libraly.
+kgcn-opt (opt_hyperparam.py) is a command for hyperparameter optimization using GPyOpt library (https://github.com/SheffieldML/GPyOpt), a Bayesian optimization libraly.
 ./example_config/opt_param.json  is a config file to use gcn.py
 ./example_param/domain.json is a domain file to define hyperparameters and their search spaces.
 The format of this file follows "domain" of GPyOpt.
