@@ -4,7 +4,7 @@ KNIME node extension for kGCN.
 To use kGCN in KNIME, we provide 
 - Virtual box image
 - Compiled KNIME modules
-- Source codes for developpers
+- Source codes for developers
 
 ### Example workflow:
 - [single-task](testdata/singletask/README.md)  
@@ -96,7 +96,7 @@ $ pip uninstall numpy
 $ pip install numpy
 ```
 
-# For developpers
+# For developers
 ## Setting up the development environment
 
 We used knime SDK v3.5 since SDK is not distributed from V3.6.
@@ -127,7 +127,7 @@ As a result, new nodes are created in `Node Repository`.
 A jar file is generated in the `plugins` directory in the output directory.
 
 
-## Python scripts for developpers
+## Python scripts for developers
 The KNIME-kGCN modules corresponds to python scripts.
 We show the example of python commands called in the each KNIME-kGCN module.
 
