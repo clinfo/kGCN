@@ -145,7 +145,7 @@ def plot_r2(config,labels,pred_data,prefix=""):
         make_r2_plot(labels, pred_data, result_path+prefix)
 
 
-def load_model_py(model,model_py,is_train=True):
+def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False):
     pair=model_py.split(":")
     sys.path.append(os.getcwd())
     if len(pair)>=2:
@@ -153,14 +153,61 @@ def load_model_py(model,model_py,is_train=True):
         cls = getattr(mod, pair[1])
         obj=cls()
         if model:
-            model.build(obj,is_train)
+            model.build(obj,is_train,feed_embedded_layer)
         return obj
     else:
         mod=importlib.import_module(pair[0])
         if model:
-            model.build(mod,is_train)
+            model.build(mod,is_train,feed_embedded_layer)
         return mod
 
+def compute_metrics(config,info,prediction_data,labels):
+    from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
+    from sklearn.metrics import average_precision_score
+    from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
+    pred_score = np.array(prediction_data)
+    if len(pred_score.shape)==3: # multi-label-multi-task
+        # #data x # task x #class
+        # => this program supports only 2 labels
+        pred_score=pred_score[:,:,1]
+    true_label = np.array(labels)
+    # #data x # task x #class
+    if len(pred_score.shape)==1:
+        pred_score=pred_score[:,np.newaxis]
+    if len(true_label.shape)==1:
+        true_label=true_label[:,np.newaxis]
+    v=[]
+    for i in range(info.label_dim):
+        el={}
+        if config["task"]=="regression":
+            el["r2"] = sklearn.metrics.r2_score(true_label[:,i],pred_score[:,i])
+            el["mse"] = sklearn.metrics.mean_squared_error(true_label[:,i],pred_score[:,i])
+        elif config["task"]=="regression_gmfe":
+            el["gmfe"] = np.exp(np.mean(np.log(true_label[:,i]/pred_score[:,i])))
+        else:
+            pred = np.zeros(pred_score.shape)
+            pred[pred_score>0.5]=1
+            fpr, tpr, _ = roc_curve(true_label[:, i], pred_score[:, i], pos_label=1)
+            roc_auc = auc(fpr, tpr)
+            ap = average_precision_score(true_label[:, i], pred_score[:, i], pos_label=1)
+            acc=accuracy_score(true_label[:, i], pred[:, i])
+            scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],average='binary')
+            el["auc"]=roc_auc
+            el["acc"]=acc
+            el["ap"]=ap
+            el["pre"]=scores[0]
+            el["rec"]=scores[1]
+            el["f"]=scores[2]
+            el["sup"]=scores[3]
+            el["balanced_acc"]=balanced_accuracy_score(true_label[:, i], pred[:, i])
+            el["mcc"]=matthews_corrcoef(true_label[:, i], pred[:, i])
+            try:
+                from sklearn.metrics import jaccard_score
+                el["jaccard"]=jaccard_score(true_label[:, i], pred[:, i])
+            except:
+                pass
+        v.append(el)
+    return v
 
 def train(sess,graph,config):
     from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
@@ -205,41 +252,7 @@ def train(sess,graph,config):
             result["validation_accuracy"]=validation_metrics
             result["train_time"]=train_time
             result["infer_time"]=infer_time
-            ##
-            pred_score = np.array(prediction_data)
-            if len(pred_score.shape)==3: # multi-label-multi-task
-                # #data x # task x #class
-                # => this program supports only 2 labels
-                pred_score=pred_score[:,:,1]
-            true_label = np.array(valid_data.labels)
-            # #data x # task x #class
-            if len(pred_score.shape)==1:
-                pred_score=pred_score[:,np.newaxis]
-            if len(true_label.shape)==1:
-                true_label=true_label[:,np.newaxis]
-            v=[]
-            for i in range(info.label_dim):
-                el={}
-                if config["task"]=="regression":
-                    el["r2"] = sklearn.metrics.r2_score(true_label[:,i],pred_score[:,i])
-                    el["mse"] = sklearn.metrics.mean_squared_error(true_label[:,i],pred_score[:,i])
-                elif config["task"]=="regression_gmfe":
-                    el["gmfe"] = np.exp(np.mean(np.log(true_label[:,i]/pred_score[:,i])))
-                else:
-                    pred = np.zeros(pred_score.shape)
-                    pred[pred_score>0.5]=1
-                    fpr, tpr, _ = roc_curve(true_label[:, i], pred_score[:, i], pos_label=1)
-                    roc_auc = auc(fpr, tpr)
-                    acc=accuracy_score(true_label[:, i], pred[:, i])
-                    scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],average='binary')
-                    el["auc"]=roc_auc
-                    el["acc"]=acc
-                    el["pre"]=scores[0]
-                    el["rec"]=scores[1]
-                    el["f"]=scores[2]
-                    el["sup"]=scores[3]
-                v.append(el)
-            result["valid_metrics"]=el
+            result["valid_metrics"]=compute_metrics(config,info,prediction_data,valid_data.labels)
             ##
             save_path=config["save_info_valid"]
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -413,39 +426,7 @@ def train_cv(sess,graph,config):
     if "save_result_cv" in config and config["save_result_cv"] is not None:
         result_cv=[]
         for j,fold_data in enumerate(fold_data_list):
-            pred_score = np.array(fold_data.prediction_data)
-            if len(pred_score.shape)==3: # multi-label-multi-task
-                # #data x # task x #class
-                # => this program supports only 2 labels
-                pred_score=pred_score[:,:,1]
-            true_label = np.array(fold_data.test_labels)
-            # #data x # task x #class
-            if len(pred_score.shape)==1:
-                pred_score=pred_score[:,np.newaxis]
-            if len(true_label.shape)==1:
-                true_label=true_label[:,np.newaxis]
-            v=[]
-            for i in range(info.label_dim):
-                el={}
-                if config["task"]=="regression":
-                    el["r2"] = sklearn.metrics.r2_score(true_label[:,i],pred_score[:,i])
-                    el["mse"] = sklearn.metrics.mean_squared_error(true_label[:,i],pred_score[:,i])
-                elif config["task"]=="regression_gmfe":
-                    el["gmfe"] = np.exp(np.mean(np.log(true_label[:,i]/pred_score[:,i])))
-                else:
-                    pred = np.zeros(pred_score.shape)
-                    pred[pred_score>0.5]=1
-                    fpr, tpr, _ = roc_curve(true_label[:, i], pred_score[:, i], pos_label=1)
-                    roc_auc = auc(fpr, tpr)
-                    acc=accuracy_score(true_label[:, i], pred[:, i])
-                    scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],average='binary')
-                    el["auc"]=roc_auc
-                    el["acc"]=acc
-                    el["pre"]=scores[0]
-                    el["rec"]=scores[1]
-                    el["f"]=scores[2]
-                    el["sup"]=scores[3]
-                v.append(el)
+            v=compute_metrics(config,info,fold_data.prediction_data,fold_data.test_labels)
             result_cv.append(v)
         save_path=config["save_result_cv"]
         print("[SAVE] ",save_path)
@@ -487,7 +468,7 @@ def infer(sess,graph,config):
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
         dataset_filename=config["dataset_test"]
-    all_data,info=load_data(config,filename=dataset_filename)
+    all_data,info=load_data(config,filename=dataset_filename,prohibit_shuffle=True)
 
     model = CoreModel(sess,config,info)
     load_model_py(model,config["model.py"],is_train=False)
@@ -511,42 +492,7 @@ def infer(sess,graph,config):
         result["test_cost"]=test_cost
         result["test_accuracy"]=test_metrics
         result["infer_time"]=infer_time
-        ##
-        pred_score = np.array(prediction_data)
-        if len(pred_score.shape)==3: # multi-label-multi-task
-            # #data x # task x #class
-            # => this program supports only 2 labels
-            pred_score=pred_score[:,:,1]
-        true_label = np.array(all_data.labels)
-        # #data x # task x #class
-        if len(pred_score.shape)==1:
-            pred_score=pred_score[:,np.newaxis]
-        if len(true_label.shape)==1:
-            true_label=true_label[:,np.newaxis]
-        v=[]
-        for i in range(info.label_dim):
-            el={}
-            if config["task"]=="regression":
-                el["r2"] = sklearn.metrics.r2_score(true_label[:,i],pred_score[:,i])
-                el["mse"] = sklearn.metrics.mean_squared_error(true_label[:,i],pred_score[:,i])
-            elif config["task"]=="regression_gmfe":
-                el["gmfe"] = np.exp(np.mean(np.log(true_label[:,i]/pred_score[:,i])))
-            else:
-                pred = np.zeros(pred_score.shape)
-                pred[pred_score>0.5]=1
-                fpr, tpr, _ = roc_curve(true_label[:, i], pred_score[:, i], pos_label=1)
-                roc_auc = auc(fpr, tpr)
-                acc=accuracy_score(true_label[:, i], pred[:, i])
-                scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],average='binary')
-                el["auc"]=roc_auc
-                el["acc"]=acc
-                el["pre"]=scores[0]
-                el["rec"]=scores[1]
-                el["f"]=scores[2]
-                el["sup"]=scores[3]
-            v.append(el)
-        result["test_metrics"]=el
-        ##
+        result["test_metrics"]=compute_metrics(config,info,prediction_data,all_data.labels)
         save_path=config["save_info_test"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         print("[SAVE] ",save_path)
@@ -591,28 +537,9 @@ def infer(sess,graph,config):
         joblib.dump(obj,config["prediction_data"])
 
     #
-#-------------------------------------------------------------------------------
-# counterfactualを計算する
-#-------------------------------------------------------------------------------
-def cal_counterfactual(data, coef):
-    """
-    counterfactualを計算する
-    【返値】
-    dataと同じ型(dotdict)のcounterfactualオブジェクト
-    【引数】
-    data: 元の入力データ
-    coef: 0以上1以下のスケーリング係数
-    """
-    counterfactual = dotdict({})
-    counterfactual.features = data.features * coef
-    counterfactual.nodes = data.nodes
-    counterfactual.adjs = data.adjs
-    counterfactual.labels = data.labels
-    counterfactual.num = data.num
-    return counterfactual
 
 #------------------------------------------------------------------------------
-# 可視化
+# visualization using IG
 #------------------------------------------------------------------------------
 def visualize(sess, config, args):
     from tensorflow.python import debug as tf_debug
@@ -621,19 +548,15 @@ def visualize(sess, config, args):
     batch_size = 1
     # 入力データから、全データの情報, 学習用データの情報, 検証用データの情報, および
     # グラフに関する情報を順に取得する
-    all_data, info = load_data(config, filename=config["dataset"], prohibit_shuffle=True)
+    dataset_filename=config["dataset"]
+    if "dataset_test" in config:
+        dataset_filename=config["dataset_test"]
+    all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True)
 
-    model = load_model_py(None,config["model.py"],is_train=False)
-    try:
-        # emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
-        placeholders = model.build_placeholders(info, config, batch_size=batch_size, feed_embedded_layer=True)
-    except:
-        placeholders = model.build_placeholders(info, config, batch_size=batch_size)
-    try:
-        # emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
-        _model, prediction, _, _, _ = model.build_model(placeholders, info, config, batch_size=batch_size, feed_embedded_layer=True)
-    except:
-        _model, prediction, _, _, _ = model.build_model(placeholders, info, config, batch_size=batch_size)
+    model = CoreModel(sess,config,info)
+    load_model_py(model,config["model.py"],is_train=False,feed_embedded_layer=True)
+    placeholders = model.placeholders
+    _model, prediction = model.out,model.prediction
     #--- セッションの初期化
     saver = tf.train.Saver()
     #tf.compat.v1.logging.info("[LOAD]", config["load_model"])
@@ -796,7 +719,7 @@ def main():
                 train(sess,graph,config)
             if args.mode=="train_cv":
                 train_cv(sess,graph,config)
-            elif args.mode=="infer":
+            elif args.mode=="infer" or args.mode=="predict":
                 infer(sess,graph,config)
             elif args.mode=="visualize":
                 visualize(sess, config, args)

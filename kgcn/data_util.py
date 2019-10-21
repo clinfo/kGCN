@@ -457,6 +457,12 @@ def build_data(config,data,prohibit_shuffle=False, verbose=True):
         info.pos_weight= (sum_negative+pos_weight_epsilon) / (sum_positive+pos_weight_epsilon)
     if "class_weight" in data:
         info.class_weight=data["class_weight"]
+    else:
+        # labels: #data x #class 
+        pos_weight_epsilon=0.01
+        sum_positive =  np.nansum(all_data["labels"],axis=0)
+        sum_all =  np.nansum(all_data["labels"])
+        info.class_weight=(sum_all+pos_weight_epsilon)/(sum_positive+pos_weight_epsilon)
 
         # for visualization of molecules
     if "mol_info" in data:

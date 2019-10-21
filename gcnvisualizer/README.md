@@ -18,13 +18,7 @@ $ pip install -e .
 ## How to prepare input files
 
 ```shell
-$ cd sample_chem/multimodal/
-$ sh ./get_dataset.sh
-$ sh init_sdf_profeat.sh
-$ cd -
-$ sh sample_chem/run_multimodal.sh
-$ # or you can specify a task you want to run.
-$ # python gcn.py --config ./sample_chem/multimodal/sample_config/multimodal_sdf_profeat.json train_cv
+$ kgcn visualize --config <config>
 ```
 
 ## How to use

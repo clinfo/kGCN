@@ -138,7 +138,7 @@ class CoreModel:
             self.construct_feed=construct_feed_callback
         else:
             self.construct_feed=construct_feed
-    def build(self,model,is_train=True):
+    def build(self,model,is_train=True,feed_embedded_layer=False):
         #
         config=self.config
         info=self.info
@@ -153,8 +153,18 @@ class CoreModel:
                 info.param=json.load(fp)
             else:
                 info.param=config["param"]
-        self.placeholders = model.build_placeholders(info,config,batch_size=batch_size)
-        self.out,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size)
+
+        try:
+            # feed_embedded_layer=True => True emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
+            self.placeholders = model.build_placeholders(info, config, batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
+        except:
+            # Deprecated:
+            self.placeholders = model.build_placeholders(info, config, batch_size=batch_size)
+        try:
+            self.out,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
+        except:
+            # Deprecated:
+            self.out,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size)
         if is_train:
             self.train_step=build_optimizer(self.cost,learning_rate)
 
@@ -307,7 +317,7 @@ class CoreModel:
             if (epoch)%config["save_interval"] == 0:
                 # save
                 if k_fold_num is not None:
-                    save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:05d}.{epoch:05d}.ckpt")
+                    save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.{epoch:05d}.ckpt")
                 else:
                     save_path = os.path.join(config["save_model_path"], f"model.{epoch:05d}.ckpt")
                 saver.save(sess,save_path)
@@ -325,16 +335,22 @@ class CoreModel:
             if best_score is None or best_score > validation_cost:
                 best_score = validation_cost
                 best_result=validation_result
-                save_path = os.path.join(config["save_model_path"], "model.best.ckpt")
+                if k_fold_num is not None:
+                    save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.best.ckpt")
+                else:
+                    save_path = os.path.join(config["save_model_path"], "model.best.ckpt")
                 print("[SAVE] ",save_path)
                 saver.save(sess,save_path)
         if best_score is not None:
-                path = os.path.join(config["save_model_path"], "model.best.ckpt")
+                if k_fold_num is not None:
+                    path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.best.ckpt")
+                else:
+                    path = os.path.join(config["save_model_path"], "model.best.ckpt")
                 print("[RESTORE] ",path)
                 saver.restore(sess,path)
         # saving last model
         if k_fold_num is not None:
-            save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:05d}.last.ckpt")
+            save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.last.ckpt")
         else:
             save_path = os.path.join(config["save_model_path"], "model.last.ckpt")
             print("[SAVE] ",save_path)
