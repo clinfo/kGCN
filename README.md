@@ -3,14 +3,6 @@
 
 <img src="https://user-images.githubusercontent.com/1664861/64188778-f9601b00-cead-11e9-8922-da7167fbf9a2.png" height="320px">
 
-## Graph Convolutional Networks
-
-This is a TensorFlow implementation of Graph Convolutional Networks for the task of classification of graphs.
-
-Our implementation of Graph convolutional layers consulted the following paper:
-
-Thomas N. Kipf, Max Welling, [Semi-Supervised Classification with Graph Convolutional Networks](http://arxiv.org/abs/1609.02907) (ICLR 2017)
-
 ## Installation
 
 A setup script is under construction.
@@ -57,6 +49,9 @@ sudo apt install -y libfontconfig1 libxrender1
 conda install rdkit -c rdkit
 ```
 
+To install additional modules:
+- Visualizer: please see gcnvisualizer/README.md
+- KNIME: please see KNIME/README.md
 
 ### Installation (for CentOS 7)
 
@@ -96,9 +91,20 @@ sudo yum -y install fontconfig-devel libXrender libXext
 conda install rdkit -c rdkit
 ```
 
+To install additional modules:
+- Visualizer: please see gcnvisualizer/README.md
+- KNIME: please see KNIME/README.md
+- Jupyter Notebook: please see Notebook/README.md 
+
 ## Run the demo
 
-For training
+This is a TensorFlow implementation of Graph Convolutional Networks for the task of classification of graphs.
+
+Our implementation of Graph convolutional layers consulted the following paper:
+
+Thomas N. Kipf, Max Welling, [Semi-Supervised Classification with Graph Convolutional Networks](http://arxiv.org/abs/1609.02907) (ICLR 2017)
+
+For training with a dataset, example_jbl/synthetic.jbl, by using a neural network defined in example_model/model.py
 ```bash
 kgcn train --config example_config/sample.json
 ```
@@ -112,6 +118,7 @@ where model/model.sample.last.ckpt is a trained model file.
 
 
 ## Sample dataset
+
 
 Our sample dataset file (example.jbl) is created by the following command:
 
@@ -183,7 +190,7 @@ shuffling data after loading dataset
 #### *"with_feature"*
 In GCN, a node has feature or not.
 
-#### *"with_node_embedding"
+#### *"with_node_embedding"*
 In GCN, a node has embedding vector or not.
 #### *"embedding_dim"*
 When `with_node_embedding=True`,
@@ -233,7 +240,7 @@ path to save plot data
 plotting results of multitaslk
 #### *"profile"*
 for profiling using the tensorflow profiler
-#### *stratified_kfold*
+#### *"stratified_kfold"*
 for using stratified k-fold
 
 
@@ -428,10 +435,14 @@ kgcn visualize --config example_config/reaction.json
 gcnv -i visualization/mol_0000_task_0_active_all_scaling.jbl
 ```
 The implementation of extracting reaction template on GitHub at https://github.com/clinfo/extract_reaction_template.git.  
+
 #### Reference
+
+```
 Shoichi Ishida , Kei Terayama,  Ryosuke Kojima, Kiyosei Takasu, Yasushi Okuno,
 [Prediction and Interpretable Visualization of Synthetic Reactions Using Graph Convolutional Networks](http://dx.doi.org/10.26434/chemrxiv.8343995),
 ChemRxiv. [DOI: 10.26434/chemrxiv.8343995]
+```
 
 ### Generative model
 
@@ -445,10 +456,10 @@ example_config/vae.json is a setting for VAE (Variational Auto-encoder) that is 
 ### Hyperparamter optimization
 
 ```bash
-python opt_hyperparam.py --config ./example_config/opt_param.json  --domain ./example_param/domain.json
+kgcn-opt --config ./example_config/opt_param.json  --domain ./example_param/domain.json
 ```
 
-opt_hyperparam.py is a script for hyperparameter optimization using GPyOpt library (https://github.com/SheffieldML/GPyOpt), a Bayesian optimization libraly.
+kgcn-opt (opt_hyperparam.py) is a command for hyperparameter optimization using GPyOpt library (https://github.com/SheffieldML/GPyOpt), a Bayesian optimization libraly.
 ./example_config/opt_param.json  is a config file to use gcn.py
 ./example_param/domain.json is a domain file to define hyperparameters and their search spaces.
 The format of this file follows "domain" of GPyOpt.
