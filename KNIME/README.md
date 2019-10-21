@@ -2,8 +2,8 @@
 
 KNIME node extension for kGCN.
 To use kGCN in KNIME, we provide 
-- Virtual box image
-- Compiled KNIME modules
+- Virtual box image (https://drive.google.com/drive/folders/1Q5FRNq06CIUX5RTC3drT-qhxCY2T17ou?usp=sharing)
+- Compiled KNIME modules (https://drive.google.com/file/d/1Kvlclfq1caQc6xMPr8602GYHlDMftYUs/view?usp=sharing)
 - Source codes for developers
 
 ### Example workflow:
@@ -77,12 +77,12 @@ export GCNK_SOURCE_PATH=~/kGCN
 export GCNK_PYTHON_PATH=~/KNIME_GCN-K/python.sh
 export PYTHONPATH=$GCNK_SOURCE_PATH:$PYTHONPATH
 ```
-If you want to use these settings as defaults,
+If you want to use these settings as the default,
 you can add these lines to the end of `~/.bashrc`.
 
 ### Notification
 
-If the following error is occurred, 
+If the following error occurred, 
 ```
 ImportError: Something is wrong with the numpy installation. 
 While importing we detected an older version of numpy in ['/home/furukawa/anaconda3/envs/GraphCNN/lib/python3.5/site-packages/numpy']. 
