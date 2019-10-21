@@ -12,7 +12,7 @@ To use kGCN in KNIME, we provide
 - [multi-modal](testdata/multimodal/README.md)  
 
 
-## 1. Virtual box
+# 1. Virtual box
 
 If Virtual box is installed, you can double-click KNIME-GCN.vbox in this folder
 
@@ -36,7 +36,7 @@ You can easily try the example by opening these workflows:
 
 Since they have already been executed at the time of loading, if you want to move again, reset and re-execute the workflows.
 
-## 2. Compiled KNIME modules
+# 2. Compiled KNIME modules
 We also provide compiled knime modules.
 First, user should setup the environment for KNIME and kGCN to use these modules.
 
@@ -96,7 +96,7 @@ $ pip uninstall numpy
 $ pip install numpy
 ```
 
-# For developers
+# 3. For developers
 ## Setting up the development environment
 
 We used knime SDK v3.5 since SDK is not distributed from V3.6.
