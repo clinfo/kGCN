@@ -95,7 +95,7 @@ To install additional modules:
 - Visualizer: please see gcnvisualizer/README.md
 - KNIME: please see KNIME/README.md
 - Jupyter Notebook: please see Notebook/README.md 
-- Docker: https://cloud.docker.com/u/clinfo/repository/docker/clinfo/kgcn
+- Docker: https://hub.docker.com/r/clinfo/kgcn
 
 ## Run the demo
 
