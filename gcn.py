@@ -109,6 +109,7 @@ def get_default_config():
     config["visualize_kg"]=None
 
     config["stratified_kfold"] = False
+    config["prediction_data"]=None
 
     return config
 
@@ -581,6 +582,14 @@ def infer(sess,graph,config):
             json.dump(fold,fp, indent=4, cls=NumPyArangeEncoder)
         else:
             joblib.dump(fold,save_path,compress=True)
+    if config["prediction_data"] is not None:
+        obj = {}
+        obj["prediction_data"] = prediction_data
+        obj["labels"         ] = all_data.labels
+        
+        os.makedirs(os.path.dirname(config["prediction_data"]), exist_ok=True)
+        joblib.dump(obj,config["prediction_data"])
+
     #
 #-------------------------------------------------------------------------------
 # counterfactualを計算する
