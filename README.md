@@ -21,80 +21,9 @@ Now, you have to execute the python codes directly.
   * tensorflow (>0.12)
   * joblib
 
-### Installation (for Ubuntu 18.04)
+### [Installation (for Ubuntu 18.04)](./docs/installation_for_ubuntu1804.md)
 
-First, please install anaconda by the anaconda instruction.
-```
-wget https://repo.anaconda.com/archive/Anaconda3-2019.07-Linux-x86_64.sh
-sh ./Anaconda3-2019.07-Linux-x86_64.sh
-```
-
-Next, please install following libraries.
-```
-source ~/.bashrc
-conda update conda
-conda install joblib
-
-# for CPU-only
-conda install tensorflow
-# with GPU support
-conda install tensorflow-gpu
-```
-
-Finally, please install kGCN
-```
-pip install --upgrade git+https://github.com/clinfo/kGCN.git
-```
-
-Sample programs can be downloaded by git clone from this repositpry:
-```
-git clone https://github.com/clinfo/kGCN.git
-```
-
-Optional library
-```
-sudo apt install -y libfontconfig1 libxrender1
-conda install rdkit -c rdkit
-```
-
-
-### Installation (for CentOS 7)
-
-First, please install anaconda by the anaconda instruction.
-```
-curl -O  https://repo.anaconda.com/archive/Anaconda3-2019.07-Linux-x86_64.sh
-sh ./Anaconda3-2019.07-Linux-x86_64.sh
-```
-
-Next, please install following libraries.
-```
-source ~/.bashrc
-conda update conda
-conda install joblib
-
-# for CPU-only
-conda install tensorflow
-# with GPU support
-conda install tensorflow-gpu
-```
-
-Finally, please install kGCN
-```
-pip install --upgrade git+https://github.com/clinfo/kGCN.git
-```
-
-Sample programs can be downloaded by git clone from this repositpry:
-```
-# if you don't have git 
-sudo yum install git
-git clone https://github.com/clinfo/kGCN.git
-```
-
-Optional library
-```
-sudo yum -y install fontconfig-devel libXrender libXext
-conda install rdkit -c rdkit
-```
+### [Installation (for CentOS 7)](./docs/installation_for_centos7.md)
 
 ## Run the demo
 
@@ -142,174 +71,24 @@ You can specify a command as follows:
 ```bash
 kgcn <command> --config example_config/sample.json
 ```
-- *train* command: 
+- *train* command:
 The script trains a model and saves it.
 
-- *infer* command: 
+- *infer* command:
 The script estimates labels of test data using the loaded model.
 
-- *train_cv* command: 
+- *train_cv* command:
 The command simplifies cross-validation routines including training stages and estimation(evaluation) stages.
 Once you execute this command, cross-validation is performed by running a seriese of training and estimation programs.
 
-### Configulation file
-#### *"model.py"*
-model python script
-
-#### *"dataset"*
-dataset joblib file
-
-#### *"validation_dataset"*
-validation dataset joblib file
-
-#### *"validation_data_rate"*
-generating validation dataset by splitting training dataset with *validation_data_rate*
-
-#### *"epoch"*
-the maximum numeber of epochs 
-
-#### *"batch_size"*
-the number of samples in a minibatch 
-
-#### *"patience"*
-patience parameter for early stopping
-
-#### *"learning_rate"*
-(initial) learning rate
-
-#### *"shuffle_data"*
-shuffling data after loading dataset
-
-#### *"with_feature"*
-In GCN, a node has feature or not.
-
-#### *"with_node_embedding"
-In GCN, a node has embedding vector or not.
-#### *"embedding_dim"*
-When `with_node_embedding=True`,
-The dimension of an embedding vector.
-
-#### *"normalize_adj_flag"*
-enables normalization of adjacency matrices
-#### *"split_adj_flag"*
-enables splitting adjacency matrices using dgree of a node
-
-#### *"order"*
-order of adjacency matrices
-
-#### *"param"*
-optional parameters for neural network archtecture
-(used in Baysian optimization)
-
-#### *"k-fold_num"*
-specifies the number of folds related to train_cv command.
-
-#### *"save_interval"*
-inter
-#### *"save_model_path"*
-path to save model
-#### *"save_result_train"*
-csv file name to save summarized results (train command)
-#### *"save_result_valid"*
-csv file name to save summarized results (train command)
-#### *"save_result_test"*
-csv file name to save summarized results (infer command)
-#### *"save_result_cv"*
-json file name to save summarized results (train_cv command)
-
-#### *"save_info_train"*
-json file name to save detailed information (train command)
-#### *"save_info_valid"*
-json file name to save detailed information (train command)
-#### *"save_info_test"*
-json file name to save detailed information (infer command)
-#### *"save_info_cv"*
-json file name to save cross-validation information (train_cv command)
-#### *"make_plot"*
-enables plotting results
-#### *"plot_path"*
-path to save plot data
-#### *"plot_multitask"*
-plotting results of multitaslk
-#### *"profile"*
-for profiling using the tensorflow profiler
-#### *stratified_kfold*
-for using stratified k-fold
+### [Configulation file](./docs/configulation_file.md)
 
 
-
-## Dataset file
+## [Dataset file](./docs/dataset_file.md)
 
 In order to use your own data, you have to create a *dictionary* with the following data format and compress it as a *joblib dump* file.
 
-### Standard GCN
-
-#### *"dense_adj"* (required for GCN)
-- a list of adjacency matrices.
-
-#### *"adj"* [optional, alternative to "dense_adj" ] (required for GCN)
-- Format: a list of a sparse adjacency matrix.
-- A sparse matrix is represented as a tuple ('ind', 'value', 'shape'), where 'ind' expresses the indices of the matrix as a pair of row-col vectors (rows, cols), 'value' is a vector of the entries of the matrix, and 'shape' is a shape of the matrix, that is a pair of the number of rows and the number of cols.
-
-#### *"max_node_num"* (required for GCN)
-- Format: a scalar value of the maximum number of nodes in a graph.
-
-#### *"feature"* (required for GCN with feature)
-- Format: a list of M by D feature matrices (D is the number of features per node).
-
-#### *"label"* (required for supervised training (of graph-centric GCN))
-- Format: a list of E binary label matrices (E is the number of classes).
-
-#### *"node_num"* [optional, node embedding mode]
-- Format: a scalar value of the number of all nodes in all graph (= N)
-
-#### *"node"* [optional, node embedding mode]
-- Format: a list of a vector for indices of nodes in a graph. (0<= node index < N)
-
-### Multimodal
-The following optoins are optional for multimodal mode (e.g. GCN and DNN)
-
-#### *"sequence"*
-- Format: a list of symbolic sequences as a integer matrix (the number of graphs x the maximum length of sequences)
-- Each element is represented as an integer encoding a symbol (1<= element <=S).
-
-#### *"sequence_length"*
-- Format: a list of lengths of sequences. A length of this list should be the number of graphs.
-
-#### *"sequence_symbol_num"*
-- Format: a scalar value of the number of symbols in sequences (= S).
-
-#### *"sequence"*
-- Format: a list of symbolic sequences as a integer matrix (the number of graphs x the maximum length of sequences)
-- Each element is represented as an integer encoding a symbol (1<= element <=S).
-
-#### *"profeat"/"dragon"/"ecfp"*
-- Format: a list of vectors as a floating matrix (the number of graphs x the dimension of features)
-- "profeat", "dragon", and "ecfp" are processed as the same way. 
-
-## Visualization
-### Chemical Compound
-#### *"mol"*
-- Format: RDKit Mol object.
-#### *"prediction_score"*
-- Format: A float value of the prediction score for use in the visualization process.
-#### *"target_label"*
-- Format: A int value of the label to predict
-#### *"check_score"*
-- Format: A float value IG(1)-IG(0), an approximate value of a total value of integrated gradients
-#### *"sum_of_IG"*
-- Format: A total value of integrated gradients.
-#### *"features"*
-- Format: A matrix of features.
-#### *"features_IG"*
-- Format: A matrix of integrated gradients of features.
-#### *"adjs"*
-- Format: A adjacency matrix.
-#### *"adjs_IG"*
-- Format: A matrix of integrated gradients of a adjacency matrix.
-
-### Note
-where the lengths of "adj" ("dense_adj"), "feature", "label",and "node" need to be equal.
+## [Visualization](./docs/visualization.md)
 
 ## Directory structure
 
@@ -328,7 +107,7 @@ where the lengths of "adj" ("dense_adj"), "feature", "label",and "node" need to 
 ├── gcn_pair.py      : an engin for ranking models
 ├── opt_hyperparam.py        :an engin for optimization of hyper parameters
 ├── kgcn
-│   ├── core.py          : a main program files for the GCN model 
+│   ├── core.py          : a main program files for the GCN model
 │   ├── data_util.py     : utilities for data handling
 │   ├── error_checker.py : error checker
 │   ├── feed.py          : functions to build feed dictionaries
@@ -345,7 +124,7 @@ where the lengths of "adj" ("dense_adj"), "feature", "label",and "node" need to 
 │   ├── make_dataset.py
 │   ├── plot_graph.py
 │   ├── show_graph.py
-│   └── show_label_balance.py 
+│   └── show_label_balance.py
 ├── script_cv                  : scripts for parallel cross validation
 │   ├── 01make_dataset.sh
 │   ├── 02run_fold.sh
@@ -367,7 +146,7 @@ The following command generates .jbl from text:
 python example_script/make_synth.py
 ```
 
-The following command carries out cross-validation: 
+The following command carries out cross-validation:
 ```bash
 kgcn train_cv --config example_config/synth.json
 ```
@@ -391,7 +170,7 @@ kgcn --config example_config/multimodal.json train
 ```
 For multimodal, symbolic sequences and graph data are used as the inputs of a neural network.
 This configuration file specifies the program of model as "model_multimodal.py", which includes definition of neural networks for graphs, sequences, and combining them.
-Please reffer to sample/seq.txt and a coverting program (make_example.py) to prepare sequence data, 
+Please reffer to sample/seq.txt and a coverting program (make_example.py) to prepare sequence data,
 
 ```bash
 kgcn --config example_config/multitask.json train
@@ -399,7 +178,7 @@ kgcn --config example_config/multitask.json train
 
 In this sample, "multitask" means that multiple labels are allowed for one graph.
 This configuration file specifies the program of model as "model_multitask.py", which includes definition of a loss function for multiple labels.
-Please reffer to sample_data/multi_label.txt and a coverting program (make_sample.py) to prepare multi labeled data, 
+Please reffer to sample_data/multi_label.txt and a coverting program (make_sample.py) to prepare multi labeled data,
 
 ### Reaction prediction and visualization
 
@@ -417,8 +196,8 @@ kgcn-chem -s example_data/mol.sma -l example_data/reaction_label.csv --no_header
 ```bash
 kgcn infer --config example_config/reaction.json
 ```
-This is a sample usage of visualization of the prediction.  
-- First, install the gcnvisualizer following "kGCN/gcnvisualizer" instruction.  
+This is a sample usage of visualization of the prediction.
+- First, install the gcnvisualizer following "kGCN/gcnvisualizer" instruction.
 - Then, prepare the input files for gcnvisualizer.
 ```bash
 kgcn visualize --config example_config/reaction.json
