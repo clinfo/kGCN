@@ -125,11 +125,17 @@ class GCNVisualizer(object):
         from rdkit import Chem
         from rdkit.Chem import rdDepictor
         from rdkit.Chem.Draw import rdMolDraw2D
+        from rdkit.Chem.Draw.MolDrawing import DrawingOptions
+        from collections import defaultdict
 
         self.logger.info(Chem.MolToSmiles(mol))
 
         rdDepictor.Compute2DCoords(mol)
         drawer = rdMolDraw2D.MolDraw2DSVG(*figsize)
+
+        drawer.drawOptions().updateAtomPalette({k : (0, 0, 0) for k in DrawingOptions.elemDict.keys()})
+        drawer.SetLineWidth(3)
+        drawer.SetFontSize(0.7)
 
         highlight_atoms, color_atoms = self._get_atoms_color()
         highlight_bonds = []
