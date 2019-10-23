@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import joblib
-import kgcn.layers
+import kgcn.legacy.layers
 import tensorflow.contrib.keras as K
 
 def build_placeholders(info,config,batch_size=4):
@@ -45,29 +45,29 @@ def build_model(placeholders,info,config,batch_size=4):
             layer=K.layers.Embedding(info.all_node_num,embedding_dim)(in_nodes)
             input_dim=embedding_dim
         # layer: batch_size x graph_node_num x dim
-        layer=kgcn.layers.GraphConv(128,adj_channel_num)(layer,adj=in_adjs)
-        layer=kgcn.layers.GraphBatchNormalization()(layer,
+        layer=kgcn.legacy.layers.GraphConv(128,adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.legacy.layers.GraphBatchNormalization()(layer,
             max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
         layer=tf.nn.relu(layer)
 #       layer=K.layers.Dropout(dropout_rate)(layer)
 
-        layer=kgcn.layers.GraphConv(128,adj_channel_num)(layer,adj=in_adjs)
-        layer=kgcn.layers.GraphBatchNormalization()(layer,
+        layer=kgcn.legacy.layers.GraphConv(128,adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.legacy.layers.GraphBatchNormalization()(layer,
             max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
         layer=tf.nn.relu(layer)
 #       layer=K.layers.Dropout(dropout_rate)(layer)
 
-        layer=kgcn.layers.GraphConv(128,adj_channel_num)(layer,adj=in_adjs)
-        layer=kgcn.layers.GraphBatchNormalization()(layer,
+        layer=kgcn.legacy.layers.GraphConv(128,adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.legacy.layers.GraphBatchNormalization()(layer,
             max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
         layer=tf.nn.relu(layer)
 #       layer=K.layers.Dropout(dropout_rate)(layer)
 
-        layer=kgcn.layers.GraphDense(128)(layer)
+        layer=kgcn.legacy.layers.GraphDense(128)(layer)
         layer=tf.nn.relu(layer)
 #       layer=K.layers.Dropout(dropout_rate)(layer)
 
-        layer=kgcn.layers.GraphGather()(layer)
+        layer=kgcn.legacy.layers.GraphGather()(layer)
         layer=K.layers.Dense(info.label_dim)(layer)
         prediction=tf.nn.softmax(layer,name="output")
         # computing cost and metrics
