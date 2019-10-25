@@ -419,7 +419,7 @@ pip install mendeleev
 ```
 - First, create the input dataset from a molecule file and a label file
 ```bash
-kgcn-chem -s example_data/mol.sma -l example_data/reaction_label.csv --no_header -o example_jbl/reaction.jbl -a 203 --sparse_label
+kgcn-chem -s example_data/mol.sma -l example_data/reaction_label.csv --no_header -o example_jbl/reaction.jbl -a 203 --sparse_label --use_deepchem_feature
 ```
 - Then, run "gcn.py" by "infer" command to get the accuracy.
 ```bash
