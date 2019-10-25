@@ -20,6 +20,10 @@ class DefaultModel:
             'sequences_len': tf.placeholder(tf.int32,shape=(batch_size,2), name="sequences_len"),
         }
 
+        for name,dim in info.vector_modal_name.items():
+            profeat_dim=info.vector_modal_dim[info.vector_modal_name[name]]
+            placeholders[name]=tf.placeholder(tf.float32, shape=(batch_size,profeat_dim),name=name)
+
         placeholders['preference_label_list']= tf.placeholder(tf.int64, shape=(batch_size,None,6),name="preference_label_list")
         placeholders['label_list']= tf.placeholder(tf.int64, shape=(batch_size,None,2),name="label_list")
         if info.feature_enabled:

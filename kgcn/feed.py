@@ -199,8 +199,13 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
             feed_dict[pl]=temp_enabled_node_nums
         elif key=="embedded_layer":
             if not "embedded_layer" in kwargs.keys():
-                feed_dict[pl]=np.zeros((batch_size, info.sequence_max_length,
-                                                        info.sequence_symbol_num))
+                chem_flag =  (info.sequence_max_length != 0) and (info.sequence_symbol_num != 0)
+                if chem_flag:
+                    feed_dict[pl]=np.zeros((batch_size, info.sequence_max_length,
+                                            info.sequence_symbol_num))
+                else:
+                    feed_dict[pl]=np.zeros((batch_size, info.all_node_num,
+                                            config["embedding_dim"]))
             else:
                 if key in ig_targets:
                     feed_dict[pl]=kwargs["embedded_layer"]*scaling #features[batch_idx,:,:]
@@ -208,6 +213,3 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
                     feed_dict[pl]=kwargs["embedded_layer"]
 
     return feed_dict
-
-
-

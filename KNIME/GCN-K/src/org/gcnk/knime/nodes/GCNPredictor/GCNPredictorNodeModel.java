@@ -179,9 +179,11 @@ public class GCNPredictorNodeModel extends GCNNodeModel {
 
         // Train
         {
-	        String scriptPath = Activator.getFile("org.gcnk.knime.nodes", "/py/gcn_infer.py").getAbsolutePath();
-	
+	        String scriptPath = System.getenv("GCNK_SOURCE_PATH") + "/gcn.py";
 	        String[] Command = { pythonPath, scriptPath, "infer", "--config", configFile};
+	        
+	        //String scriptPath = Activator.getFile("org.gcnk.knime.nodes", "/py/gcn_infer.py").getAbsolutePath();
+	        //String[] Command = { pythonPath, scriptPath, "infer", "--config", configFile};
 	        
 	        String cmd = String.join(" ", Command);
 	        logger.info("COMMAND: " + cmd);

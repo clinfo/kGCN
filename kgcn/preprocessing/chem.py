@@ -149,6 +149,10 @@ def get_parser():
         '--tfrecords', action='store_true', default=False,
         help='output .tfrecords files instead of joblib.'
     )
+    parser.add_argument(
+        '--regression', action='store_true', default=False,
+        help='regression'
+    )
     return parser.parse_args()
 
 """
@@ -879,9 +883,11 @@ def main():
     obj["max_node_num"] = args.atom_num_limit
     mol_info = {"obj_list": mol_list, "name_list": mol_name_list}
     obj["mol_info"] = mol_info
-    label_int = np.argmax(label_data_list, axis=1)
-    cw = class_weight.compute_class_weight("balanced", np.unique(label_int), label_int)
-    obj["class_weight"] = cw
+    if not args.regression:
+        label_int = np.argmax(label_data_list, axis=1)
+        cw = class_weight.compute_class_weight("balanced", np.unique(label_int), label_int)
+        obj["class_weight"] = cw
+
     if args.generate_mfp:
         from rdkit.Chem import AllChem
         mfps=[]

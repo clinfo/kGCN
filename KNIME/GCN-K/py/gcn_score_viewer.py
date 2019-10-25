@@ -4,7 +4,7 @@ import joblib
 import os
 
 def plot_auc(plot_multitask,result_path,labels,pred_data,prefix=""):
-    from gcn_modules.make_plots import make_auc_plot,make_multitask_auc_plot
+    from kgcn.make_plots import make_auc_plot,make_multitask_auc_plot
     os.makedirs(result_path, exist_ok=True)
     if plot_multitask:
         make_multitask_auc_plot(labels, pred_data, result_path+prefix)
