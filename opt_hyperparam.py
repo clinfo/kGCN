@@ -1,12 +1,14 @@
 from numpy.random import seed
 import GPyOpt
 import os
+import string
 import multiprocessing
 import numpy as np
 import json
 import argparse
 
-opt_cmd = "kgcn --config %s train %s"
+# Global variables
+opt_cmd = string.Template("kgcn --config ${config} train ${args}")
 domain = [
     {'name': 'num_gcn_layer', 'type': 'discrete', 'domain': (0, 1, 2, 3, 4), "data_type": "int"},
     {'name': 'layer_dim0', 'type': 'continuous', 'domain': (0.5, 3)},
@@ -25,16 +27,14 @@ domain = [
     {'name': 'dropout_rate',  'type': 'continuous', 'domain': (0, 0.9)},
     ]
 seed(123)
-
 opt_path = None
 opt_arg = ""
 config = None
-
+counter = 0
 # multiprocess is not supported
 batch_size = 1
 num_cores = 1
-
-counter = 0
+#
 
 
 def save_json(path, obj):
@@ -98,7 +98,8 @@ def fx(x):
     save_json(config["param"], param)
 
     # exec command
-    cmd = opt_cmd % (opt_config_path, opt_arg)
+    context = {"config": opt_config_path, "args": opt_arg}
+    cmd = opt_cmd.substitute(context)
     print("cmd:", cmd)
     os.system(cmd)
 
@@ -164,9 +165,9 @@ def main():
     param = {}
     for j, el in enumerate(domain):
         param[el["name"]] = opt.x_opt[j]
-    print("optimized parapeter: ", param)
-    print("cost : ", opt.fx_opt)
-    print("index: ", opt_index)
+    print(f"optimized parapeter: {param}"
+          f"cost: {opt.fx_opt}"
+          f"index: {opt_index}")
     param["opt_index"] = int(opt_index)
     # save optimized parameters
     out_path = os.path.join(opt_path, "opt_param.json")
