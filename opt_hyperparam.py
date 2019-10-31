@@ -52,13 +52,13 @@ def load_json(path):
 
 def update_config(path, config, fid, key):
     if key in config:
-        config[key] = path+os.path.basename(config[key])
+        config[key] = os.path.join(path, os.path.basename(config[key]))
 
 
 def make_config(path, config, fid):
-    config["param"] = path+"param.json"
-    config["save_info_valid"] = path+"result.json"
-    config["save_model"] = path+"model."+str(fid)+".ckpt"
+    config["param"] = os.path.join(path, "param.json")
+    config["save_info_valid"] = os.path.join(path, "result.json")
+    config["save_model"] = os.path.join(path, f"model.{str(fid)}.ckpt")
     ###
     config["plot_path"] = path
     update_config(path, config, fid, "save_info_train")
@@ -79,9 +79,9 @@ def fx(x):
 
     # build config
     config = config
-    opt_config_path = opt_path+"config."+str(fid)+".json"
-    path = opt_path+"trial%03d" % (fid,)+"/"
-    opt_result_path = path+"result.json"
+    opt_config_path = os.path.join(opt_path, f"config.{str(fid)}.json")
+    path = os.path.join(opt_path, f"trial{fid:03d}")
+    opt_result_path = os.path.join(path, "result.json")
     os.makedirs(path, exist_ok=True)
     # save config and  save parameters
     config = make_config(path, config, fid)
@@ -156,7 +156,7 @@ def main():
             param[el["name"]] = opt.X[i, j]
         y = opt.Y[i, 0]
         result.append({"param": param, "cost": y})
-    out_result_path = opt_path+"opt_result.json"
+    out_result_path = os.path.join(opt_path, "opt_result.json")
     save_json(out_result_path, result)
     opt_index = np.argmin(opt.Y[:, 0])
 
@@ -169,7 +169,7 @@ def main():
     print("index: ", opt_index)
     param["opt_index"] = int(opt_index)
     # save optimized parameters
-    out_path = opt_path+"opt_param.json"
+    out_path = os.path.join(opt_path, "opt_param.json")
     save_json(out_path, param)
 
 
