@@ -112,6 +112,7 @@ def main():
     parser.add_argument('--config', type=str,
             default=None,
             nargs='?',
+            required=True,
             help='config json file')
     parser.add_argument('--max_itr', type=int,
             default=3,
@@ -129,17 +130,11 @@ def main():
             action='store_true',
             help='[kgcn arg]')
     args=parser.parse_args()
-    # load config
-    if args.config is None:
-        parser.print_help()
-        quit()
-    else:
-        config=load_json(args.config)
 
-    if args.gpu:
-        opt_arg+=" --gpu "+args.gpu
-    if args.cpu:
-        opt_arg+=" --cpu"
+    config=load_json(args.config)
+
+    opt_arg += f" --gpu {args.gpu}" if args.gpu else ""
+    opt_arg += f" --cpu" if args.cpu else ""
 
     print("... preparing optimization")
     # make directory
