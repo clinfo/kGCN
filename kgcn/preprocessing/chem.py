@@ -16,7 +16,6 @@ from tensorflow.python_io import TFRecordWriter
 from tensorflow.train import Feature, Features, FloatList, Int64List, Example
 import joblib
 
-#import oddt.toolkits.extras.rdkit as ordkit
 from mendeleev import element
 
 
@@ -155,27 +154,6 @@ def get_parser():
     )
     return parser.parse_args()
 
-"""
-def generate_inactive_data(label_data, label_mask):
-    data_index = np.argwhere(label_mask == 1)
-    neg_count=0
-    pos_count=0
-    for data_point in data_index:
-        if label_data[tuple(data_point)] == 0:
-            neg_count+=1
-        else:
-            pos_count+=1
-    print("active count:",pos_count)
-    print("inactive count:",neg_count)
-    actives = np.argwhere(label_data == 1)
-    np.random.shuffle(actives[:, 1])  # in place
-    count=0
-    for inactive_data_point in actives:
-        if label_data[tuple(inactive_data_point)] == 0:
-            label_mask[tuple(inactive_data_point)] = 1
-            count+=1
-    print("pseudo inactive count:",count)
-"""
 
 def generate_inactive_data(label_data, label_mask):
     data_index = np.argwhere(label_mask == 1)
@@ -198,8 +176,7 @@ def generate_inactive_data(label_data, label_mask):
                 count+=1
         print("pseudo inactive count:",count)
 
-#make def negative_generate part
-#def generate_multimodal_inactive_data(adj, feature, seq, seq_symbol, dragon_data, label_data, mol_id, protein):
+
 def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
     """make inactive data with mol data and protein data & count active = inactive, inactive = over300000
         
@@ -265,7 +242,7 @@ def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_
         except:
             pass
         fp.write("\n")
-    ##
+    #
     print("#data",x[0].shape)
     ll=label_data[x[0],x[1]]
     if dragon_data is not None:
@@ -334,7 +311,7 @@ def read_profeat():
     else:
         return None
 
-# Get the information from atom
+
 def atom_features(atom, en_list=None, explicit_H=False, use_sybyl=False, use_electronegativity=False, use_gasteiger=False,degree_dim=17):
     if use_sybyl:
         import oddt.toolkits.extras.rdkit as ordkit
@@ -377,7 +354,6 @@ def atom_features(atom, en_list=None, explicit_H=False, use_sybyl=False, use_ele
     return np.array(results)
 
 
-# Convert to one-hot expression
 def one_of_k_encoding(x, allowable_set):
     if x not in allowable_set:
         raise Exception(
@@ -408,7 +384,6 @@ class AssayData:
         df_assay.replace('inactive', -1, inplace=True)
         df_assay.replace('active', 1, inplace=True)
 
-        # reading sdf
         sdf_filename = os.path.join(assay_path, "SDF_wash/SDF_wash.sdf")
         if not os.path.exists(sdf_filename):
             print("[PASS] not found:", sdf_filename)
@@ -420,7 +395,6 @@ class AssayData:
             if mol is None:
                 drop_index.append(mol_id)
                 continue
-            # Skip the compound whose total number of atoms is larger than "atom_num_limit"
             if args.atom_num_limit is not None and mol.GetNumAtoms() > args.atom_num_limit:
                 drop_index.append(mol_id)
                 continue
@@ -434,7 +408,6 @@ class AssayData:
     def _build_dragon_data(self, assay_path):
         dragon_assay_filename1 = os.path.join(assay_path, "SDF_wash_dragon894.csv")
         dragon_assay_filename2 = os.path.join(assay_path, "Dragon_CGBVS.list")
-        # reading csv
         df_dragon = None
         if os.path.exists(dragon_assay_filename1):
             df_dragon = pd.read_csv(dragon_assay_filename1, sep=',', header=None, index_col=0)
@@ -444,7 +417,6 @@ class AssayData:
         # deleting lines in drop_list and converting into dictionary
         self.dragon_data = None
         if df_dragon is not None:
-            dragon_data = {}
             df_dragon.drop(index=self.drop_index, inplace=True)
             dragon_data = {x[0]: x[1:] for x in df_dragon.itertuples()}
             self.dragon_data = dragon_data
@@ -458,9 +430,7 @@ class AssayData:
                 # skip comment line
                 if line[0] != ">":
                     seq_symbol += line.strip()
-            # to integer
             seq = [ord(x) - ord("A") for x in seq_symbol]
-            # to float
             seq = list(map(float, seq))
         self.seq = seq
         self.seq_symbol = seq_symbol
@@ -530,7 +500,6 @@ def concat_assay(assay_list):
 
 
 def summarize_assay(args, df_all_assay):
-    # summarization
     df_count = df_all_assay.count()
     summary = [df_count]
     count_data = [1, -1]
@@ -539,7 +508,6 @@ def summarize_assay(args, df_all_assay):
     for el in count_data:
         summary.append((df_all_assay == el).sum())
     df_summary = pd.concat(summary, axis=1)
-    # rename colomns name
     df_summary.columns = column_names
     basepath, ext = os.path.splitext(args.output)
     summary_filename = basepath + ".summary.csv"
@@ -593,8 +561,6 @@ def build_all_assay_data(args):
         label_data=label_data[x,:]
         mol_ids=mol_ids[x]
     #
-    #
-    ##
     task_name_list = list(assay_ids)
     mol_id_list = list(mol_ids)
     if dict_all_id_mol:
@@ -609,8 +575,6 @@ def build_all_assay_data(args):
     if dict_profeat:
         profeat_list= np.array([dict_profeat[mi] for mi in task_name_list])
     #
-    
-    #label_data = np.array(df_all_assay.values, dtype=np.float32)
     mask_label = np.zeros_like(label_data, dtype=np.float32)
     mask_label[~np.isnan(label_data)] = 1
     label_data[np.isnan(label_data)] = 0
@@ -620,7 +584,6 @@ def build_all_assay_data(args):
 
 def build_vector_modal(args):
     filename = args.vector_modal
-    # reading csv
     _, ext = os.path.splitext(filename)
     if ext == ".des" or ext == ".txt":
         df = pd.read_csv(filename, sep='\t', index_col=0)
@@ -763,7 +726,6 @@ def main():
     mol_name_list = []
     seq_symbol_list = None
     dragon_data_list = None
-    task_name_list = None
     seq_list = None
     seq = None
     dragon_data = None
@@ -780,7 +742,6 @@ def main():
 
     if args.vector_modal is not None:
         dragon_data = build_vector_modal(args)
-    ## automatically setting atom_num_limit
     if args.atom_num_limit is None:
         args.atom_num_limit=0
         for index, mol in enumerate(mol_obj_list):
@@ -798,10 +759,8 @@ def main():
         if mol is None:
             continue
         Chem.SanitizeMol(mol, sanitizeOps=Chem.SANITIZE_ADJUSTHS)
-        # Skip the compound whose total number of atoms is larger than "atom_num_limit"
         if args.atom_num_limit is not None and mol.GetNumAtoms() > args.atom_num_limit:
             continue
-        # Get mol. name
         try:
             name = mol.GetProp("_Name")
         except KeyError:
@@ -837,7 +796,6 @@ def main():
                 label_data_list.append([1, 0])
                 label_mask_list.append([1, 1])
             else:
-                # missing
                 print("[WARN] unknown label:",line)
                 label_data_list.append([0, 0])
                 label_mask_list.append([0, 0])
@@ -897,7 +855,6 @@ def main():
             mfp_vec=np.array([mfp.GetBit(i) for i in range(2048)],np.int32)
             mfps.append(mfp_vec)
         obj["mfp"] = np.array(mfps)
-    ##
 
     if args.multimodal:
         if seq is not None:
