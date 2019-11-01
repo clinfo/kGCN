@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import joblib
-import layers
+import kgcn.layers
 import tensorflow.contrib.keras as K
 
 def build_placeholders(info,config,batch_size=4):
@@ -39,14 +39,14 @@ def build_model(placeholders,info,config,batch_size=4):
     input_dim=info.feature_dim
     print(info.param["num_gcn_layer"])
     for i in range(int(info.param["num_gcn_layer"])):
-        layer=layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
-        layer=layers.GraphBatchNormalization()(layer,
+        layer=kgcn.layers.GraphConv(internal_dim,adj_channel_num)(layer,adj=in_adjs)
+        layer=kgcn.layers.GraphBatchNormalization()(layer,
             max_node_num=info.graph_node_num,enabled_node_nums=enabled_node_nums)
         layer=tf.sigmoid(layer)
         layer=K.layers.Dropout(dropout_rate)(layer)
-    layer=layers.GraphDense(internal_dim)(layer)
+    layer=kgcn.layers.GraphDense(internal_dim)(layer)
     layer=tf.sigmoid(layer)
-    layer=layers.GraphGather()(layer)
+    layer=kgcn.layers.GraphGather()(layer)
     output_dim=2
     layer=K.layers.Dense(output_dim)(layer)
     prediction=tf.nn.softmax(layer)
