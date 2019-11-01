@@ -5,43 +5,40 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
 from sklearn.preprocessing import LabelEncoder
+from tensorflow.train import Feature, Features, FloatList, Int64List, Example
 
 
-def atom_features(atom, en_list=None, explicit_H=False, use_sybyl=False, use_electronegativity=False, use_gasteiger=False,degree_dim=17):
+def atom_features(atom, en_list=None, explicit_H=False, use_sybyl=False, use_electronegativity=False,
+                  use_gasteiger=False, degree_dim=17):
     if use_sybyl:
         import oddt.toolkits.extras.rdkit as ordkit
         atom_type = ordkit._sybyl_atom_type(atom)
         atom_list = ['C.ar', 'C.cat', 'C.1', 'C.2', 'C.3', 'N.ar', 'N.am', 'N.pl3', 'N.1', 'N.2', 'N.3', 'N.4', 'O.co2',
-                     'O.2', 'O.3', 'S.O', 'S.o2', 'S.2', 'S.3', 'F', 'Si', 'P', 'P3', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As',
-                     'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti',
-                     'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In','Mn', 'Zr', 'Cr', 'Pt',
-                     'Hg', 'Pb', 'Unknown']
+                     'O.2', 'O.3', 'S.O', 'S.o2', 'S.2', 'S.3', 'F', 'Si', 'P', 'P3', 'Cl', 'Br', 'Mg', 'Na', 'Ca',
+                     'Fe', 'As', 'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn',
+                     'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'Unknown']
     else:
         atom_type = atom.GetSymbol()
-        atom_list = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As',
-                     'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti',
-                     'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In','Mn', 'Zr', 'Cr', 'Pt',
-                     'Hg', 'Pb', 'Unknown']
-
-
+        atom_list = ['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As', 'Al', 'I', 'B', 'V',
+                     'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni',
+                     'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'Unknown']
     results = one_of_k_encoding_unk(atom_type, atom_list) + \
-              one_of_k_encoding(atom.GetDegree(), list(range(degree_dim))) + \
-              one_of_k_encoding_unk(atom.GetImplicitValence(), [0, 1, 2, 3, 4, 5, 6]) + \
-              [atom.GetFormalCharge(), atom.GetNumRadicalElectrons()] + \
-              one_of_k_encoding_unk(atom.GetHybridization(),
-                                    [Chem.rdchem.HybridizationType.SP, Chem.rdchem.HybridizationType.SP2,
-                                     Chem.rdchem.HybridizationType.SP3, Chem.rdchem.HybridizationType.SP3D,
-                                     Chem.rdchem.HybridizationType.SP3D2]) + \
-              [atom.GetIsAromatic()]
+        one_of_k_encoding(atom.GetDegree(), list(range(degree_dim))) + \
+        one_of_k_encoding_unk(atom.GetImplicitValence(), [0, 1, 2, 3, 4, 5, 6]) + \
+        [atom.GetFormalCharge(), atom.GetNumRadicalElectrons()] + \
+        one_of_k_encoding_unk(atom.GetHybridization(),
+                              [Chem.rdchem.HybridizationType.SP, Chem.rdchem.HybridizationType.SP2,
+                               Chem.rdchem.HybridizationType.SP3, Chem.rdchem.HybridizationType.SP3D,
+                               Chem.rdchem.HybridizationType.SP3D2]) + \
+        [atom.GetIsAromatic()]
+
     if use_electronegativity:
         results = results + [en_list[atom.GetAtomicNum() - 1]]
-
     if use_gasteiger:
         gasteiger = atom.GetDoubleProp('_GasteigerCharge')
         if np.isnan(gasteiger) or np.isinf(gasteiger):
-            gasteiger = 0 # because the mean is 0
+            gasteiger = 0  # because the mean is 0
         results = results + [gasteiger]
-
 
     # In case of explicit hydrogen(QM8, QM9), avoid calling `GetTotalNumHs`
     if not explicit_H:
@@ -64,12 +61,12 @@ def one_of_k_encoding_unk(x, allowable_set):
 
 
 def read_profeat():
-    dict_profeat={}
-    filename="profeat.txt"
+    dict_profeat = {}
+    filename = "profeat.txt"
     if os.path.exists(filename):
         for line in open(filename):
-            arr=line.split("\t")
-            dict_profeat[arr[0]]=list(map(float,arr[1:]))
+            arr = line.split("\t")
+            dict_profeat[arr[0]] = list(map(float, arr[1:]))
         return dict_profeat
     else:
         return None
@@ -142,7 +139,7 @@ def convert_to_example(adj, feature, label_data=None, label_mask=None,):
     degrees = np.sum(adj, 0)
     adj_degrees = []
     for ar, ac in zip(adj_row, adj_col):
-        if ar==ac:
+        if ar == ac:
             adj_degrees.append(0)
         else:
             adj_degrees.append(int(degrees[ar]))

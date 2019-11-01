@@ -157,123 +157,123 @@ def get_parser():
 
 def generate_inactive_data(label_data, label_mask):
     data_index = np.argwhere(label_mask == 1)
-    neg_count=0
-    pos_count=0
+    neg_count = 0
+    pos_count = 0
     for data_point in data_index:
         if label_data[tuple(data_point)] == 0:
-            neg_count+=1
+            neg_count += 1
         else:
-            pos_count+=1
-    print("active count:",pos_count)
-    print("inactive count:",neg_count)
-    if pos_count>neg_count:
+            pos_count += 1
+    print("active count:", pos_count)
+    print("inactive count:", neg_count)
+    if pos_count > neg_count:
         actives = np.argwhere(label_data == 1)
         np.random.shuffle(actives[:, 1])  # in place
-        count=0
+        count = 0
         for inactive_data_point in actives:
             if label_data[tuple(inactive_data_point)] == 0:
                 label_mask[tuple(inactive_data_point)] = 1
-                count+=1
-        print("pseudo inactive count:",count)
+                count += 1
+        print("pseudo inactive count:", count)
 
 
-def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat):
+def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq,
+                             seq_symbol, profeat):
     """make inactive data with mol data and protein data & count active = inactive, inactive = over300000
-        
     Arguments:
         negative_generate --make inactive data from protein,compound,label data & use index from active data
 
         Returns:#Yields:
                 negative_adj,feature,seq,seq_symbol,drogon_data
     """
-    ##make inactives
+    # make inactives
     if not args.no_pseudo_negative:
-        enabled_mol_index,enabled_task_index=np.where(label_mask==1)
-        active_count = np.where(label_data[enabled_mol_index,enabled_task_index] == 1)[0].shape[0]
-        inactive_count = np.where(label_data[enabled_mol_index,enabled_task_index] == 0)[0].shape[0]
+        enabled_mol_index, enabled_task_index = np.where(label_mask == 1)
+        active_count = np.where(label_data[enabled_mol_index, enabled_task_index] == 1)[0].shape[0]
+        inactive_count = np.where(label_data[enabled_mol_index, enabled_task_index] == 0)[0].shape[0]
         make_count = active_count - inactive_count
-        print("[multimodal] count=",len(enabled_mol_index))
-        print("[multimodal] active count=",active_count)
-        print("[multimodal] inactive count=",inactive_count)
-        print("[multimodal] pseudo inactive count=",make_count)
-        print("[multimodal] #mols: ",len(mol_obj_list))
-        print("[multimodal] #proteins: ",len(task_name_list))
-        if make_count+active_count+inactive_count> len(mol_obj_list)*len(task_name_list):
+        print("[multimodal] count=", len(enabled_mol_index))
+        print("[multimodal] active count=", active_count)
+        print("[multimodal] inactive count=", inactive_count)
+        print("[multimodal] pseudo inactive count=", make_count)
+        print("[multimodal] #mols: ", len(mol_obj_list))
+        print("[multimodal] #proteins: ", len(task_name_list))
+        if make_count+active_count+inactive_count > len(mol_obj_list)*len(task_name_list):
             print("[WARN] all of the rest data are pseudo negative!")
-            negative_data_index=np.where(label_mask==0)
-            label_mask[label_mask==0]=1
+            negative_data_index = np.where(label_mask == 0)
+            label_mask[label_mask == 0] = 1
         else:
-            negative_count=0
-            negative_data_index=[[],[]]
-            while(negative_count<make_count):
-                x=np.where(label_mask==1)
-                mol_index = np.random.randint(0,len(mol_id_list),make_count-negative_count)
-                protein_index = np.random.randint(0,len(task_name_list),make_count-negative_count)
-                flags=label_mask[mol_index,protein_index]
-                new_mol_index=mol_index[flags==0]
-                new_protein_index=protein_index[flags==0]
-                if len(new_mol_index)>0:
-                    label_mask[new_mol_index,new_protein_index]=1
-                    label_data[new_mol_index,new_protein_index]=0 # negative
-                    new_index=np.unique(np.array([new_mol_index,new_protein_index]),axis=1)
-                    negative_data_index=np.concatenate([negative_data_index,new_index],axis=1)
-                    negative_count+=new_index.shape[1]
-                    print("#negative count:",negative_count)
-                    x=np.where(label_mask==1)
+            negative_count = 0
+            negative_data_index = [[], []]
+            while negative_count < make_count:
+                x = np.where(label_mask == 1)
+                mol_index = np.random.randint(0, len(mol_id_list), make_count-negative_count)
+                protein_index = np.random.randint(0, len(task_name_list), make_count-negative_count)
+                flags = label_mask[mol_index, protein_index]
+                new_mol_index = mol_index[flags == 0]
+                new_protein_index = protein_index[flags == 0]
+                if len(new_mol_index) > 0:
+                    label_mask[new_mol_index, new_protein_index] = 1
+                    label_data[new_mol_index, new_protein_index] = 0  # negative
+                    new_index = np.unique(np.array([new_mol_index, new_protein_index]), axis=1)
+                    negative_data_index = np.concatenate([negative_data_index, new_index], axis=1)
+                    negative_count += new_index.shape[1]
+                    print("#negative count:", negative_count)
+                    x = np.where(label_mask == 1)
 
-    #convert_multimodal_label
-    x=np.where(label_mask==1)
-    ## to identify a pair of mol and task
-    filename="multimodal_data_index.csv"
-    print("[save] mol & task:",filename)
-    fp=open(filename,"w")
-    for x0,x1 in zip(x[0],x[1]):
+    x = np.where(label_mask == 1)  # convert_multimodal_label
+    # to identify a pair of mol and task
+    filename = "multimodal_data_index.csv"
+    print("[save] mol & task:", filename)
+    fp = open(filename, "w")
+    for x0, x1 in zip(x[0], x[1]):
         fp.write(str(x0))
         fp.write(",")
         fp.write(str(x1))
         try:
-            m=mol_obj_list[x0]
-            smi=Chem.MolToSmiles(m)
+            m = mol_obj_list[x0]
+            smi = Chem.MolToSmiles(m)
             fp.write(",")
             fp.write(str(smi))
-            t1=task_name_list[x1]
+            t1 = task_name_list[x1]
             fp.write(",")
             fp.write(str(t1))
         except:
             pass
         fp.write("\n")
     #
-    print("#data",x[0].shape)
-    ll=label_data[x[0],x[1]]
+    print("#data", x[0].shape)
+    ll = label_data[x[0], x[1]]
     if dragon_data is not None:
-        dragon_data=dragon_data[x[0]]
+        dragon_data = dragon_data[x[0]]
     if mol_obj_list is not None:
-        new_mol_obj_list=np.array(mol_obj_list)[x[0]]
+        new_mol_obj_list = np.array(mol_obj_list)[x[0]]
     if seq is not None:
-        seq=seq[x[1]]
-        seq_symbol=seq_symbol[x[1]]
+        seq = seq[x[1]]
+        seq_symbol = seq_symbol[x[1]]
     if profeat is not None:
-        profeat=profeat[x[1]]
-    max_label=np.max(ll)
-    print("[multimodal] maximum label",max_label)
+        profeat = profeat[x[1]]
+    max_label = np.max(ll)
+    print("[multimodal] maximum label", max_label)
     if args.label_dim is None:
-        label_dim=int(max_label)+1
+        label_dim = int(max_label)+1
     else:
         label_dim = args.label_dim
-    print("[multimodal] label dim.",label_dim)
-    if label_dim<=2:
-        new_label_data=np.zeros((ll.shape[0],2))
-        new_label_data[ll==1,1]=1
-        new_label_data[ll==0,0]=1
-        new_mask_label=np.ones_like(new_label_data)
+    print("[multimodal] label dim.", label_dim)
+    if label_dim <= 2:
+        new_label_data = np.zeros((ll.shape[0], 2))
+        new_label_data[ll == 1, 1] = 1
+        new_label_data[ll == 0, 0] = 1
+        new_mask_label = np.ones_like(new_label_data)
     else:
-        new_label_data=np.zeros((ll.shape[0],label_dim))
+        new_label_data = np.zeros((ll.shape[0], label_dim))
         print(ll)
-        for i,l in enumerate(ll):
-            new_label_data[i,int(l)]=1
-        new_mask_label=np.ones_like(new_label_data)
+        for i, l in enumerate(ll):
+            new_label_data[i, int(l)] = 1
+        new_mask_label = np.ones_like(new_label_data)
 
-    return new_mol_obj_list, new_label_data, new_mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat
+    return new_mol_obj_list, new_label_data, new_mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol,\
+           profeat
 
 
 class AssayData:
@@ -335,8 +335,7 @@ class AssayData:
         if os.path.exists(seq_filename):
             seq_symbol = ""
             for line in open(seq_filename):
-                # skip comment line
-                if line[0] != ">":
+                if line[0] != ">":  # skip comment line
                     seq_symbol += line.strip()
             seq = [ord(x) - ord("A") for x in seq_symbol]
             seq = list(map(float, seq))
@@ -344,16 +343,16 @@ class AssayData:
         self.seq_symbol = seq_symbol
 
     def _build_profeat(self, assay_path, dict_profeat):
-        b=os.path.basename(assay_path)
+        b = os.path.basename(assay_path)
         if dict_profeat is not None:
             if b in dict_profeat:
-                v=dict_profeat[b]
-                self.profeat=v
+                v = dict_profeat[b]
+                self.profeat = v
             elif dict_profeat is not None:
-                print("[WARN]",b,"does not have profeat")
-                self.profeat=None
+                print("[WARN]", b, "does not have profeat")
+                self.profeat = None
             else:
-                self.profeat=None
+                self.profeat = None
 
     def build_from_dir(self, args, assay_filename, dict_profeat=None):
         assay_path = os.path.dirname(assay_filename)
@@ -367,12 +366,12 @@ class AssayData:
 
 
 def concat_assay(assay_list):
-    dict_all_assay=None
+    dict_all_assay = None
     for assay_data in assay_list:
         if assay_data.dict_assay is not None:
             if dict_all_assay is None:
                 dict_all_assay = {}
-            dict_all_assay.update({(assay_data.path,str(k)): v for k, v in assay_data.dict_assay.items()})
+            dict_all_assay.update({(assay_data.path, str(k)): v for k, v in assay_data.dict_assay.items()})
 
     dict_all_id_mol = None
     for assay_data in assay_list:
@@ -394,15 +393,15 @@ def concat_assay(assay_list):
             assay_data.path
             if seq is None:
                 seq, seq_symbol = {}, {}
-            seq[assay_data.path]=assay_data.seq
-            seq_symbol[assay_data.path]=assay_data.seq_symbol
+            seq[assay_data.path] = assay_data.seq
+            seq_symbol[assay_data.path] = assay_data.seq_symbol
     
     dict_profeat = None 
     for assay_data in assay_list:
         if assay_data.profeat is not None:
             if dict_profeat is None:
                 dict_profeat = {}
-            dict_profeat[assay_data.path]=assay_data.profeat
+            dict_profeat[assay_data.path] = assay_data.profeat
     
     return dict_all_assay, dict_all_id_mol, dict_dragon_data, seq, seq_symbol, dict_profeat
 
@@ -411,8 +410,8 @@ def summarize_assay(args, df_all_assay):
     df_count = df_all_assay.count()
     summary = [df_count]
     count_data = [1, -1]
-    column_names = ["count","count_pos","count_neg"]
-    #+ list(map(lambda x: "count_"+str(x), count_data))
+    column_names = ["count", "count_pos", "count_neg"]
+    # + list(map(lambda x: "count_"+str(x), count_data))
     for el in count_data:
         summary.append((df_all_assay == el).sum())
     df_summary = pd.concat(summary, axis=1)
@@ -426,48 +425,48 @@ def summarize_assay(args, df_all_assay):
 
 def build_all_assay_data(args):
     assay_list = []
-    dict_profeat=read_profeat()
+    dict_profeat = read_profeat()
     for assay_filename in glob.iglob(os.path.join(args.assay_dir, '**/assay.csv'), recursive=True):
-        assay_list.append(AssayData().build_from_dir(args, assay_filename,dict_profeat=dict_profeat))
+        assay_list.append(AssayData().build_from_dir(args, assay_filename, dict_profeat=dict_profeat))
 
     dict_all_assay, dict_all_id_mol, dict_dragon_data, seq, seq_symbol, dict_profeat = concat_assay(assay_list)
     #
-    assay_ids=np.unique([assay_id for assay_id,mol_id in dict_all_assay.keys()])
-    mol_ids=np.unique([mol_id for assay_id,mol_id in dict_all_assay.keys()])
-    ## building label table
-    label_data=np.empty((len(mol_ids),len(assay_ids)),dtype=np.float32)
-    label_data[:,:]=np.nan
-    for i,mi in enumerate(mol_ids):
-        for j,aj in enumerate(assay_ids):
-            if (aj,mi) in dict_all_assay:
-                label_data[i,j]=dict_all_assay[(aj,mi)][0]
-    ## dropping limitted tasks
-    dd=pd.DataFrame(label_data)
+    assay_ids = np.unique([assay_id for assay_id, mol_id in dict_all_assay.keys()])
+    mol_ids = np.unique([mol_id for assay_id, mol_id in dict_all_assay.keys()])
+    # building label table
+    label_data = np.empty((len(mol_ids), len(assay_ids)), dtype=np.float32)
+    label_data[:, :] = np.nan
+    for i, mi in enumerate(mol_ids):
+        for j, aj in enumerate(assay_ids):
+            if (aj, mi) in dict_all_assay:
+                label_data[i, j] = dict_all_assay[(aj, mi)][0]
+    # dropping limitted tasks
+    dd = pd.DataFrame(label_data)
     df_summary = summarize_assay(args, dd)
     if args.assay_num_limit is not None:
         names = df_summary.query('count >= '+str(args.assay_num_limit)).index
-        label_data = label_data[:,names]
-        assay_ids=assay_ids[names]
+        label_data = label_data[:, names]
+        assay_ids = assay_ids[names]
         # dropping rows consisting of only nan data
-        x=~np.all(np.isnan(label_data),axis=1)
-        label_data=label_data[x,:]
-        mol_ids=mol_ids[x]
+        x = ~np.all(np.isnan(label_data), axis=1)
+        label_data = label_data[x, :]
+        mol_ids = mol_ids[x]
     if args.assay_pos_num_limit is not None:
         names = df_summary.query('count_pos >= '+str(args.assay_pos_num_limit)).index
-        label_data = label_data[:,names]
-        assay_ids=assay_ids[names]
+        label_data = label_data[:, names]
+        assay_ids = assay_ids[names]
         # dropping rows consisting of only nan data
-        x=~np.all(np.isnan(label_data),axis=1)
-        label_data=label_data[x,:]
-        mol_ids=mol_ids[x]
+        x = ~np.all(np.isnan(label_data), axis=1)
+        label_data = label_data[x, :]
+        mol_ids = mol_ids[x]
     if args.assay_neg_num_limit is not None:
         names = df_summary.query('count_neg >= '+str(args.assay_neg_num_limit)).index
-        label_data = label_data[:,names]
-        assay_ids=assay_ids[names]
+        label_data = label_data[:, names]
+        assay_ids = assay_ids[names]
         # dropping rows consisting of only nan data
-        x=~np.all(np.isnan(label_data),axis=1)
-        label_data=label_data[x,:]
-        mol_ids=mol_ids[x]
+        x = ~np.all(np.isnan(label_data), axis=1)
+        label_data = label_data[x, :]
+        mol_ids = mol_ids[x]
     #
     task_name_list = list(assay_ids)
     mol_id_list = list(mol_ids)
@@ -477,11 +476,11 @@ def build_all_assay_data(args):
     if dict_dragon_data:
         dragon_data = np.array([dict_dragon_data[mi] for mi in mol_ids])
     if seq:
-        seq= np.array([seq[mi] for mi in task_name_list])
-        seq_symbol= np.array([seq_symbol[mi] for mi in task_name_list])
-    profeat_list=None
+        seq = np.array([seq[mi] for mi in task_name_list])
+        seq_symbol = np.array([seq_symbol[mi] for mi in task_name_list])
+    profeat_list = None
     if dict_profeat:
-        profeat_list= np.array([dict_profeat[mi] for mi in task_name_list])
+        profeat_list = np.array([dict_profeat[mi] for mi in task_name_list])
     #
     mask_label = np.zeros_like(label_data, dtype=np.float32)
     mask_label[~np.isnan(label_data)] = 1
@@ -525,11 +524,15 @@ def extract_mol_info(args):
         mol_obj_list = [mol for mol in Chem.SDMolSupplier(filename)]
         _, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
     elif args.assay_dir is not None and args.multimodal:
-        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = build_all_assay_data(args)
-        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list,mol_id_list, seq, seq_symbol, profeat)
+        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
+            build_all_assay_data(args)
+        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
+            generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list,
+                                     mol_id_list, seq, seq_symbol, profeat)
         
     elif args.assay_dir is not None:
-        mol_obj_list, label_data, label_mask, dragon_data, task_name_list,mol_id_list, seq, seq_symbol, profeat = build_all_assay_data(args)
+        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
+            build_all_assay_data(args)
         generate_inactive_data(label_data, label_mask)
     elif args.csv_reaxys is not None:
         mol_obj_list, label_data, label_mask, publication_years = parse_csv(args)
@@ -537,16 +540,17 @@ def extract_mol_info(args):
         print("[ERROR] --smarts, --sdf_dir, or --assay_dir is required")
         sys.exit(1)
 
-    return mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol, profeat, publication_years
+    return mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol, profeat,\
+        publication_years
 
 
 def main():
     args = get_parser()
     if args.use_deepchem_feature:
-        args.degree_dim=11
-        args.use_sybyl=False
-        args.use_electronegativity=False
-        args.use_gasteiger=False
+        args.degree_dim = 11
+        args.use_sybyl = False
+        args.use_electronegativity = False
+        args.use_gasteiger = False
 
     adj_list = []
     feature_list = []
@@ -560,26 +564,27 @@ def main():
     seq = None
     dragon_data = None
     profeat = None
-    mol_list=[]
+    mol_list = []
     if args.solubility:
-        args.sdf_label="SOL_classification"
-        args.sdf_label_active="high"
-        args.sdf_label_inactive="low"
+        args.sdf_label = "SOL_classification"
+        args.sdf_label_active = "high"
+        args.sdf_label_inactive = "low"
     if args.assay_dir is not None:
-        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol,profeat, publication_years = extract_mol_info(args)
+        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol, profeat, publication_years =\
+            extract_mol_info(args)
     else:
         mol_obj_list, label_data, label_mask, _, task_name_list, _, _, _, publication_years = extract_mol_info(args)
 
     if args.vector_modal is not None:
         dragon_data = build_vector_modal(args)
     if args.atom_num_limit is None:
-        args.atom_num_limit=0
+        args.atom_num_limit = 0
         for index, mol in enumerate(mol_obj_list):
             if mol is None:
                 continue
             Chem.SanitizeMol(mol, sanitizeOps=Chem.SANITIZE_ADJUSTHS)
             if args.atom_num_limit < mol.GetNumAtoms():
-                args.atom_num_limit=mol.GetNumAtoms()
+                args.atom_num_limit = mol.GetNumAtoms()
 
     if args.use_electronegativity:
         ELECTRONEGATIVITIES = [element(i).electronegativity('pauling') for i in range(1, 100)]
@@ -598,7 +603,8 @@ def main():
         mol_list.append(mol)
         mol_name_list.append(name)
         adj = create_adjancy_matrix(mol)
-        feature = create_feature_matrix(mol, args) if not args.use_electronegativity else create_feature_matrix(mol, args, en_list=ELECTRONEGATIVITIES)
+        feature = create_feature_matrix(mol, args) if not args.use_electronegativity else \
+            create_feature_matrix(mol, args, en_list=ELECTRONEGATIVITIES)
         if args.tfrecords:
             tfrname = os.path.join(args.output, name + '_.tfrecords')
             if args.csv_reaxys:
@@ -626,7 +632,7 @@ def main():
                 label_data_list.append([1, 0])
                 label_mask_list.append([1, 1])
             else:
-                print("[WARN] unknown label:",line)
+                print("[WARN] unknown label:", line)
                 label_data_list.append([0, 0])
                 label_mask_list.append([0, 0])
         else:
@@ -678,21 +684,21 @@ def main():
 
     if args.generate_mfp:
         from rdkit.Chem import AllChem
-        mfps=[]
+        mfps = []
         for mol in mol_list:
             FastFindRings(mol)
-            mfp=AllChem.GetMorganFingerprintAsBitVect(mol,2,nBits=2048)
-            mfp_vec=np.array([mfp.GetBit(i) for i in range(2048)],np.int32)
+            mfp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048)
+            mfp_vec = np.array([mfp.GetBit(i) for i in range(2048)], np.int32)
             mfps.append(mfp_vec)
         obj["mfp"] = np.array(mfps)
 
     if args.multimodal:
         if seq is not None:
             if args.max_len_seq is not None:
-                max_len_seq=args.max_len_seq
+                max_len_seq = args.max_len_seq
             else:
                 max_len_seq = max(map(len, seq_list))
-            print("max_len_seq:",max_len_seq)
+            print("max_len_seq:", max_len_seq)
             seq_mat = np.zeros((len(seq_list), max_len_seq), np.int32)
             for i, s in enumerate(seq_list):
                 seq_mat[i, 0:len(s)] = s
