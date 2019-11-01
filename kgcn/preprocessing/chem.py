@@ -16,7 +16,7 @@ from mendeleev import element
 
 from kgcn.data_util import dense_to_sparse
 from kgcn.preprocessing.utils import read_profeat, read_label_file, parse_csv, create_adjancy_matrix, \
-    create_feature_matrix, convert_to_example
+    create_feature_matrix, convert_to_example, save_tfrecords
 
 
 def get_parser():
@@ -530,6 +530,10 @@ def main():
     dragon_data = None
     profeat = None
     mol_list = []
+    train_list = []
+    eval_list = []
+    test_list = []
+    prefix_idx = 0
     if args.solubility:
         args.sdf_label = "SOL_classification"
         args.sdf_label_active = "high"
@@ -571,17 +575,22 @@ def main():
         feature = create_feature_matrix(mol, args) if not args.use_electronegativity else \
             create_feature_matrix(mol, args, en_list=ELECTRONEGATIVITIES)
         if args.tfrecords:
-            tfrname = os.path.join(args.output, name + '_.tfrecords')
+            ex = convert_to_example(adj, feature, label_data[index], label_mask[index])
             if args.csv_reaxys:
                 if publication_years[index] < 2015:
-                    name += "_train"
+                    train_list.append(ex)
                 else:
-                    name += random.choice(["_test", "_eval"])
-                tfrname = os.path.join(args.output, str(publication_years[index]), name + '_.tfrecords')
-            pathlib.Path(os.path.dirname(tfrname)).mkdir(parents=True, exist_ok=True)
-            ex = convert_to_example(adj, feature, label_data[index], label_mask[index])
-            with TFRecordWriter(tfrname) as single_writer:
-                single_writer.write(ex.SerializeToString())
+                    choice = random.choice(["test", "eval"])
+                    if choice == "test":
+                        test_list.append(ex)
+                    else:
+                        eval_list.append(ex)
+            if index % 100000 == 0:
+                save_tfrecords(args.output, train_list, eval_list, test_list, prefix_idx)
+                train_list.clear()
+                eval_list.clear()
+                test_list.clear()
+                prefix_idx += 1
             continue
 
         atom_num_list.append(mol.GetNumAtoms())
@@ -611,6 +620,8 @@ def main():
                 seq_list, seq_symbol_list = (seq_list, seq_symbol_list) if seq_list is not None else ([], [])
                 seq_list.append(seq[index])
                 seq_symbol_list.append(seq[index])
+    if args.csv_reaxys:
+        save_tfrecords(args.output, train_list, eval_list, test_list, prefix_idx)
     if args.tfrecords:
         with open(os.path.join(args.output, "tasks.txt"), "w") as f:
             f.write("\n".join(task_name_list))

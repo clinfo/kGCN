@@ -5,6 +5,7 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
 from sklearn.preprocessing import LabelEncoder
+from tensorflow.python_io import TFRecordWriter
 from tensorflow.train import Feature, Features, FloatList, Int64List, Example
 
 
@@ -91,7 +92,8 @@ def read_label_file(args):
 
 
 def parse_csv(args):
-    df = pd.read_csv(args.csv_reaxys)
+    df = pd.read_csv(args.csv_reaxys, dtype={'product': 'str', 'reaction_core': 'str', 'max_publication_year': 'int16'})
+    df = df.sample(frac=1, random_state=1234)
     le = LabelEncoder()
     label_data = le.fit_transform(df['reaction_core'])
     with open("class.sma", 'w') as sma:
@@ -165,4 +167,16 @@ def convert_to_example(adj, feature, label_data=None, label_mask=None,):
         feature['mask_label'] = Feature(int64_list=Int64List(value=label_mask.astype(int))),
     features = Features(feature=feature)
     ex = Example(features=features)
-    return ex
+    return ex.SerializeToString()
+
+
+def save_tfrecords(save_dir, train_list, eval_list, test_list, idx):
+    with TFRecordWriter(os.path.join(save_dir, f"{idx}_train_.tfrecords")) as writer:
+        for e in train_list:
+            writer.write(e)
+    with TFRecordWriter(os.path.join(save_dir, f"{idx}_test_.tfrecords")) as writer:
+        for e in test_list:
+            writer.write(e)
+    with TFRecordWriter(os.path.join(save_dir, f"{idx}_eval_.tfrecords")) as writer:
+        for e in eval_list:
+            writer.write(e)
