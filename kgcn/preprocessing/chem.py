@@ -272,7 +272,7 @@ class AssayData:
 
         sdf_filename = os.path.join(assay_path, "SDF_wash/SDF_wash.sdf")
         if not os.path.exists(sdf_filename):
-            print("[PASS] not found:", sdf_filename)
+            print(f"[PASS] not found: {sdf_filename}")
             return
 
         dict_id_mol, drop_index = {}, []
@@ -313,8 +313,7 @@ class AssayData:
         if os.path.exists(seq_filename):
             seq_symbol = ""
             for line in open(seq_filename):
-                if line[0] != ">":  # skip comment line
-                    seq_symbol += line.strip()
+                seq_symbol += line.strip() if line[0] != ">" else ""  # skip comment line
             seq = [ord(x) - ord("A") for x in seq_symbol]
             seq = list(map(float, seq))
         self.seq = seq
@@ -323,62 +322,48 @@ class AssayData:
     def _build_profeat(self, assay_path, dict_profeat):
         b = os.path.basename(assay_path)
         if dict_profeat is not None:
-            if b in dict_profeat:
-                v = dict_profeat[b]
-                self.profeat = v
-            elif dict_profeat is not None:
-                print("[WARN]", b, "does not have profeat")
-                self.profeat = None
-            else:
-                self.profeat = None
+            self.profeat = dict_profeat[b] if b in dict_profeat else None
+        if b not in dict_profeat:
+            print(f"[WARN] {b} does not have profeat")
 
     def build_from_dir(self, args, assay_filename, dict_profeat=None):
         assay_path = os.path.dirname(assay_filename)
         self.path = assay_path
-        print("[LOAD]", assay_path)
+        print(f"[LOAD] {assay_path}")
         self._build_df_assay(args, assay_path)
         self._build_dragon_data(assay_path)
         self._build_seq(assay_path)
-        self._build_profeat(assay_path,dict_profeat)
+        self._build_profeat(assay_path, dict_profeat)
         return self
 
 
 def concat_assay(assay_list):
     dict_all_assay = None
+    dict_all_id_mol = None
+    dict_dragon_data = None
+    seq, seq_symbol = None, None
+    dict_profeat = None
+
     for assay_data in assay_list:
         if assay_data.dict_assay is not None:
-            if dict_all_assay is None:
-                dict_all_assay = {}
+            dict_all_assay = dict_all_assay if dict_all_assay is not None else {}
             dict_all_assay.update({(assay_data.path, str(k)): v for k, v in assay_data.dict_assay.items()})
 
-    dict_all_id_mol = None
-    for assay_data in assay_list:
         if assay_data.dict_id_mol is not None:
-            if dict_all_id_mol is None:
-                dict_all_id_mol = {}
+            dict_all_id_mol = dict_all_id_mol if dict_all_id_mol is not None else {}
             dict_all_id_mol.update({str(k): v for k, v in assay_data.dict_id_mol.items()})
 
-    dict_dragon_data = None
-    for assay_data in assay_list:
         if assay_data.dragon_data is not None:
-            if dict_dragon_data is None:
-                dict_dragon_data = {}
+            dict_dragon_data = dict_dragon_data if dict_dragon_data is not None else {}
             dict_dragon_data.update({str(k): v for k, v in assay_data.dragon_data.items()})
 
-    seq, seq_symbol = None, None
-    for assay_data in assay_list:
         if assay_data.seq is not None and assay_data.seq_symbol is not None:
-            assay_data.path
-            if seq is None:
-                seq, seq_symbol = {}, {}
+            seq, seq_symbol = (seq, seq_symbol) if seq is not None else ({}, {})
             seq[assay_data.path] = assay_data.seq
             seq_symbol[assay_data.path] = assay_data.seq_symbol
-    
-    dict_profeat = None 
-    for assay_data in assay_list:
+
         if assay_data.profeat is not None:
-            if dict_profeat is None:
-                dict_profeat = {}
+            dict_profeat = dict_profeat if dict_profeat is not None else {}
             dict_profeat[assay_data.path] = assay_data.profeat
     
     return dict_all_assay, dict_all_id_mol, dict_dragon_data, seq, seq_symbol, dict_profeat
@@ -394,9 +379,8 @@ def summarize_assay(args, df_all_assay):
         summary.append((df_all_assay == el).sum())
     df_summary = pd.concat(summary, axis=1)
     df_summary.columns = column_names
-    basepath, ext = os.path.splitext(args.output)
-    summary_filename = basepath + ".summary.csv"
-    print("[SAVE]", summary_filename)
+    summary_filename = f"{os.path.splitext(args.output)[0]}.summary.csv"
+    print(f"[SAVE] {summary_filename}")
     df_summary.to_csv(summary_filename)
     return df_summary
 
@@ -468,12 +452,9 @@ def build_all_assay_data(args):
 
 
 def build_vector_modal(args):
-    filename = args.vector_modal
-    _, ext = os.path.splitext(filename)
-    if ext == ".des" or ext == ".txt":
-        df = pd.read_csv(filename, sep='\t', index_col=0)
-    else:
-        df = pd.read_csv(filename)
+    f = args.vector_modal
+    _, ext = os.path.splitext(f)
+    df = pd.read_csv(f, sep='\t', index_col=0) if ext == ".des" or ext == ".txt" else pd.read_csv(f)
     return df.values
 
 
@@ -484,23 +465,27 @@ def extract_mol_info(args):
         with open(args.smarts, "r") as f:
             lines = f.readlines()
         mol_obj_list = [Chem.MolFromSmarts(line) for line in lines]
+
     elif args.smiles is not None:
         task_name_list, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
         with open(args.smiles, "r") as f:
             lines = f.readlines()
         mol_obj_list = [Chem.MolFromSmiles(line) for line in lines]
+
     elif args.sdf_dir is not None:
         filename = os.path.join(args.sdf_dir, "SDF_wash.sdf")
         if not os.path.exists(filename):
-            print("[PASS] not found:", filename)
+            print(f"[PASS] not found: {filename}")
         mol_obj_list = [mol for mol in Chem.SDMolSupplier(filename)]
         _, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
+
     elif args.sdf is not None:
         filename = args.sdf
         if not os.path.exists(filename):
-            print("[PASS] not found:", filename)
+            print(f"[PASS] not found: {filename}")
         mol_obj_list = [mol for mol in Chem.SDMolSupplier(filename)]
         _, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
+
     elif args.assay_dir is not None and args.multimodal:
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
             build_all_assay_data(args)
@@ -512,8 +497,10 @@ def extract_mol_info(args):
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
             build_all_assay_data(args)
         generate_inactive_data(label_data, label_mask)
+
     elif args.csv_reaxys is not None:
         mol_obj_list, label_data, label_mask, publication_years = parse_csv(args)
+
     else:
         print("[ERROR] --smarts, --sdf_dir, or --assay_dir is required")
         sys.exit(1)
@@ -610,20 +597,18 @@ def main():
                 label_data_list.append([1, 0])
                 label_mask_list.append([1, 1])
             else:
-                print("[WARN] unknown label:", line)
+                print(f"[WARN] unknown label: {line}")
                 label_data_list.append([0, 0])
                 label_mask_list.append([0, 0])
         else:
             label_data_list.append(label_data[index])
             label_mask_list.append(label_mask[index])
             if dragon_data is not None:
-                if dragon_data_list is None:
-                    dragon_data_list = []
+                dragon_data_list = dragon_data_list if dragon_data_list is not None else []
                 dragon_data_list.append(dragon_data[index])
         if args.multimodal:
             if seq is not None:
-                if seq_list is None:
-                    seq_list, seq_symbol_list = [], []
+                seq_list, seq_symbol_list = (seq_list, seq_symbol_list) if seq_list is not None else ([], [])
                 seq_list.append(seq[index])
                 seq_symbol_list.append(seq[index])
     if args.tfrecords:
@@ -640,10 +625,7 @@ def main():
         from scipy.sparse import csr_matrix
         label_data = np.asarray(label_data_list)
         label_mask = np.asarray(label_mask_list)
-        if args.label_dim is None:
-            obj['label_dim'] = label_data.shape[1]
-        else:
-            obj['label_dim'] = args.label_dim
+        obj['label_dim'] = label_data.shape[1] if args.label_dim is None else args.label_dim
         obj['label_sparse'] = csr_matrix(label_data.astype(float))
         obj['mask_label_sparse'] = csr_matrix(label_mask.astype(float))
     if task_name_list is not None:
@@ -672,11 +654,8 @@ def main():
 
     if args.multimodal:
         if seq is not None:
-            if args.max_len_seq is not None:
-                max_len_seq = args.max_len_seq
-            else:
-                max_len_seq = max(map(len, seq_list))
-            print("max_len_seq:", max_len_seq)
+            max_len_seq = args.max_len_seq if args.max_len_seq is not None else max(map(len, seq_list))
+            print(f"max_len_seq: {max_len_seq}")
             seq_mat = np.zeros((len(seq_list), max_len_seq), np.int32)
             for i, s in enumerate(seq_list):
                 seq_mat[i, 0:len(s)] = s
@@ -685,9 +664,8 @@ def main():
             obj["sequence_length"] = list(map(len, seq_list))
             obj["sequence_symbol_num"] = int(np.max(seq_mat)+1)
 
-    filename = args.output
-    print("[SAVE] "+filename)
-    joblib.dump(obj, filename, compress=3)
+    print(f"[SAVE] {args.output}")
+    joblib.dump(obj, args.output, compress=3)
 
 
 if __name__ == "__main__":
