@@ -164,8 +164,8 @@ def generate_inactive_data(label_data, label_mask):
             neg_count += 1
         else:
             pos_count += 1
-    print("active count:", pos_count)
-    print("inactive count:", neg_count)
+    print(f"active count: {pos_count}")
+    print(f"inactive count: {neg_count}")
     if pos_count > neg_count:
         actives = np.argwhere(label_data == 1)
         np.random.shuffle(actives[:, 1])  # in place
@@ -174,39 +174,30 @@ def generate_inactive_data(label_data, label_mask):
             if label_data[tuple(inactive_data_point)] == 0:
                 label_mask[tuple(inactive_data_point)] = 1
                 count += 1
-        print("pseudo inactive count:", count)
+        print(f"pseudo inactive count: {count}")
 
 
 def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq,
                              seq_symbol, profeat):
-    """make inactive data with mol data and protein data & count active = inactive, inactive = over300000
-    Arguments:
-        negative_generate --make inactive data from protein,compound,label data & use index from active data
-
-        Returns:#Yields:
-                negative_adj,feature,seq,seq_symbol,drogon_data
-    """
-    # make inactives
     if not args.no_pseudo_negative:
         enabled_mol_index, enabled_task_index = np.where(label_mask == 1)
         active_count = np.where(label_data[enabled_mol_index, enabled_task_index] == 1)[0].shape[0]
         inactive_count = np.where(label_data[enabled_mol_index, enabled_task_index] == 0)[0].shape[0]
         make_count = active_count - inactive_count
-        print("[multimodal] count=", len(enabled_mol_index))
-        print("[multimodal] active count=", active_count)
-        print("[multimodal] inactive count=", inactive_count)
-        print("[multimodal] pseudo inactive count=", make_count)
-        print("[multimodal] #mols: ", len(mol_obj_list))
-        print("[multimodal] #proteins: ", len(task_name_list))
+        print(f"[INFO] count = {len(enabled_mol_index)}"
+              f"[INFO] active count = {active_count}"
+              f"[INFO] inactive count = {inactive_count}"
+              f"[INFO] pseudo inactive count = {make_count}"
+              f"[INFO] #mols: {len(mol_obj_list)}"
+              f"[INFO] #proteins: {len(task_name_list)}")
         if make_count+active_count+inactive_count > len(mol_obj_list)*len(task_name_list):
             print("[WARN] all of the rest data are pseudo negative!")
-            negative_data_index = np.where(label_mask == 0)
+            # negative_data_index = np.where(label_mask == 0)  #REVIEW why the local variable exists.
             label_mask[label_mask == 0] = 1
         else:
             negative_count = 0
-            negative_data_index = [[], []]
+            # negative_data_index = [[], []]
             while negative_count < make_count:
-                x = np.where(label_mask == 1)
                 mol_index = np.random.randint(0, len(mol_id_list), make_count-negative_count)
                 protein_index = np.random.randint(0, len(task_name_list), make_count-negative_count)
                 flags = label_mask[mol_index, protein_index]
@@ -216,50 +207,37 @@ def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_
                     label_mask[new_mol_index, new_protein_index] = 1
                     label_data[new_mol_index, new_protein_index] = 0  # negative
                     new_index = np.unique(np.array([new_mol_index, new_protein_index]), axis=1)
-                    negative_data_index = np.concatenate([negative_data_index, new_index], axis=1)
+                    # negative_data_index = np.concatenate([negative_data_index, new_index], axis=1)
                     negative_count += new_index.shape[1]
-                    print("#negative count:", negative_count)
-                    x = np.where(label_mask == 1)
+                    print(f"[INFO] #negative count: {negative_count}")
 
     x = np.where(label_mask == 1)  # convert_multimodal_label
     # to identify a pair of mol and task
     filename = "multimodal_data_index.csv"
-    print("[save] mol & task:", filename)
-    fp = open(filename, "w")
-    for x0, x1 in zip(x[0], x[1]):
-        fp.write(str(x0))
-        fp.write(",")
-        fp.write(str(x1))
-        try:
-            m = mol_obj_list[x0]
-            smi = Chem.MolToSmiles(m)
-            fp.write(",")
-            fp.write(str(smi))
-            t1 = task_name_list[x1]
-            fp.write(",")
-            fp.write(str(t1))
-        except:
-            pass
-        fp.write("\n")
+    print(f"[SAVE] mol & task: {filename}")
+    with open(filename, "w") as fp:
+        for x0, x1 in zip(x[0], x[1]):
+            line = f"{str(x0)},{str(x1)}"
+            try:
+                smi = Chem.MolToSmiles(mol_obj_list[x0])
+                t1 = task_name_list[x1]
+                line += f",{str(smi)},{str(t1)}"
+            except:
+                pass
+            fp.write(f"{line}\n")
     #
-    print("#data", x[0].shape)
+    print(f"[INFO] #data {x[0].shape}")
     ll = label_data[x[0], x[1]]
-    if dragon_data is not None:
-        dragon_data = dragon_data[x[0]]
-    if mol_obj_list is not None:
-        new_mol_obj_list = np.array(mol_obj_list)[x[0]]
+    dragon_data = dragon_data[x[0]] if dragon_data is not None else None
+    mol_obj_list = np.array(mol_obj_list)[x[0]] if mol_obj_list is not None else None
     if seq is not None:
         seq = seq[x[1]]
         seq_symbol = seq_symbol[x[1]]
-    if profeat is not None:
-        profeat = profeat[x[1]]
+    profeat = profeat[x[1]] if profeat is not None else None
     max_label = np.max(ll)
-    print("[multimodal] maximum label", max_label)
-    if args.label_dim is None:
-        label_dim = int(max_label)+1
-    else:
-        label_dim = args.label_dim
-    print("[multimodal] label dim.", label_dim)
+    print(f"[INFO] maximum label {max_label}")
+    label_dim = int(max_label)+1 if args.label_dim is None else args.label_dim
+    print(f"[INFO] label dim {label_dim}")
     if label_dim <= 2:
         new_label_data = np.zeros((ll.shape[0], 2))
         new_label_data[ll == 1, 1] = 1
@@ -272,8 +250,8 @@ def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_
             new_label_data[i, int(l)] = 1
         new_mask_label = np.ones_like(new_label_data)
 
-    return new_mol_obj_list, new_label_data, new_mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol,\
-           profeat
+    return mol_obj_list, new_label_data, new_mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol,\
+        profeat
 
 
 class AssayData:
