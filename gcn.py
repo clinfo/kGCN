@@ -15,6 +15,8 @@ from kgcn.feed import construct_feed
 #align_size dense_to_sparse high_order_adj split_adj normalize_adj shuffle_data
 from tensorflow.python.framework import graph_util
 import sys
+import sklearn
+
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
@@ -277,7 +279,7 @@ def train(sess,graph,config):
         save_prediction(filename,prediction_data)
     if config["make_plot"]:
         if config["task"] == "regression" or config["task"] == "regression_gmfe":
-            plot_cost(config, valid_data, model)
+            # plot_cost(config, valid_data, model)
             plot_r2(config, valid_data.labels, np.array(prediction_data))
         else:
             plot_cost(config,valid_data,model)
