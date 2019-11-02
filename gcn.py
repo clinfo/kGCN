@@ -15,6 +15,8 @@ from kgcn.feed import construct_feed
 #align_size dense_to_sparse high_order_adj split_adj normalize_adj shuffle_data
 from tensorflow.python.framework import graph_util
 import sys
+import sklearn
+
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
@@ -227,6 +229,10 @@ def train(sess,graph,config):
     model = CoreModel(sess,config,info)
     load_model_py(model,config["model.py"])
 
+    metric_name = ("mse" if config["task"] == "regression" else
+                   "gmfe" if config["task"] == "regression_gmfe" else
+                   "accuracy")
+
     if config["profile"]:
         vars_to_train = tf.trainable_variables()
         print(vars_to_train)
@@ -240,16 +246,16 @@ def train(sess,graph,config):
     if valid_data.num>0:
         # Validation
         start_t = time.time()
-        validation_cost,validation_metrics,prediction_data=model.pred_and_eval(valid_data)
+        valid_cost,valid_metrics,prediction_data=model.pred_and_eval(valid_data)
         infer_time = time.time() - start_t
-        print("final cost =",validation_cost)
-        print("accuracy   =",validation_metrics["accuracy"])
+        print("final cost =",valid_cost)
+        print(f"{metric_name} = {valid_metrics[metric_name]}")
         print("validation time:{0}".format(infer_time) + "[sec]")
         # Saving
         if config["save_info_valid"] is not None:
             result={}
-            result["validation_cost"]=validation_cost
-            result["validation_accuracy"]=validation_metrics
+            result["validation_cost"]=valid_cost
+            result["validation_accuracy"]=valid_metrics
             result["train_time"]=train_time
             result["infer_time"]=infer_time
             result["valid_metrics"]=compute_metrics(config,info,prediction_data,valid_data.labels)
@@ -272,8 +278,12 @@ def train(sess,graph,config):
         filename=config["save_result_valid"]
         save_prediction(filename,prediction_data)
     if config["make_plot"]:
-        plot_cost(config,valid_data,model)
-        plot_auc(config,valid_data.labels,np.array(prediction_data))
+        if config["task"] == "regression" or config["task"] == "regression_gmfe":
+            # plot_cost(config, valid_data, model)
+            plot_r2(config, valid_data.labels, np.array(prediction_data))
+        else:
+            plot_cost(config,valid_data,model)
+            plot_auc(config,valid_data.labels,np.array(prediction_data))
 
 
 def train_cv(sess,graph,config):
@@ -473,6 +483,10 @@ def infer(sess,graph,config):
     model = CoreModel(sess,config,info)
     load_model_py(model,config["model.py"],is_train=False)
 
+    metric_name = ("mse" if config["task"] == "regression" else
+                   "gmfe" if config["task"] == "regression_gmfe" else
+                   "accuracy")
+
     # Initialize session
     saver = tf.train.Saver()
     #sess.run(tf.global_variables_initializer())
@@ -484,7 +498,7 @@ def infer(sess,graph,config):
     test_cost,test_metrics,prediction_data=model.pred_and_eval(all_data)
     infer_time = time.time() - start_t
     print("final cost =",test_cost)
-    print("accuracy   =",test_metrics["accuracy"])
+    print(f"{metric_name} = {test_metrics[metric_name]}")
     print("infer time:{0}".format(infer_time) + "[sec]")
 
     if config["save_info_test"] is not None:
