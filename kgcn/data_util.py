@@ -35,13 +35,16 @@ def align_size(adjs,maxN):
                 adjs[i][ch]=list(adjs[i][ch])
             adjs[i][ch][2]=[maxN,maxN]
     return
+
+
 def dense_to_sparse(dense):
     from scipy.sparse import coo_matrix
-    coo=coo_matrix(dense)
-    sh=coo.shape
-    val=coo.data
-    sp=list(zip(coo.row,coo.col))
-    return (np.array(sp),np.array(val,dtype=np.float32),np.array(sh))
+    coo = coo_matrix(dense)
+    sh = coo.shape
+    val = coo.data
+    sp = list(zip(coo.row, coo.col))
+    return np.array(sp), np.array(val, dtype=np.float32), np.array(sh)
+
 
 def check_adj(adj):
     try:
