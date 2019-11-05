@@ -1,21 +1,25 @@
-import tensorflow as tf
-import numpy as np
-import joblib
 import time
 import json
 import argparse
 import importlib
 import os
-## gcn project
-#import model
+import sys
+
+import joblib
+import numpy as np
+import sklearn
+from sklearn.metrics import average_precision_score, balanced_accuracy_score, matthews_corrcoef, jaccard_score, \
+    roc_curve, auc, accuracy_score, precision_recall_fscore_support
+from sklearn.model_selection import KFold, StratifiedKFold
+import tensorflow as tf
+from tensorflow.python.framework import graph_util
+
 import kgcn.layers
 from kgcn.data_util import load_and_split_data, load_data, split_data
 from kgcn.core import CoreModel
-from kgcn.feed import construct_feed
-#align_size dense_to_sparse high_order_adj split_adj normalize_adj shuffle_data
-from tensorflow.python.framework import graph_util
-import sys
-import sklearn
+from kgcn.make_plots import make_multitask_auc_plot
+from kgcn.make_plots import make_r2_plot
+from kgcn.make_plots import make_auc_plot, make_cost_acc_plot
 
 
 class dotdict(dict):
@@ -117,7 +121,6 @@ def get_default_config():
 
 
 def plot_cost(config,data,model,prefix=""):
-    from kgcn.make_plots import make_cost_acc_plot
     data_idx=list(range(data.num))
     # plot cost
     result_path = config["plot_path"]
@@ -128,7 +131,6 @@ def plot_cost(config,data,model,prefix=""):
 
 #def plot_auc(config,data,pred_data,prefix=""):
 def plot_auc(config,labels,pred_data,prefix=""):
-    from kgcn.make_plots import make_auc_plot,make_multitask_auc_plot
     result_path = config["plot_path"]
     os.makedirs(result_path, exist_ok=True)
     if config["plot_multitask"]:
@@ -137,7 +139,6 @@ def plot_auc(config,labels,pred_data,prefix=""):
         make_auc_plot(labels, pred_data, result_path+prefix)
 
 def plot_r2(config,labels,pred_data,prefix=""):
-    from kgcn.make_plots import make_r2_plot
     result_path = config["plot_path"]
     os.makedirs(result_path, exist_ok=True)
     if config["plot_multitask"]:
@@ -164,9 +165,6 @@ def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False):
         return mod
 
 def compute_metrics(config,info,prediction_data,labels):
-    from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
-    from sklearn.metrics import average_precision_score
-    from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef
     pred_score = np.array(prediction_data)
     if len(pred_score.shape)==3: # multi-label-multi-task
         # #data x # task x #class
@@ -204,7 +202,6 @@ def compute_metrics(config,info,prediction_data,labels):
             el["balanced_acc"]=balanced_accuracy_score(true_label[:, i], pred[:, i])
             el["mcc"]=matthews_corrcoef(true_label[:, i], pred[:, i])
             try:
-                from sklearn.metrics import jaccard_score
                 el["jaccard"]=jaccard_score(true_label[:, i], pred[:, i])
             except:
                 pass
@@ -212,7 +209,6 @@ def compute_metrics(config,info,prediction_data,labels):
     return v
 
 def train(sess,graph,config):
-    from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
     batch_size=config["batch_size"]
     learning_rate=config["learning_rate"]
 
@@ -287,12 +283,6 @@ def train(sess,graph,config):
 
 
 def train_cv(sess,graph,config):
-    from sklearn.model_selection import KFold, StratifiedKFold
-    from kgcn.make_plots import make_auc_plot, make_cost_acc_plot
-    import sklearn
-    from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
-    from scipy import interp
-
     batch_size=config["batch_size"]
     learning_rate=config["learning_rate"]
 
@@ -473,7 +463,6 @@ def train_cv(sess,graph,config):
 
 
 def infer(sess,graph,config):
-    from sklearn.metrics import roc_curve, auc, accuracy_score,precision_recall_fscore_support
     batch_size=config["batch_size"]
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
@@ -556,7 +545,6 @@ def infer(sess,graph,config):
 # visualization using IG
 #------------------------------------------------------------------------------
 def visualize(sess, config, args):
-    from tensorflow.python import debug as tf_debug
     from kgcn.visualization import cal_feature_IG, cal_feature_IG_for_kg
     # 入力は１分子づつ
     batch_size = 1

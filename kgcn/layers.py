@@ -5,17 +5,15 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import re
-import sys
-import tarfile
 
-import numpy as np
 import tensorflow as tf
 from tensorflow.python.keras.layers import Layer, Dense
 
 enabled_batched=False
 enabled_bspmm  =False
 enabled_bconv  =False
+
+
 def load_bspmm(args):
     global enabled_batched
     global enabled_bspmm
@@ -37,13 +35,13 @@ class GraphConv(Layer):
         self.adj_channel_num=adj_channel_num
         self.initializer=initializer
         if enabled_bspmm:
-            import bspmm_call as bspmm
+            import kgcn.bspmm_call as bspmm
             self.bspmm_obj = bspmm.BatchedSpMM()
         if enabled_bconv:
-            import bconv_call as bconv
+            import kgcn.bconv_call as bconv
             self.bconv_obj = bconv.BatchedConv()
         if enabled_batched:
-            import batched_call as batched
+            import kgcn.batched_call as batched
             self.bspmdt_obj = batched.BatchedSpMDT()
         super(GraphConv, self).__init__(**kwargs)
     # input: batch_size x node_num x #inputs

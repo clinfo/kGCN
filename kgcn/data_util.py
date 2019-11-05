@@ -1,17 +1,11 @@
-import tensorflow as tf
-import numpy as np
 import joblib
-import time
 import json
-import argparse
-import importlib
-import os
 from operator import itemgetter
 
-## gcn project
-#import model
-#import layers
-#import visualization
+import tensorflow as tf
+import numpy as np
+from scipy.sparse import coo_matrix
+
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
@@ -38,7 +32,6 @@ def align_size(adjs,maxN):
 
 
 def dense_to_sparse(dense):
-    from scipy.sparse import coo_matrix
     coo = coo_matrix(dense)
     sh = coo.shape
     val = coo.data
@@ -56,7 +49,6 @@ def check_adj(adj):
     return False
 
 def high_order_adj(adj,order):
-    from scipy.sparse import coo_matrix
     if order<=1:
         return adj
     A = coo_matrix((adj[1],np.transpose(adj[0])),shape=adj[2])
@@ -122,7 +114,6 @@ def split_adj(adjs,min_deg=1,max_deg=5):
     return adjs
 
 def normalize_adj(adjs):
-    from scipy.sparse import coo_matrix
     normalized_adjs = []
     for gid,adj_set in enumerate(adjs):
         normalized_adj_set = []

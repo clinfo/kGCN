@@ -9,9 +9,13 @@ A setup script is under construction.
 Now, you have to execute the python codes directly.
 
 ### Requirements
-* python3 (> 3.3)
-  * tensorflow (>0.12)
+* python3 (> 3.6)
+  * tensorflow (>1.12)
   * joblib
+  * numpy
+  * scipy 
+  * scikit-learn (> 0.21)
+  * matplotlib
 
 ### [Installation (for Ubuntu 18.04)](./docs/installation_for_ubuntu1804.md)
 
