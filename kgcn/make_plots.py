@@ -1,15 +1,15 @@
+from itertools import cycle
+
 import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-from itertools import cycle
-import pandas as pd
-import os
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import roc_curve, auc
 import sklearn.metrics
 from scipy import interp
 from sklearn.preprocessing import OneHotEncoder
+
 
 def make_cost_acc_plot(train_cost_list, valid_cost_list, train_acc_list, valid_acc_list, result_dir, metric_name="acc", metric_show_name="Accuracy"):
     plt.plot(train_cost_list, 'k-', label='Train Set Cost')

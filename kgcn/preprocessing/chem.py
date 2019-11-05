@@ -1,18 +1,18 @@
 import argparse
 import glob
 import os
-import pathlib
 import random
 import sys
 
 import numpy as np
 import pandas as pd
 from rdkit import Chem
+from rdkit.Chem import AllChem
 from rdkit.Chem.rdmolops import FastFindRings
 from sklearn.utils import class_weight
-from tensorflow.python_io import TFRecordWriter
 import joblib
 from mendeleev import element
+from scipy.sparse import csr_matrix
 
 from kgcn.data_util import dense_to_sparse
 from kgcn.preprocessing.utils import read_profeat, read_label_file, parse_csv, create_adjancy_matrix, \
@@ -633,7 +633,6 @@ def main():
         obj["label"] = np.asarray(label_data_list)
         obj["mask_label"] = np.asarray(label_mask_list)
     else:
-        from scipy.sparse import csr_matrix
         label_data = np.asarray(label_data_list)
         label_mask = np.asarray(label_mask_list)
         obj['label_dim'] = label_data.shape[1] if args.label_dim is None else args.label_dim
@@ -654,7 +653,6 @@ def main():
         obj["class_weight"] = cw
 
     if args.generate_mfp:
-        from rdkit.Chem import AllChem
         mfps = []
         for mol in mol_list:
             FastFindRings(mol)

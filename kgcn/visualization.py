@@ -7,11 +7,11 @@ import string
 
 import joblib
 import numpy as np
-import tensorflow as tf
 from rdkit import Chem
+from scipy.sparse import coo_matrix
+import tensorflow as tf
 
-from .feed import construct_feed
-
+from kgcn.feed import construct_feed
 
 
 def sparse_to_dense(sparse):
@@ -37,7 +37,6 @@ def sparse_to_dense_core(index, data, shape):
     Returns:
         ndarray形式の２次元配列で表現される密行列
     """
-    from scipy.sparse import coo_matrix
     # 行インデックスリスト(i)と列インデックスリスト(j)を抽出
     i = index[:, 0]
     j = index[:, 1]
@@ -319,8 +318,6 @@ class KnowledgeGraphVisualizer:
 
     def _dump_dml(self, filename, ig, vis_nodes):
         import networkx as nx
-        from scipy.sparse import coo_matrix
-        import matplotlib.cm as cm
         index, data, shape = self.all_data.adjs[0][0]
         ig = np.squeeze(ig)
         ig = np.sum(ig, axis=-1)

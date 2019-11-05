@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import oddt.toolkits.extras.rdkit as ordkit
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
@@ -12,7 +13,6 @@ from tensorflow.train import Feature, Features, FloatList, Int64List, Example
 def atom_features(atom, en_list=None, explicit_H=False, use_sybyl=False, use_electronegativity=False,
                   use_gasteiger=False, degree_dim=17):
     if use_sybyl:
-        import oddt.toolkits.extras.rdkit as ordkit
         atom_type = ordkit._sybyl_atom_type(atom)
         atom_list = ['C.ar', 'C.cat', 'C.1', 'C.2', 'C.3', 'N.ar', 'N.am', 'N.pl3', 'N.1', 'N.2', 'N.3', 'N.4', 'O.co2',
                      'O.2', 'O.3', 'S.O', 'S.o2', 'S.2', 'S.3', 'F', 'Si', 'P', 'P3', 'Cl', 'Br', 'Mg', 'Na', 'Ca',

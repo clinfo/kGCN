@@ -1,17 +1,11 @@
-import tensorflow as tf
-import numpy as np
-import joblib
-import time
 import json
-import argparse
-import importlib
 import os
-from kgcn.feed import construct_feed
-# for profiler
-from tensorflow.python.client import timeline
-## gcn project
-#import model
 
+import tensorflow as tf
+from tensorflow.python.client import timeline
+import numpy as np
+
+from kgcn.feed import construct_feed
 from kgcn.data_util import shuffle_label_list
 
 
