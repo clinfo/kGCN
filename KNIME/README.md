@@ -2,9 +2,9 @@
 
 KNIME (https://www.knime.com/) node extension for kGCN.
 To use kGCN in KNIME, we provide 
-- Virtual box image (https://drive.google.com/drive/folders/1Q5FRNq06CIUX5RTC3drT-qhxCY2T17ou?usp=sharing)
-- Compiled KNIME modules (https://drive.google.com/file/d/1Kvlclfq1caQc6xMPr8602GYHlDMftYUs/view?usp=sharing)
-- Source codes for developers
+1. VirtualBox image (https://drive.google.com/drive/folders/1Q5FRNq06CIUX5RTC3drT-qhxCY2T17ou?usp=sharing)
+2. Compiled KNIME modules (https://drive.google.com/file/d/1Kvlclfq1caQc6xMPr8602GYHlDMftYUs/view?usp=sharing)
+3. Source codes for developers
 
 ### Example workflow:
 - [single-task](testdata/singletask/README.md)  
@@ -12,9 +12,9 @@ To use kGCN in KNIME, we provide
 - [multi-modal](testdata/multimodal/README.md)  
 
 
-# 1. Virtual box
-
-If Virtual box is installed, you can double-click KNIME-GCN.vbox in this folder
+# 1. VirtualBox
+Download the VirtualBox image (https://drive.google.com/drive/folders/1Q5FRNq06CIUX5RTC3drT-qhxCY2T17ou?usp=sharing).
+If VirtualBox (https://www.virtualbox.org/) is installed, you can double-click KNIME-GCN.vbox in this folder
 
 ```
 User name: kgcn
