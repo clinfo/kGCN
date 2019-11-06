@@ -148,7 +148,7 @@ def plot_r2(config,labels,pred_data,prefix=""):
         make_r2_plot(labels, pred_data, result_path+prefix)
 
 
-def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False):
+def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False,batch_size=None):
     pair=model_py.split(":")
     sys.path.append(os.getcwd())
     if len(pair)>=2:
@@ -156,12 +156,12 @@ def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False):
         cls = getattr(mod, pair[1])
         obj=cls()
         if model:
-            model.build(obj,is_train,feed_embedded_layer)
+            model.build(obj,is_train,feed_embedded_layer,batch_size)
         return obj
     else:
         mod=importlib.import_module(pair[0])
         if model:
-            model.build(mod,is_train,feed_embedded_layer)
+            model.build(mod,is_train,feed_embedded_layer,batch_size)
         return mod
 
 def compute_metrics(config,info,prediction_data,labels):
@@ -556,7 +556,7 @@ def visualize(sess, config, args):
     all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True)
 
     model = CoreModel(sess,config,info)
-    load_model_py(model,config["model.py"],is_train=False,feed_embedded_layer=True)
+    load_model_py(model,config["model.py"],is_train=False,feed_embedded_layer=True,batch_size=batch_size)
     placeholders = model.placeholders
     _model, prediction = model.out,model.prediction
     #--- セッションの初期化

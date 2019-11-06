@@ -132,11 +132,12 @@ class CoreModel:
             self.construct_feed=construct_feed_callback
         else:
             self.construct_feed=construct_feed
-    def build(self,model,is_train=True,feed_embedded_layer=False):
+    def build(self,model,is_train=True,feed_embedded_layer=False,batch_size=None):
         #
         config=self.config
         info=self.info
-        batch_size=config["batch_size"]
+        if batch_size is None:
+            batch_size=config["batch_size"]
         learning_rate=config["learning_rate"]
         #
         info.param=None
