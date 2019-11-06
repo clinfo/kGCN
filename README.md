@@ -92,11 +92,11 @@ Once you execute this command, cross-validation is performed by running a series
 
 ### [Configulation file](./docs/configulation_file.md)
 
-## [Dataset file](./docs/dataset_file.md)
+### [Dataset file](./docs/dataset_file.md)
 
 In order to use your own data, you have to create a *dictionary* with the following data format and compress it as a *joblib dump* file.
 
-## [Visualization](./docs/visualization.md)
+### [Visualization file](./docs/visualization.md)
 
 ## Directory structure
 
@@ -224,7 +224,7 @@ Shoichi Ishida , Kei Terayama,  Ryosuke Kojima, Kiyosei Takasu, Yasushi Okuno,
 ChemRxiv. [DOI: 10.26434/chemrxiv.8343995]
 ```
 
-### Generative model
+## Generative model
 
 ```bash
 python gcn_gen.py --config example_config/vae.json train
@@ -233,7 +233,7 @@ python gcn_gen.py --config example_config/vae.json train
 gcn_gen.py is an alternative gcn.py for generative models.
 example_config/vae.json is a setting for VAE (Variational Auto-encoder) that is implemented in example_model/model_vae.py
 
-### Hyperparamter optimization
+## Hyperparamter optimization
 
 ```bash
 kgcn-opt --config ./example_config/opt_param.json  --domain ./example_param/domain.json
