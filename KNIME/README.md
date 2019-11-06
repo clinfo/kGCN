@@ -1,6 +1,6 @@
 # KNIME-kGCN
 
-KNIME node extension for kGCN.
+KNIME (https://www.knime.com/) node extension for kGCN.
 To use kGCN in KNIME, we provide 
 - Virtual box image (https://drive.google.com/drive/folders/1Q5FRNq06CIUX5RTC3drT-qhxCY2T17ou?usp=sharing)
 - Compiled KNIME modules (https://drive.google.com/file/d/1Kvlclfq1caQc6xMPr8602GYHlDMftYUs/view?usp=sharing)
@@ -67,8 +67,14 @@ you should also change the `kGCN/KNIME/python.sh` (or `kGCN/KNIME/python.bat` in
 To execute example workflows, 
 create a symbolic link from the default directory to the your downloaded directory.
 ```
-ln -s <downloaded directory, e.g., ~/kGCN> ~/KNIME_GCN-K
+ln -s <downloaded directory> ~/KNIME_GCN-K
 ```
+For example,
+```
+ln -s ~/kGCN ~/KNIME_GCN-K
+```
+
+
 
 ### 4. Environment variables
 
