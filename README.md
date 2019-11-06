@@ -188,7 +188,7 @@ In this sample, "multitask" means that multiple labels are allowed for one graph
 This configuration file specifies the program of model as "model_multitask.py", which includes definition of a loss function for multiple labels.
 Please reffer to sample_data/multi_label.txt and a coverting program (make_sample.py) to prepare multi labeled data,
 
-### Reaction prediction and visualization
+## Reaction prediction and visualization
 
 
 This is a sample usage of a reaction prediction.
@@ -215,7 +215,7 @@ kgcn visualize --config example_config/reaction.json
 gcnv -i visualization/mol_0000_task_0_active_all_scaling.jbl
 ```
 The implementation of extracting reaction template on GitHub at https://github.com/clinfo/extract_reaction_template.git.  
-
+(For instruction of `gcnv`, please see gcnvisualizer/README.md)
 #### Reference
 
 ```
