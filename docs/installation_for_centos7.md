@@ -13,9 +13,9 @@ conda update conda
 conda install joblib
 
 # for CPU-only
-conda install tensorflow
+conda install tensorflow==1.15.0
 # with GPU support
-conda install tensorflow-gpu
+conda install tensorflow-gpu==1.15.0
 ```
 
 Finally, please install kGCN
