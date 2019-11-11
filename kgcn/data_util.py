@@ -459,7 +459,7 @@ def build_data(config,data,prohibit_shuffle=False, verbose=True):
         info.pos_weight= (sum_negative+pos_weight_epsilon) / (sum_positive+pos_weight_epsilon)
     if "class_weight" in data:
         info.class_weight=data["class_weight"]
-    else:
+    elif all_data["labels"] is not None:
         # labels: #data x #class 
         pos_weight_epsilon=0.01
         sum_positive =  np.nansum(all_data["labels"],axis=0)
