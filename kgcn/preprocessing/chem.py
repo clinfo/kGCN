@@ -323,8 +323,8 @@ class AssayData:
         b = os.path.basename(assay_path)
         if dict_profeat is not None:
             self.profeat = dict_profeat[b] if b in dict_profeat else None
-        if b not in dict_profeat:
-            print(f"[WARN] {b} does not have profeat")
+            if b not in dict_profeat:
+                print(f"[WARN] {b} does not have profeat")
 
     def build_from_dir(self, args, assay_filename, dict_profeat=None):
         assay_path = os.path.dirname(assay_filename)
