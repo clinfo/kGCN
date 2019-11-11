@@ -387,7 +387,9 @@ def summarize_assay(args, df_all_assay):
 
 def build_all_assay_data(args):
     assay_list = []
-    dict_profeat = read_profeat()
+    dict_profeat = None
+    if args.multimodal:
+        dict_profeat = read_profeat()
     for assay_filename in glob.iglob(os.path.join(args.assay_dir, '**/assay.csv'), recursive=True):
         assay_list.append(AssayData().build_from_dir(args, assay_filename, dict_profeat=dict_profeat))
 
