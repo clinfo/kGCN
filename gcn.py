@@ -105,6 +105,7 @@ def get_default_config():
     config["save_info_cv"]=None
     config["make_plot"]=False
     config["plot_path"]="./result/"
+    config["visualize_path"]="./visualization/"
     config["plot_multitask"]=False
     config["task"]="classification"
     config["retrain"]=None

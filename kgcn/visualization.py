@@ -357,7 +357,7 @@ class KnowledgeGraphVisualizer:
 def cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction,
                           model=None, logger=None, verbosity=None, args=None):
     divide_number = 30
-    outdir = "visualization"
+    outdir = config["visualize_path"]
     batch_idx = [0,] # assume batch size is only one.
     feed_dict = construct_feed(batch_idx, placeholders, all_data, config=config, batch_size=1, info=info)
 
