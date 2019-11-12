@@ -402,7 +402,8 @@ def cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction
         visualizer.dump(filename, vis_nodes)
 
 
-def cal_feature_IG(sess, all_data, placeholders, info, prediction, ig_modal_target, ig_label_target, *,
+def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
+                   ig_modal_target, ig_label_target, *,
                    model=None, logger=None, verbosity=None, args=None):
     """ Integrated Gradientsの計算
     Args:
@@ -419,7 +420,10 @@ def cal_feature_IG(sess, all_data, placeholders, info, prediction, ig_modal_targ
         args:
     """
     divide_number = 100
-    outdir = "visualization"
+    header="mol"
+    if args is not None and args.visualization_header is not None:
+        header=args.visualization_header
+    outdir = config["visualize_path"]
     mol_obj_list = info.mol_info["obj_list"] if "mol_info" in info else None
     if verbosity is None:
         logger.set_verbosity(logger.DEBUG)
@@ -499,7 +503,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, prediction, ig_modal_targ
                                             logger=logger, model=model, ig_modal_target=ig_modal_target, scaling_target=ig_modal_target)
             visualizer.cal_integrated_gradients(sess, placeholders, target_prediction, divide_number)
             visualizer.check_IG(sess, target_prediction)
-            visualizer.dump(f"mol_{compound_id:04d}_task_{idx}_{assay_str}_{ig_modal_target}_scaling.jbl")
+            visualizer.dump(f"{header}_{compound_id:04d}_task_{idx}_{assay_str}_{ig_modal_target}_scaling.jbl")
             print(f"prediction score: {target_score}\n"
                   f"check score: {visualizer.end_score - visualizer.start_score}\n"
                   f"sum of IG: {visualizer.sum_of_ig}\n"

@@ -568,13 +568,13 @@ def visualize(sess, config, args):
     saver.restore(sess, config["load_model"])
     #--- integrated gradientsの計算
     if config['visualize_type'] == 'graph':
-        cal_feature_IG(sess, all_data, placeholders, info, prediction,
+        cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                        args.ig_modal_target, args.ig_label_target,
-                       logger=tf.logging, model=_model)
+                       logger=tf.logging, model=_model, args=args)
                        #logger=tf.compat.v1.logging, model=_model)
     else:
         cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction,
-                              logger=tf.logging, model=_model)
+                              logger=tf.logging, model=_model, args=args)
                               #logger=tf.compat.v1.logging, model=_model)
 
 
@@ -658,6 +658,9 @@ def main():
     parser.add_argument('--verbose', type=str,
             default='INFO',
             help=("set log level"))
+    parser.add_argument('--visualization_header', type=str,
+            default=None,
+            help=("filename header of visualization"))
 
     args=parser.parse_args()
     #tf.compat.v1.logging.set_verbosity(args.verbose.upper())
