@@ -135,7 +135,7 @@ class CompoundVisualizer(object):
                     _data = self.all_data['sequences']
                     _data = np.expand_dims(_data[self.idx, ...], axis=0)
                     _data = self.model.embedding(_data)
-                    all_ig_modal_target_data['embedded_layer'] = _data
+                    self.ig_modal_target_data['embedded_layer'] = _data
                 else:
                     all_ig_modal_target.append(key)
                     self.shapes[key] = (1, self.info.vector_modal_dim[ele])

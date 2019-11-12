@@ -114,7 +114,7 @@ def train(sess,config):
     model = importlib.import_module(config["model.py"])
     all_data,info = load_data(config,filename=config["dataset"])
     placeholders = model.build_placeholders(info,batch_size=batch_size,adj_channel_num=info.adj_channel_num)
-    out,prediction,cost,cost_sum,metrics = model.build_model(placeholders,info,batch_size=batch_size,adj_channel_num=info.adj_channel_num,embedding_dim=config["embedding_dim"])
+    _,prediction,cost,cost_sum,metrics = model.build_model(placeholders,info,batch_size=batch_size,adj_channel_num=info.adj_channel_num,embedding_dim=config["embedding_dim"])
     train_step = tf.train.AdamOptimizer(learning_rate).minimize(cost)
 
     #train_step = tf.train.MomentumOptimizer(learning_rate,0.01).minimize(cost)

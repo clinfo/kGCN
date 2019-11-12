@@ -164,7 +164,7 @@ def shuffle_data(data):
 
     return data
 
-direct_copy_keys=["max_node_num","node","sequence_symbol", "task_names", "class_weight"]
+direct_copy_keys=["max_node_num","node","sequence_symbol", "task_names", "class_weight", "label_dim"]
 sparse_data_keys=["label_sparse","mask_label_sparse"]
 label_list_keys=["node_label","mask_node_label","label_list"]
 index_llist_keys=["graph_index_list"]
@@ -213,6 +213,8 @@ def split_jbl_obj(obj,train_idx,test_idx,label_list_flag=False,index_list_flag=F
                 #print(key,": split")
                 if key not in sparse_data_keys:
                     o=np.array(obj[key])
+                else:
+                    o=obj[key]
                 dataset_test[key]=o[test_idx]
                 dataset_train[key]=o[train_idx]
             elif key == "mol_info":

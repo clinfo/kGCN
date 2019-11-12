@@ -156,10 +156,16 @@ class CoreModel:
             # Deprecated:
             self.placeholders = model.build_placeholders(info, config, batch_size=batch_size)
         try:
-            self.out,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
+            _model,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
         except:
             # Deprecated:
-            self.out,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size)
+            _model,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size)
+        if _model is not None and hasattr(_model,'out'):
+            self.out=_model.out
+        else:
+            # for old version
+            self.out=_model
+
         if is_train:
             self.train_step=build_optimizer(self.cost,learning_rate)
 
