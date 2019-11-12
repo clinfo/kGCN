@@ -359,7 +359,7 @@ def cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction
                           model=None, logger=None, verbosity=None, args=None):
     divide_number = 30
     outdir = config["visualize_path"]
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(outdir, exist_ok=True)
     batch_idx = [0,] # assume batch size is only one.
     feed_dict = construct_feed(batch_idx, placeholders, all_data, config=config, batch_size=1, info=info)
 
@@ -426,7 +426,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
     if args is not None and args.visualization_header is not None:
         header=args.visualization_header
     outdir = config["visualize_path"]
-    os.makedirs(out_dir, exist_ok=True)
+    os.makedirs(outdir, exist_ok=True)
     mol_obj_list = info.mol_info["obj_list"] if "mol_info" in info else None
     if verbosity is None:
         logger.set_verbosity(logger.DEBUG)
