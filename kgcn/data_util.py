@@ -164,7 +164,7 @@ def shuffle_data(data):
 
     return data
 
-direct_copy_keys=["max_node_num","node","sequence_symbol", "task_names", "class_weight", "label_dim"]
+direct_copy_keys=["max_node_num","node","sequence_symbol", "task_names", "class_weight", "label_dim", "sequence_symbol"]
 sparse_data_keys=["label_sparse","mask_label_sparse"]
 label_list_keys=["node_label","mask_node_label","label_list"]
 index_llist_keys=["graph_index_list"]
