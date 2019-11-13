@@ -443,7 +443,8 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
         feed_dict = construct_feed(batch_idx, placeholders, all_data, batch_size=1, info=info)
 
         out_prediction = sess.run(prediction, feed_dict=feed_dict)
-
+        out_softmax=True
+        print("prediction shape",out_prediction.shape)
         if len(out_prediction.shape) == 2:
             out_prediction = np.expand_dims(out_prediction, axis=1)  # to give consistency with multitask.
         # out_prediction: data x #task x #label

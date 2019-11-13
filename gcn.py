@@ -107,7 +107,7 @@ def get_default_config():
     config["plot_path"]="./result/"
     config["visualize_path"]="./visualization/"
     config["plot_multitask"]=False
-    config["task"]="classification"
+    config["task"]="multitask_classification"
     config["retrain"]=None
     #
     config["profile"]=False
@@ -167,46 +167,78 @@ def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False,batch_s
 
 def compute_metrics(config,info,prediction_data,labels):
     pred_score = np.array(prediction_data)
-    if len(pred_score.shape)==3: # multi-label-multi-task
-        # #data x # task x #class
-        # => this program supports only 2 labels
-        pred_score=pred_score[:,:,1]
     true_label = np.array(labels)
-    # #data x # task x #class
+    # pred_score: #data x # task x #class
     if len(pred_score.shape)==1:
-        pred_score=pred_score[:,np.newaxis]
+        pred_score = pred_score[:,np.newaxis,np.newaxis]
+    elif len(pred_score.shape)==2:
+        pred_score = np.expand_dims(pred_score, axis=1)
+    # true_label: #data x # task
     if len(true_label.shape)==1:
         true_label=true_label[:,np.newaxis]
-    v=[]
-    for i in range(info.label_dim):
-        el={}
-        if config["task"]=="regression":
-            el["r2"] = sklearn.metrics.r2_score(true_label[:,i],pred_score[:,i])
-            el["mse"] = sklearn.metrics.mean_squared_error(true_label[:,i],pred_score[:,i])
-        elif config["task"]=="regression_gmfe":
-            el["gmfe"] = np.exp(np.mean(np.log(true_label[:,i]/pred_score[:,i])))
-        else:
-            pred = np.zeros(pred_score.shape)
-            pred[pred_score>0.5]=1
-            fpr, tpr, _ = roc_curve(true_label[:, i], pred_score[:, i], pos_label=1)
-            roc_auc = auc(fpr, tpr)
-            ap = average_precision_score(true_label[:, i], pred_score[:, i], pos_label=1)
+    # multilabel=True  => pred_score: #data x # task x #class
+    # multilabel=False => pred_score: #data x # task
+    multiclass=False
+    ntask=pred_score.shape[1]
+    if pred_score.shape[2]==1: # regression or binary
+        pred_score=pred_score[:,:,0]
+    elif pred_score.shape[2]==2: # binary
+        pred_score=pred_score[:,:,1]
+    elif pred_score.shape[2]>2:
+        multiclass=True
+
+    if not multiclass:
+        v=[]
+        for i in range(ntask):
+            el={}
+            if config["task"]=="regression":
+                el["r2"] = sklearn.metrics.r2_score(true_label[:,i],pred_score[:,i])
+                el["mse"] = sklearn.metrics.mean_squared_error(true_label[:,i],pred_score[:,i])
+            elif config["task"]=="regression_gmfe":
+                el["gmfe"] = np.exp(np.mean(np.log(true_label[:,i]/pred_score[:,i])))
+            else:
+                pred = np.zeros(pred_score.shape)
+                pred[pred_score>0.5]=1
+                fpr, tpr, _ = roc_curve(true_label[:, i], pred_score[:, i], pos_label=1)
+                roc_auc = auc(fpr, tpr)
+                ap = average_precision_score(true_label[:, i], pred_score[:, i], pos_label=1)
+                acc=accuracy_score(true_label[:, i], pred[:, i])
+                scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],average='binary')
+                el["auc"]=roc_auc
+                el["acc"]=acc
+                el["ap"]=ap
+                el["pre"]=scores[0]
+                el["rec"]=scores[1]
+                el["f"]=scores[2]
+                el["sup"]=scores[3]
+                el["balanced_acc"]=balanced_accuracy_score(true_label[:, i], pred[:, i])
+                el["mcc"]=matthews_corrcoef(true_label[:, i], pred[:, i])
+                try:
+                    el["jaccard"]=jaccard_score(true_label[:, i], pred[:, i])
+                except:
+                    pass
+            v.append(el)
+    else:# multiclass=True
+            # #data x # task x #class
+        nclass=pred_score.shape[2]
+        v=[]
+        for i in range(ntask):
+            el={}
+            pred = np.argmax(pred_score,axis=-1)
             acc=accuracy_score(true_label[:, i], pred[:, i])
-            scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],average='binary')
-            el["auc"]=roc_auc
+            scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],labels=list(range(nclass)),average=None)
             el["acc"]=acc
-            el["ap"]=ap
             el["pre"]=scores[0]
             el["rec"]=scores[1]
             el["f"]=scores[2]
             el["sup"]=scores[3]
-            el["balanced_acc"]=balanced_accuracy_score(true_label[:, i], pred[:, i])
+            el["balanced_acc"]=balanced_accuracy_score(true_label[:, i], pred[:, i],)
             el["mcc"]=matthews_corrcoef(true_label[:, i], pred[:, i])
             try:
                 el["jaccard"]=jaccard_score(true_label[:, i], pred[:, i])
             except:
                 pass
-        v.append(el)
+            v.append(el)
     return v
 
 def train(sess,graph,config):
