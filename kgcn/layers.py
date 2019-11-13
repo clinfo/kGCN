@@ -7,6 +7,7 @@ from __future__ import print_function
 import os
 
 import tensorflow as tf
+from tensorflow.python.keras.layers import Layer, Dense
 
 enabled_batched=False
 enabled_bspmm  =False
