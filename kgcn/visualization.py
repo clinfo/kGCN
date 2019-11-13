@@ -114,13 +114,13 @@ class CompoundVisualizer(object):
         _adjs_flag = False
         # to skip dragon feature
 
-        if self.all_data.features is not None:
+        if self.all_data.features is not None and "features" in self.placeholders:
             _features_flag = True
             all_ig_modal_target.append('features')
             self.shapes['features'] = (self.info.graph_node_num, self.info.feature_dim)
             self.ig_modal_target_data['features'] = self.all_data.features[self.idx]
 
-        if self.all_data.adjs is not None:
+        if self.all_data.adjs is not None and "adjs" in self.placeholders:
             _adjs_flag = True
             all_ig_modal_target.append('adjs')
             self.shapes['adjs'] = (self.info.graph_node_num, self.info.graph_node_num)
@@ -129,7 +129,7 @@ class CompoundVisualizer(object):
         if self.info.vector_modal_name is not None:
             for key, ele in self.info.vector_modal_name.items():
                 self.logger.debug(f"for {key}, {ele} in self.info.vector_modal_name.items()")
-                if self.all_data['sequences'] is not None:
+                if self.all_data['sequences'] is not None and "sequences" in self.placeholders:
                     all_ig_modal_target.append('embedded_layer')
                     _shape = (1, self.info.sequence_max_length, self.info.sequence_symbol_num)
                     self.shapes['embedded_layer'] = _shape
@@ -137,7 +137,7 @@ class CompoundVisualizer(object):
                     _data = np.expand_dims(_data[self.idx, ...], axis=0)
                     _data = self.model.embedding(sess, _data)
                     self.ig_modal_target_data['embedded_layer'] = _data
-                else:
+                elif key in self.placeholders:
                     all_ig_modal_target.append(key)
                     self.shapes[key] = (1, self.info.vector_modal_dim[ele])
                     self.ig_modal_target_data[key] = self.all_data.vector_modal[ele][self.idx]
