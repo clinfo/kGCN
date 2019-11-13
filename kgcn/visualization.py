@@ -149,7 +149,6 @@ class CompoundVisualizer(object):
             filename = Path(self.outdir) / f"mol_{self.idx:05d}_{self.assay_str}.pkl"
         else:
             filename = Path(self.outdir) / filename
-        self.logger.info(f'filename = {filename}')
         suffix = filename.suffix
         support_suffixes = ['.pkl', '.npz', '.jbl', '.gml']
         assert suffix in support_suffixes, "You have to choose a filetype in ['pkl', 'npz', 'jbl', '.gml']"
@@ -243,7 +242,7 @@ class CompoundVisualizer(object):
         """
         # 事前条件チェック
         assert 0 <= scaling <= 1, "０以上１以下の実数で指定して下さい。"
-        feed_dict = self._construct_feed(scaling_coef)
+        feed_dict = self._construct_feed(scaling)
         return sess.run(prediction, feed_dict=feed_dict)[0]
 
     def check_IG(self, sess, prediction):
@@ -411,7 +410,7 @@ def cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction
 
 def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                    ig_modal_target, ig_label_target, *,
-                   model=None, logger=None, verbosity=None, args=None):
+                   model=None, logger=None, args=None):
     """ Integrated Gradientsの計算
     Args:
         sess: Tensorflowのセッションオブジェクト
@@ -433,8 +432,6 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
     outdir = config["visualize_path"]
     os.makedirs(outdir, exist_ok=True)
     mol_obj_list = info.mol_info["obj_list"] if "mol_info" in info else None
-    if verbosity is None:
-        logger.set_verbosity(logger.DEBUG)
 
     all_count=0
     correct_count=0
@@ -519,7 +516,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                   f"true_label= {true_label}, target_label= {target_index}, target_score= {target_score})")
 
             # --- 各化合物に対応した可視化オブジェクトにより可視化処理を実行
-            visualizer = CompoundVisualizer(outdir, compound_id, info, batch_idx, placeholders, all_data,
+            visualizer = CompoundVisualizer(sess, outdir, compound_id, info, batch_idx, placeholders, all_data,
                                             target_score, mol_obj, mol_name, assay_str, target_index, true_label,
                                             logger=logger, model=model, ig_modal_target=ig_modal_target, scaling_target=ig_modal_target)
             visualizer.cal_integrated_gradients(sess, placeholders, target_prediction, divide_number)
