@@ -173,7 +173,7 @@ def compute_metrics(config,info,prediction_data,labels):
         pred_score = pred_score[:,np.newaxis,np.newaxis]
     elif len(pred_score.shape)==2:
         pred_score = np.expand_dims(pred_score, axis=1)
-    # true_label: #data x # task
+    # true_label: #data x # task/#class
     if len(true_label.shape)==1:
         true_label=true_label[:,np.newaxis]
     # multilabel=True  => pred_score: #data x # task x #class
@@ -219,23 +219,26 @@ def compute_metrics(config,info,prediction_data,labels):
                     pass
             v.append(el)
     else:# multiclass=True
-            # #data x # task x #class
+        # #data x # task x #class
+        # limitation: #task=1
+        pred = np.argmax(pred_score,axis=-1)
+        true_label = np.argmax(true_label,axis=-1)
+        pred=pred[:,0]
         nclass=pred_score.shape[2]
         v=[]
         for i in range(ntask):
             el={}
-            pred = np.argmax(pred_score,axis=-1)
-            acc=accuracy_score(true_label[:, i], pred[:, i])
-            scores=precision_recall_fscore_support(true_label[:, i], pred[:, i],labels=list(range(nclass)),average=None)
+            acc=accuracy_score(true_label, pred)
+            scores=precision_recall_fscore_support(true_label, pred,labels=list(range(nclass)),average=None)
             el["acc"]=acc
             el["pre"]=scores[0]
             el["rec"]=scores[1]
             el["f"]=scores[2]
             el["sup"]=scores[3]
-            el["balanced_acc"]=balanced_accuracy_score(true_label[:, i], pred[:, i],)
-            el["mcc"]=matthews_corrcoef(true_label[:, i], pred[:, i])
+            el["balanced_acc"]=balanced_accuracy_score(true_label, pred)
+            el["mcc"]=matthews_corrcoef(true_label, pred)
             try:
-                el["jaccard"]=jaccard_score(true_label[:, i], pred[:, i])
+                el["jaccard"]=jaccard_score(true_label, pred)
             except:
                 pass
             v.append(el)

@@ -443,31 +443,41 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
         feed_dict = construct_feed(batch_idx, placeholders, all_data, batch_size=1, info=info)
 
         out_prediction = sess.run(prediction, feed_dict=feed_dict)
-        out_softmax=True
         print("prediction shape",out_prediction.shape)
-        if len(out_prediction.shape) == 2:
-            out_prediction = np.expand_dims(out_prediction, axis=1)  # to give consistency with multitask.
-        # out_prediction: data x #task x #label
-        for idx, itask in enumerate(out_prediction[0]):
-            _out_prediction = itask
-
+        # to give consistency with multitask.
+        multitask=False
+        if len(out_prediction.shape)==1:
+            out_prediction = out_prediction[:,np.newaxis,np.newaxis]
+        elif len(out_prediction.shape) == 2:
+            out_prediction = np.expand_dims(out_prediction, axis=1)
+        elif len(out_prediction.shape) == 3:
+            if out_prediction.shape[1]>1:
+                multitask=True
+        # out_prediction: #data x # task x #class
+        # labels: data x #task/#label
+        for idx in range(out_prediction.shape[1]):
+            _out_prediction = out_prediction[0,idx,:]
+            if multitask:
+                true_label = np.argmax(all_data.labels[compound_id])
+            else:
+                true_label = all_data.labels[compound_id,idx]
             # 予測スコアによってassay文字列を変える
-            if isinstance(_out_prediction, collections.abc.Container):  # softmax output
-                assay_str = "inactive" if np.argmax(_out_prediction) == 0 else "active"
+            if multiclass:  # softmax output
+                assay_str = "class="+str(np.argmax(_out_prediction))
             else:
                 assay_str = "active" if _out_prediction > 0.5 else "inactive"
 
+            if len(prediction.shape) == 3:  # multitask
+                _prediction = prediction[:, idx, :]
+            else:
+                _prediction = prediction
+
             # ターゲットとする出力ラベル
             target_score = 0
-            true_label = np.argmax(all_data.labels[compound_id])
-
             if ig_label_target == "max":
                 target_index = np.argmax(_out_prediction)
-                if len(prediction.shape) == 3:  # multitask
-                    target_prediction = prediction[:, :, target_index]
-                else:
-                    target_prediction = prediction[:, target_index]
-                    target_score = _out_prediction[target_index]
+                target_prediction = _prediction[:, target_index]
+                target_score = _out_prediction[target_index]
             elif ig_label_target == "all":
                 target_prediction = prediction
                 target_index = "all"
@@ -486,10 +496,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                 target_score = _out_prediction[target_index]
             else:
                 target_index = int(ig_label_target)
-                if len(prediction.shape) == 3:  # multitask
-                    target_prediction = prediction[:, :, target_index]
-                else:
-                    target_prediction = prediction[:, target_index]
+                target_prediction = prediction[:, target_index]
                 target_score = _out_prediction[target_index]
 
             try:
