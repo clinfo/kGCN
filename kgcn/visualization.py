@@ -62,7 +62,7 @@ class CompoundVisualizer(object):
         logger:
         scaling_target:
     """
-    def __init__(self, outdir, idx, info, batch_idx, placeholders, all_data, prediction, mol, name, assay_str,
+    def __init__(self, sess, outdir, idx, info, batch_idx, placeholders, all_data, prediction, mol, name, assay_str,
                  target_label, true_label, *, model=None, logger=None, ig_modal_target='all', scaling_target='all'):
         self.logger = _default_logger if logger is None else logger
         self.outdir = outdir
@@ -91,12 +91,12 @@ class CompoundVisualizer(object):
             self.logger.info('backward compability')
 
         if self.scaling_target == 'all':
-            self.scaling_target = self._set_ig_modal_target()
+            self.scaling_target = self._set_ig_modal_target(sess)
         elif self.scaling_target == 'profeat':
-            self._set_ig_modal_target()
+            self._set_ig_modal_target(sess)
             self.scaling_target = ['embedded_layer', 'profeat']
         else:
-            self._set_ig_modal_target()
+            self._set_ig_modal_target(sess)
             self.scaling_target = [self.scaling_target]
 
         if self.ig_modal_target == 'all':
@@ -106,7 +106,7 @@ class CompoundVisualizer(object):
 
         self.logger.debug(f"self.ig_modal_target = {self.ig_modal_target}")
 
-    def _set_ig_modal_target(self):
+    def _set_ig_modal_target(self,sess):
         all_ig_modal_target = []
         self.ig_modal_target_data = OrderedDict()
 
@@ -135,7 +135,7 @@ class CompoundVisualizer(object):
                     self.shapes['embedded_layer'] = _shape
                     _data = self.all_data['sequences']
                     _data = np.expand_dims(_data[self.idx, ...], axis=0)
-                    _data = self.model.embedding(_data)
+                    _data = self.model.embedding(sess, _data)
                     self.ig_modal_target_data['embedded_layer'] = _data
                 else:
                     all_ig_modal_target.append(key)
@@ -186,7 +186,15 @@ class CompoundVisualizer(object):
                 if target in placeholders.keys():
                     _ig_placeholders.append(placeholders[target])
         return _ig_placeholders
-
+    def _construct_feed(self,scaling_coef):
+        if 'embedded_layer' not in self.ig_modal_target_data:
+            feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data, info=self.info,
+                                       scaling=scaling_coef, ig_modal_target=self.scaling_target)
+        else:
+            feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data, info=self.info,
+                                       scaling=scaling_coef, ig_modal_target=self.scaling_target,
+                                       embedded_layer=self.ig_modal_target_data['embedded_layer'] )
+        return feed_dict
     def cal_integrated_gradients(self, sess, placeholders, prediction, divide_number):
         """
         Args:
@@ -205,8 +213,7 @@ class CompoundVisualizer(object):
         tf_grads = tf.gradients(prediction, ig_placeholders)
         for k in range(divide_number):
             scaling_coef = (k + 1) / float(divide_number)
-            feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data, info=self.info,
-                                       scaling=scaling_coef, ig_modal_target=self.scaling_target)
+            feed_dict=self._construct_feed(scaling_coef)
             out_grads = sess.run(tf_grads, feed_dict=feed_dict)
             for idx, modal_name in enumerate(IGs):
                 _target_data = self.ig_modal_target_data[modal_name]
@@ -224,7 +231,7 @@ class CompoundVisualizer(object):
         for values in self.IGs.values():
             self.sum_of_ig += np.sum(values)
 
-    def _get_prediction_score(self, sess, scaling, batch_idx, placeholders, all_data, prediction):
+    def _get_prediction_score(self, sess, scaling, prediction):
         """ スケーリング係数に対応した予測スコアを算出する
         Args:
             sess: Tensorflowのセッションオブジェクト
@@ -236,7 +243,7 @@ class CompoundVisualizer(object):
         """
         # 事前条件チェック
         assert 0 <= scaling <= 1, "０以上１以下の実数で指定して下さい。"
-        feed_dict = construct_feed(batch_idx, placeholders, all_data, batch_size=1, info=self.info, scaling=[scaling])
+        feed_dict = self._construct_feed(scaling_coef)
         return sess.run(prediction, feed_dict=feed_dict)[0]
 
     def check_IG(self, sess, prediction):
@@ -245,13 +252,11 @@ class CompoundVisualizer(object):
             sess: Tensorflowのセッションオブジェクト
             prediction: 予測スコア（ネットワークの最終出力）
         """
-        self.start_score = self._get_prediction_score(sess, 0, self.batch_idx, self.placeholders, self.all_data,
-                                                      prediction)
-        self.end_score = self._get_prediction_score(sess, 1, self.batch_idx, self.placeholders, self.all_data,
-                                                    prediction)
+        self.start_score = self._get_prediction_score(sess, 0, prediction)
+        self.end_score = self._get_prediction_score(sess, 1, prediction)
 
 class KnowledgeGraphVisualizer:
-    def __init__(self, outdir, info, config, batch_idx, placeholders, all_data, prediction,
+    def __init__(self, sess, outdir, info, config, batch_idx, placeholders, all_data, prediction,
                   *, model=None, logger=None):
         self.outdir = outdir
         self.info = info
@@ -274,7 +279,7 @@ class KnowledgeGraphVisualizer:
         _data = self.all_data['nodes']
         _data = np.expand_dims(_data[0, ...], axis=0)
 
-        _data = self.model.embedding(_data)
+        _data = self.model.embedding(sess,_data)
         self.ig_modal_target_data['embedded_layer'] = _data
 
     def cal_integrated_gradients(self, sess, placeholders, prediction, divide_number):
@@ -431,19 +436,22 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
     if verbosity is None:
         logger.set_verbosity(logger.DEBUG)
 
-    if hasattr(model, 'sess'):
-        _sess = tf.Session(config=tf.ConfigProto(log_device_placement=False, device_count={"GPU":0}))
-        model.sess = _sess
     all_count=0
     correct_count=0
     for compound_id in range(all_data.num):
         s = time.time()
         batch_idx = [compound_id]
         #--- まず通常の予測を行って、最大スコアを持つノードを特定する
-        feed_dict = construct_feed(batch_idx, placeholders, all_data, batch_size=1, info=info)
+        if all_data['sequences'] is not None:
+            _data = all_data['sequences']
+            _data = np.expand_dims(_data[compound_id, ...], axis=0)
+            _data = model.embedding(sess,_data)
+            feed_dict = construct_feed(batch_idx, placeholders, all_data, batch_size=1, info=info,embedded_layer=_data)
+        else:
+            feed_dict = construct_feed(batch_idx, placeholders, all_data, batch_size=1, info=info)
 
         out_prediction = sess.run(prediction, feed_dict=feed_dict)
-        print("prediction shape",out_prediction.shape)
+        #print("prediction shape",out_prediction.shape)
         # to give consistency with multitask.
         multitask=False
         if len(out_prediction.shape)==1:
@@ -457,13 +465,15 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
         # labels: data x #task/#label
         for idx in range(out_prediction.shape[1]):
             _out_prediction = out_prediction[0,idx,:]
-            if multitask:
+            if not multitask:
                 true_label = np.argmax(all_data.labels[compound_id])
             else:
                 true_label = all_data.labels[compound_id,idx]
             # 予測スコアによってassay文字列を変える
-            if multiclass:  # softmax output
+            if len(_out_prediction)>2:  # softmax output
                 assay_str = "class="+str(np.argmax(_out_prediction))
+            elif len(_out_prediction)==2:  # softmax output
+                assay_str = "active" if _out_prediction[1] > 0.5 else "inactive"
             else:
                 assay_str = "active" if _out_prediction > 0.5 else "inactive"
 
@@ -519,7 +529,9 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                   f"check score: {visualizer.end_score - visualizer.start_score}\n"
                   f"sum of IG: {visualizer.sum_of_ig}\n"
                   f"time : {time.time() - s}")
+
             all_count+=1
-            if np.argmax(_out_prediction) == true_label:
+            if np.argmax(_out_prediction) == int(true_label):
                 correct_count+=1
-    print(correct_count/all_count)
+    print("accuracy(visualized_data)=",correct_count/all_count)
+

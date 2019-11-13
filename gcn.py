@@ -598,7 +598,7 @@ def visualize(sess, config, args):
     #--- セッションの初期化
     saver = tf.train.Saver()
     #tf.compat.v1.logging.info("[LOAD]", config["load_model"])
-    tf.logging.info("[LOAD]", config["load_model"])
+    tf.logging.info(f"[LOAD]{config['load_model']}")
 
     saver.restore(sess, config["load_model"])
     #--- integrated gradientsの計算
