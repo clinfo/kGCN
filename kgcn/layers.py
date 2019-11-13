@@ -194,7 +194,7 @@ class GraphBatchNormalization(Layer):
             inputs.set_shape([batch_size,node_num,input_dim])
             extracted_nodes=[feature_map[:enabled_node_num] for feature_map, enabled_node_num in zip(tf.unstack(inputs), tf.unstack(enabled_node_nums))]
             stacked_nodes=tf.concat(extracted_nodes,0)
-            normalized_data=tf.layers.BatchNormalization(name=self.bn_name)(stacked_nodes)
+            normalized_data=tf.keras.layers.BatchNormalization(trainable=training, name=self.bn_name)(stacked_nodes)
             split_data=tf.split(normalized_data,enabled_node_nums)
             padded_data=[tf.pad(feature_map, [[0, node_num-tf.shape(feature_map)[0]], [0, 0]]) for feature_map in split_data]
             output = tf.stack(padded_data)
@@ -204,7 +204,7 @@ class GraphBatchNormalization(Layer):
             #if node_num is not None and input_dim is not None:
             #
             layer=tf.reshape(inputs,(-1, input_dim))
-            layer=tf.layers.BatchNormalization(name=self.bn_name)(layer)
+            layer=tf.keras.layers.BatchNormalization(trainable=training, name=self.bn_name)(layer)
             layer=tf.reshape(layer,(batch_size, -1,input_dim))
             return layer
 
