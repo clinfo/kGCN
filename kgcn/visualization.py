@@ -466,7 +466,6 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                 true_label = np.argmax(all_data.labels[compound_id])
             else:
                 true_label = all_data.labels[compound_id,idx]
-            """
             # 予測スコアによってassay文字列を変える
             if len(_out_prediction)>2:  # softmax output
                 assay_str = "class="+str(np.argmax(_out_prediction))
@@ -527,7 +526,6 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                   f"check score: {visualizer.end_score - visualizer.start_score}\n"
                   f"sum of IG: {visualizer.sum_of_ig}\n"
                   f"time : {time.time() - s}")
-            """
             all_count+=1
             if np.argmax(_out_prediction) == int(true_label):
                 correct_count+=1
