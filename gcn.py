@@ -152,8 +152,8 @@ def plot_r2(config,labels,pred_data,prefix=""):
 def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False,batch_size=None):
     pair=model_py.split(":")
     sys.path.append(os.getcwd())
-    tf.logging.info(f"[LOAD]{pair[1]} from {pair[0]}")
     if len(pair)>=2:
+        tf.logging.info(f"[LOAD] {pair[1]} from {pair[0]}")
         mod=importlib.import_module(pair[0])
         cls = getattr(mod, pair[1])
         obj=cls()
@@ -161,6 +161,7 @@ def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False,batch_s
             model.build(obj,is_train,feed_embedded_layer,batch_size)
         return obj
     else:
+        tf.logging.info(f"[LOAD] {pair[0]}")
         mod=importlib.import_module(pair[0])
         if model:
             model.build(mod,is_train,feed_embedded_layer,batch_size)
