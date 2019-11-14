@@ -5,6 +5,7 @@
     "load_model": "./model/model.sample_multimodal.ckpt",
     "save_model": "./model/model.sample_multimodal.ckpt",
     "validation_data_rate": 0.3,
+    "embedding_dim":4,
     "epoch": 5,
     "with_feature": true,
     "batch_size": 10,

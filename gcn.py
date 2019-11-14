@@ -152,6 +152,7 @@ def plot_r2(config,labels,pred_data,prefix=""):
 def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False,batch_size=None):
     pair=model_py.split(":")
     sys.path.append(os.getcwd())
+    tf.logging.info(f"[LOAD]{pair[1]} from {pair[0]}")
     if len(pair)>=2:
         mod=importlib.import_module(pair[0])
         cls = getattr(mod, pair[1])
@@ -164,6 +165,22 @@ def load_model_py(model,model_py,is_train=True,feed_embedded_layer=False,batch_s
         if model:
             model.build(mod,is_train,feed_embedded_layer,batch_size)
         return mod
+
+def print_ckpt(sess,ckpt):
+    #checkpoint = tf.train.get_checkpoint_state(args.ckpt)
+    print("==",ckpt)
+    for var_name, _ in tf.contrib.framework.list_variables(ckpt):
+        var = tf.contrib.framework.load_variable(ckpt, var_name)
+        print(var_name,var.shape)
+    print("==")
+
+def print_variables():
+    # print variables
+    print('== neural network')
+    vars_em = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+    for v in vars_em:
+        print(v.name,v.shape)
+    print("==")
 
 def compute_metrics(config,info,prediction_data,labels):
     pred_score = np.array(prediction_data)
@@ -513,10 +530,7 @@ def infer(sess,graph,config):
                    "accuracy")
 
     # Initialize session
-    saver = tf.train.Saver()
-    #sess.run(tf.global_variables_initializer())
-    print("[LOAD]",config["load_model"])
-    saver.restore(sess,config["load_model"])
+    restore_ckpt(sess,config["load_model"]):
 
     # Validation
     start_t = time.time()
@@ -577,6 +591,17 @@ def infer(sess,graph,config):
 
     #
 
+def restore_ckpt(sess,ckpt):
+    saver = tf.train.Saver()
+    tf.logging.info(f"[LOAD]{ckpt}")
+    try:
+        saver.restore(sess, ckpt)
+    except:
+        print("======LOAD ERROR======")
+        print_variables()
+        print_ckpt(sess,ckpt)
+        raise Exception
+    return saver
 #------------------------------------------------------------------------------
 # visualization using IG
 #------------------------------------------------------------------------------
@@ -591,25 +616,22 @@ def visualize(sess, config, args):
         dataset_filename=config["dataset_test"]
     all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True)
 
+    #tf.compat.v1.logging.info("[LOAD]", config["load_model"])
+
     model = CoreModel(sess,config,info)
     load_model_py(model,config["model.py"],is_train=False,feed_embedded_layer=True,batch_size=batch_size)
     placeholders = model.placeholders
-    _model, prediction = model.out,model.prediction
     #--- セッションの初期化
-    saver = tf.train.Saver()
-    #tf.compat.v1.logging.info("[LOAD]", config["load_model"])
-    tf.logging.info(f"[LOAD]{config['load_model']}")
-
-    saver.restore(sess, config["load_model"])
+    restore_ckpt(sess,config['load_model'])
     #--- integrated gradientsの計算
     if config['visualize_type'] == 'graph':
-        cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
+        cal_feature_IG(sess, all_data, placeholders, info, config, model.prediction,
                        args.ig_modal_target, args.ig_label_target,
-                       logger=tf.logging, model=_model, args=args)
+                       logger=tf.logging, model=model.nn, args=args)
                        #logger=tf.compat.v1.logging, model=_model)
     else:
-        cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction,
-                              logger=tf.logging, model=_model, args=args)
+        cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, model.prediction,
+                              logger=tf.logging, model=model.nn, args=args)
                               #logger=tf.compat.v1.logging, model=_model)
 
 

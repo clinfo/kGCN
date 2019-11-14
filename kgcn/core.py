@@ -149,21 +149,14 @@ class CoreModel:
             else:
                 info.param=config["param"]
 
-        try:
-            # feed_embedded_layer=True => True emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
-            self.placeholders = model.build_placeholders(info, config, batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
-        except:
-            # Deprecated:
-            self.placeholders = model.build_placeholders(info, config, batch_size=batch_size)
-        try:
-            _model,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
-        except:
-            # Deprecated:
-            _model,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size)
+        # feed_embedded_layer=True => True emmbedingレイヤを使っているモデルの可視化。IGはemmbedingレイヤの出力を対象にして計算される。
+        self.placeholders = model.build_placeholders(info, config, batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
+        _model,self.prediction,self.cost,self.cost_sum,self.metrics = model.build_model(self.placeholders,info,config,batch_size=batch_size, feed_embedded_layer=feed_embedded_layer)
+        self.nn=_model
         if _model is not None and hasattr(_model,'out'):
             self.out=_model.out
         else:
-            # for old version
+            # Deprecated: for old version
             self.out=_model
 
         if is_train:

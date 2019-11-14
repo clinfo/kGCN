@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 class DefaultModel:
-    def get_placeholders(self,info,config,batch_size,placeholder_names):
+    def get_placeholders(self,info,config,batch_size,placeholder_names,**kwargs):
         adj_channel_num=info.adj_channel_num
         placeholders = {
             'adjs':[[tf.sparse_placeholder(tf.float32,name="adj_"+str(a)+"_"+str(b)) for a in range(adj_channel_num)] for b in range(batch_size)],
@@ -30,6 +30,10 @@ class DefaultModel:
             placeholders['features']=tf.placeholder(tf.float32, shape=(batch_size,info.graph_node_num,info.feature_dim),name="feature")
         else:
             placeholders['features']=None
-        return {name:placeholders[name] for name in placeholder_names}
+        embedding_dim=config["embedding_dim"]
+        placeholders['embedded_layer'] = tf.placeholder(tf.float32, shape=(batch_size, info.sequence_max_length,
+                                                                           embedding_dim,), name="embedded_layer")
+        self.placeholders={name:placeholders[name] for name in placeholder_names}
+        return self.placeholders
 
 
