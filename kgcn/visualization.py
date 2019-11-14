@@ -468,7 +468,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                 true_label = all_data.labels[compound_id,idx]
             # 予測スコアによってassay文字列を変える
             if len(_out_prediction)>2:  # softmax output
-                assay_str = "class="+str(np.argmax(_out_prediction))
+                assay_str = "class"+str(np.argmax(_out_prediction))
             elif len(_out_prediction)==2:  # softmax output
                 assay_str = "active" if _out_prediction[1] > 0.5 else "inactive"
             else:
