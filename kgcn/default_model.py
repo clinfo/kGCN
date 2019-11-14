@@ -32,7 +32,7 @@ class DefaultModel:
             placeholders['features']=None
         embedding_dim=config["embedding_dim"]
         placeholders['embedded_layer'] = tf.placeholder(tf.float32, shape=(batch_size, info.sequence_max_length,
-                                                                           embedding_dim,), name="embedded_layer")
+                                                                           embedding_dim), name="embedded_layer")
         self.placeholders={name:placeholders[name] for name in placeholder_names}
         return self.placeholders
 

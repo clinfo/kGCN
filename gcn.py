@@ -530,7 +530,7 @@ def infer(sess,graph,config):
                    "accuracy")
 
     # Initialize session
-    restore_ckpt(sess,config["load_model"]):
+    restore_ckpt(sess,config["load_model"])
 
     # Validation
     start_t = time.time()

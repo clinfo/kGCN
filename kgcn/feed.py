@@ -200,7 +200,7 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
                 chem_flag =  (info.sequence_max_length != 0) and (info.sequence_symbol_num != 0)
                 if chem_flag:
                     feed_dict[pl]=np.zeros((batch_size, info.sequence_max_length,
-                                            info.sequence_symbol_num))
+                                            config["embedding_dim"]))
                 else:
                     feed_dict[pl]=np.zeros((batch_size, info.all_node_num,
                                             config["embedding_dim"]))

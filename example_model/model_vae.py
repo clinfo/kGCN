@@ -5,7 +5,7 @@ import kgcn.layers
 #import tensorflow.contrib.keras as K
 from tensorflow.python.keras.layers import Dense
 
-def build_placeholders(info,config,batch_size=4):
+def build_placeholders(info,config,batch_size=4,**kwargs):
     adj_channel_num=info.adj_channel_num
     encoder_output_dim=64
     preference_list_length=2
@@ -98,7 +98,7 @@ def print_variables():
         print(v.name)
 
 # TODO: hard coding parameters
-def build_model(placeholders,info,config,batch_size=4):
+def build_model(placeholders,info,config,batch_size=4,**kwargs):
     adj_channel_num=info.adj_channel_num
     ## compute output 0
     if not info.feature_enabled:

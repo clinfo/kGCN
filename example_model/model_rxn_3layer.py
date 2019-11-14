@@ -4,7 +4,7 @@ import joblib
 import kgcn.legacy.layers
 import tensorflow.contrib.keras as K
 
-def build_placeholders(info,config,batch_size=4):
+def build_placeholders(info,config,batch_size=4,**kwargs):
     adj_channel_num=info.adj_channel_num
     placeholders = {
         'adjs':[[tf.sparse_placeholder(tf.float32,name="adj_"+str(a)+"_"+str(b)) for a in range(adj_channel_num)] for b in range(batch_size)],
@@ -23,7 +23,7 @@ def build_placeholders(info,config,batch_size=4):
         placeholders['features']=None
     return  placeholders
 
-def build_model(placeholders,info,config,batch_size=4):
+def build_model(placeholders,info,config,batch_size=4,**kwargs):
     adj_channel_num=info.adj_channel_num
     embedding_dim=config["embedding_dim"]
     in_adjs=placeholders["adjs"]

@@ -4,14 +4,14 @@ import kgcn.layers
 import tensorflow.contrib.keras as K
 
 class GCN(DefaultModel):
-    def build_placeholders(self,info,config,batch_size):
+    def build_placeholders(self,info,config,batch_size,**kwargs):
         # input data types (placeholders) of this neural network
         return self.get_placeholders(info,config,batch_size,
             ['adjs','nodes','labels','mask','dropout_rate',
             'enabled_node_nums','is_train','features',
             'mask_label','mask_node'])
 
-    def build_model(self,placeholders,info,config,batch_size=4):
+    def build_model(self,placeholders,info,config,batch_size=4,**kwargs):
         adj_channel_num=info.adj_channel_num
         embedding_dim=config["embedding_dim"]
         in_adjs=placeholders["adjs"]
@@ -69,5 +69,6 @@ class GCN(DefaultModel):
 
         correct_count=mask*tf.cast(tf.reduce_all(tf.equal(binary_activation(prediction,0.5), labels),axis=1),tf.float32)
         metrics["correct_count"]=tf.reduce_sum(correct_count)
-        return layer,prediction,cost_opt,cost_sum,metrics
+        self.out=layer
+        return self,prediction,cost_opt,cost_sum,metrics
 
