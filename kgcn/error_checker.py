@@ -1,45 +1,34 @@
 import os
 
-#-------------------------------------------------------------------------------
-# コマンドライン引数が正しく指定されていない場合は、使用方法を表示して異常終了
-#-------------------------------------------------------------------------------
+
 def if_usage_is_correct(min_args_num, argv, args_str):
-    """
-    コマンドライン引数が正しく指定されて稲生場合は、使用方法を表示して異常終了
-    【引数】
-    min_args_num: 最低限必要なコマンドライン引数の数
-    argv: コマンドライン入力が格納されたリスト
-    args_str: 使用方法を表示するためのコマンドライン引数文字列
+    """ Print usage and terminate the program abnormally if the command line argument is not specified correctly
+    Args:
+        min_args_num: minimum required number of command line arguments
+        argv: list of command line arguments
+        args_str: command line arguments string to print usage
     """
     if len(argv) < min_args_num + 1:
         print(" (Usage) python {} {}".format(argv[0], args_str))
         exit(1)
 
 
-#-------------------------------------------------------------------------------
-# 指定したディレクトリが存在しない場合は、エラーメッセージを表示して異常終了
-#-------------------------------------------------------------------------------
 def if_directory_is_exist(dirname):
-    """
-    指定したファイルが存在するかどうかチェックする。
-    ファイルが存在しない場合は、エラーメッセージを表示して異常終了する
-    【引数】
-    filename: ファイル名
+    """ Print error message and terminate the program abnormally if the specified directory is not found.
+    Args:
+        dirname:
     """
     if not os.path.isdir(dirname):
-        print("### (Error) ディレクトリ\"{}\"が存在しません。 ###".format(dirname))
+        print(f"### (Error) directory \"{dirname}\" is not found.###")
         exit(1)
 
-#-------------------------------------------------------------------------------
-# 指定したファイルが存在するかどうかチェックする。
-#-------------------------------------------------------------------------------
+
 def if_file_is_exist(filename):
-    """
-    指定したファイルが存在するかどうかチェックする。
-    ファイルが存在しない場合は、エラーメッセージを表示して異常終了する
-    【引数】
-    filename: ファイル名
+    """ check whether the specified file exists.
+    if the file does not exist, print error message and terminate the program abnormally.
+    Args:
+        filename:
     """
     if not os.path.isfile(filename):
-        print("### (Error) ファイル\"{}\"が存在しません。 ###".format(filename))
+        print(f"### (Error) file \"{filename}\" is not found ###")
         exit(1)
