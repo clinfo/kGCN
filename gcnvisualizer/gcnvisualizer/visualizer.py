@@ -104,23 +104,17 @@ class GCNVisualizer(object):
         
     def _get_atoms_color(self, atom_num):
         ig_data = self.ig_dict['features_IG']
-        absmax= self._check_and_absmax(self.feat_absmax,ig_data,"feature")
         highlight_atoms = []
         color_atoms = {}
         cmap = cm.coolwarm
-        for row in range(atom_num):
-            for col in range(ig_data.shape[1]):
-                # 75次元の特徴行列では、43列以上は原子の情報が入っていない。
-                if col > 42:
-                    continue
-                # 各原子に対応するI.G.の値
-                value = ig_data[row][col]
-                if value != 0.0:
-                    # 可視化対象となる原子IDを登録
-                    highlight_atoms.append(row)
-                    # I.G.の値を指定されたカラーマップで色付け
-                    normalized_value = (value + absmax) / (2 * absmax)
-                    color_atoms[row] = cmap(normalized_value)
+        values = [np.sum(ig_data[row]) for row in range(atom_num)]
+        absmax= self._check_and_absmax(self.feat_absmax,values,"feature")
+        for row,value in enumerate(values):
+            # condition on the highlighting atom
+            if value != 0.0:
+                highlight_atoms.append(row)
+                normalized_value = (value + absmax) / (2 * absmax)
+                color_atoms[row] = cmap(normalized_value)
         return highlight_atoms, color_atoms
 
     def _draw_mol_structure(self, mol, figsize=(600, 300)):
