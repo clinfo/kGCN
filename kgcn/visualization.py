@@ -16,37 +16,35 @@ from kgcn.feed import construct_feed
 
 
 def sparse_to_dense(sparse):
-    """ COO形式の疎行列から密行列を生成する
+    """ convert sparse matrix in COOrdinate format to dense matrix.
     Args:
-        sparse: COO形式の疎行列
+        sparse: sparse matrix in coordinate format
     Returns:
-        ndarray形式の２次元配列で表現される密行列
+        Return a dense matrix representation of the matrix. The dense matrix is in ndarray format.
     """
-    # 疎行列の各要素のインデックス
-    index = sparse[0]  # （ [行インデックス, 列インデックス] を要素とするリスト）
-    data = sparse[1]  # 疎行列の要素
-    shape = sparse[2]  # 行列の大きさ
+    index = sparse[0]  # list(row index, column index)
+    data = sparse[1]
+    shape = sparse[2]  # matrix size
     return sparse_to_dense_core(index, data, shape)
 
 
 def sparse_to_dense_core(index, data, shape):
-    """ COO形式の疎行列から密行列を生成する（引数を細かく指定できるバージョン）
+    """ convert sparse matrix in COOrdinate format to dense matrix. (more flexible arguments)
     Args:
-        index: 疎行列の各要素のインデックス（ [行インデックス, 列インデックス] を要素とするリスト）
-        data: 疎行列の要素
-        shape: 行列の大きさ
+        index: list(row index, column index)
+        data:
+        shape: matrix size
     Returns:
-        ndarray形式の２次元配列で表現される密行列
+        Return a dense matrix representation of a sparse matrix. The dense matrix is in ndarray format.
     """
-    # 行インデックスリスト(i)と列インデックスリスト(j)を抽出
     i = index[:, 0]
     j = index[:, 1]
-    coo = coo_matrix((data, (i, j)), shape)  # coo.todense()の出力はnumpy.matrixなので、".A"でndarray形式に変換しておく。
-    return coo.todense().A
+    coo = coo_matrix((data, (i, j)), shape)
+    return coo.todense().A  # convert numpy.matrix to ndarray format.
 
 
 class CompoundVisualizer(object):
-    """化合物情報を可視化するクラス（※このクラスは、１次のグラフラプラシアンのみに対応している。）
+    """ Visualize compound information. (this class deals with first degree graph laplacian matrix)
     Attributes:
         outdir (str):
         idx (int): To read dataset with this idx.
@@ -197,10 +195,10 @@ class CompoundVisualizer(object):
     def cal_integrated_gradients(self, sess, placeholders, prediction, divide_number):
         """
         Args:
-            sess: Tensorflowのセッションオブジェクト
-            placeholders: プレースホルダ
-            prediction: 予測スコア（ネットワークの最終出力）
-            divide_number: 予測スコアの分割数
+            sess: session object
+            placeholders:
+            prediction: prediction score（output of the network）
+            divide_number: division number of a prediction score
         """
         IGs = OrderedDict()
         for key in self.ig_modal_target:
@@ -224,32 +222,31 @@ class CompoundVisualizer(object):
                     IGs[modal_name] += out_grads[idx][0] * _target_data / float(divide_number)
         self.IGs = IGs
 
-        # I.G.の計算が正しく行われているならば、「I.G.の和」≒「スケーリング係数１の予測スコアとスケーリング係数０の予測スコアの差」
-        # になるはずなので、計算の妥当性検証用にIGの和を保存しておく
+        # If IG is calculated correctly, "total of IG" approximately equal to "difference between the prediction score
+        # with scaling factor = 1 and with scaling factor = 0".
         self.sum_of_ig = 0
         for values in self.IGs.values():
             self.sum_of_ig += np.sum(values)
 
     def _get_prediction_score(self, sess, scaling, prediction):
-        """ スケーリング係数に対応した予測スコアを算出する
+        """ calculate a prediction score corresponding to a scaling factor.
         Args:
-            sess: Tensorflowのセッションオブジェクト
-            scaling: スケーリング係数（０以上１以下）
+            sess: session object
+            scaling: scaling factor（0 <= x <= 1）
             batch_idx:
-            placeholders: プレースホルダ
-            all_data: 全データ
-            prediction: 予測スコア（ネットワークの最終出力）
+            placeholders:
+            all_data:
+            prediction: prediction score（output of the network）
         """
-        # 事前条件チェック
         assert 0 <= scaling <= 1, "０以上１以下の実数で指定して下さい。"
         feed_dict = self._construct_feed(scaling)
         return sess.run(prediction, feed_dict=feed_dict)[0]
 
     def check_IG(self, sess, prediction):
-        """ Integrated Gradientsの計算結果を検証するファイルを出力する
+        """ output a file that validate the calculation of IG.
         Args:
-            sess: Tensorflowのセッションオブジェクト
-            prediction: 予測スコア（ネットワークの最終出力）
+            sess: session object
+            prediction: prediction score（output of the network）
         """
         self.start_score = self._get_prediction_score(sess, 0, prediction)
         self.end_score = self._get_prediction_score(sess, 1, prediction)
@@ -284,10 +281,10 @@ class KnowledgeGraphVisualizer:
     def cal_integrated_gradients(self, sess, placeholders, prediction, divide_number):
         """
         Args:
-            sess: Tensorflowのセッションオブジェクト
-            placeholders: プレースホルダ
-            prediction: 予測スコア（ネットワークの最終出力）
-            divide_number: 予測スコアの分割数
+            sess: session object
+            placeholders:
+            prediction: prediction score（output of the network）
+            divide_number: division number of a prediction score
         """
         ig_placeholders = placeholders["embedded_layer"]
         tf_grads = tf.gradients(prediction, ig_placeholders)
@@ -312,8 +309,8 @@ class KnowledgeGraphVisualizer:
                              f'[TIME] {(time.time() - s):7.4f}s')
         self.IGs = IGs
 
-        # I.G.の計算が正しく行われているならば、「I.G.の和」≒「スケーリング係数１の予測スコアとスケーリング係数０の予測スコアの差」
-        # になるはずなので、計算の妥当性検証用にIGの和を保存しておく
+        # If IG is calculated correctly, "total of IG" approximately equal to "difference between the prediction score
+        # with scaling factor = 1 and with scaling factor = 0".
         self.sum_of_ig = 0
         for values in self.IGs.values():
             self.sum_of_ig += np.sum(values)
@@ -411,13 +408,13 @@ def cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction
 def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                    ig_modal_target, ig_label_target, *,
                    model=None, logger=None, args=None):
-    """ Integrated Gradientsの計算
+    """ calculate integrated gradients
     Args:
-        sess: Tensorflowのセッションオブジェクト
-        all_data: 全データ
-        placeholders: プレースホルダ
+        sess: session object
+        all_data:
+        placeholders:
         info:
-        prediction: 予測スコア（ネットワークの最終出力）
+        prediction: prediction score（output of the network）
         ig_modal_target:
         ig_label_target:
         model:
@@ -438,7 +435,6 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
     for compound_id in range(all_data.num):
         s = time.time()
         batch_idx = [compound_id]
-        #--- まず通常の予測を行って、最大スコアを持つノードを特定する
         if all_data['sequences'] is not None:
             _data = all_data['sequences']
             _data = np.expand_dims(_data[compound_id, ...], axis=0)
@@ -466,7 +462,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                 true_label = np.argmax(all_data.labels[compound_id])
             else:
                 true_label = all_data.labels[compound_id,idx]
-            # 予測スコアによってassay文字列を変える
+            # convert a assay string according to a prediction score
             if len(_out_prediction)>2:  # softmax output
                 assay_str = "class"+str(np.argmax(_out_prediction))
             elif len(_out_prediction)==2:  # softmax output
@@ -479,7 +475,6 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
             else:
                 _prediction = prediction
 
-            # ターゲットとする出力ラベル
             target_score = 0
             if ig_label_target == "max":
                 target_index = np.argmax(_out_prediction)

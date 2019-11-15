@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Apr  6 17:20:10 2018
-
-@author: taro.kiritani
-"""
 import tensorflow as tf
 
 import layers
