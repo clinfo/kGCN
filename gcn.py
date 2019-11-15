@@ -191,21 +191,29 @@ def compute_metrics(config,info,prediction_data,labels):
         pred_score = pred_score[:,np.newaxis,np.newaxis]
     elif len(pred_score.shape)==2:
         pred_score = np.expand_dims(pred_score, axis=1)
-    # true_label: #data x # task/#class
-    if len(true_label.shape)==1:
-        true_label=true_label[:,np.newaxis]
+    tf.logging.info(f"prediction #data x # task x #class: {pred_score.shape}")
     # multilabel=True  => pred_score: #data x # task x #class
     # multilabel=False => pred_score: #data x # task
     multiclass=False
     ntask=pred_score.shape[1]
     if pred_score.shape[2]==1: # regression or binary
         pred_score=pred_score[:,:,0]
+        tf.logging.info(f"2-class sigmoid")
     elif pred_score.shape[2]==2: # binary
         pred_score=pred_score[:,:,1]
+        tf.logging.info(f"2-class softmax")
     elif pred_score.shape[2]>2:
         multiclass=True
+        tf.logging.info(f"multi-class softmax")
+    # true_label: #data x # task/#class
+    if ntask==1 and len(true_label.shape)==2 and true_label.shape[1]==2:
+        true_label=true_label[:,1]
+    if len(true_label.shape)==1:
+        true_label=true_label[:,np.newaxis]
 
+    tf.logging.info(f"label #data x # task/#class: {true_label.shape}")
     if not multiclass:
+        tf.logging.info(f"binary-class mode")
         v=[]
         for i in range(ntask):
             el={}
@@ -239,6 +247,7 @@ def compute_metrics(config,info,prediction_data,labels):
     else:# multiclass=True
         # #data x # task x #class
         # limitation: #task=1
+        tf.logging.info(f"multi-class mode")
         pred = np.argmax(pred_score,axis=-1)
         true_label = np.argmax(true_label,axis=-1)
         pred=pred[:,0]
