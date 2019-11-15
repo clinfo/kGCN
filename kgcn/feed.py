@@ -82,9 +82,11 @@ def get_preference_label_list_feed(config,info,label_list,label_itr,batch_size):
                 temp_labels[b,:,3]=temp_labels[b,:,0]
     return temp_labels
 
+def add_perturbation(x,scaling,enabled_noise,noise_scale=0.1):
+    return x*scaling+np.random.normal(scale=noise_scale,size=x.shape)
 
-
-def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,is_train=False, info=None, scaling=1.0, config=None, label_itr=None,scaling_target=[],**kwargs):
+def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
+        is_train=False, info=None, scaling=1.0, config=None, label_itr=None,perturbation_target=[], enabled_noise=False,**kwargs):
     adjs=data.adjs
     features=data.features
     nodes=data.nodes
@@ -109,10 +111,10 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
                     if b <len(batch_idx):
                         bb=batch_idx[b]
                         b_shape=adjs[bb][ch][2]
-                        if 'adjs' in scaling_target:
-                            feed_dict[ab_pl]=tf.SparseTensorValue(adjs[bb][ch][0],adjs[bb][ch][1]*scaling,adjs[bb][ch][2])#*scaling
-                        else:
-                            feed_dict[ab_pl]=tf.SparseTensorValue(adjs[bb][ch][0],adjs[bb][ch][1],adjs[bb][ch][2])
+                        val=adjs[bb][ch][1]
+                        if 'adjs' in perturbation_target:
+                            val=add_perturbation(val,scaling,enabled_noise)
+                        feed_dict[ab_pl]=tf.SparseTensorValue(adjs[bb][ch][0],val,adjs[bb][ch][2])
                     else:
                         dummy_idx=np.zeros((0,2),dtype=np.int32)
                         dummy_val=np.zeros((0,),dtype=np.float32)
@@ -120,8 +122,8 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
         elif key=="features" and features is not None:
             temp_features=np.zeros((batch_size,features.shape[1],features.shape[2]),dtype=np.float32)
             temp_features[:len(batch_idx),:,:]=features[batch_idx,:,:]
-            if key in scaling_target:
-                feed_dict[pl]=temp_features*scaling #features[batch_idx,:,:]
+            if key in perturbation_target:
+                feed_dict[pl]=add_perturbation(temp_features,scaling,enabled_noise)
             else:
                 feed_dict[pl]=temp_features
         elif key=="nodes" and features is None:
@@ -181,8 +183,8 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
             j=info.vector_modal_name[key]
             vecs=np.zeros((batch_size,vector_modal[j].shape[1]),np.float32)
             vecs[:len(batch_idx),:]=vector_modal[j][batch_idx,:]
-            if key in scaling_target:
-                feed_dict[pl]=vecs*scaling
+            if key in perturbation_target:
+                feed_dict[pl]=add_perturbation(vecs,scaling,enabled_noise)
             else:
                 feed_dict[pl]=vecs
         elif key=="mask_node" and enabled_node_nums is not None:
@@ -205,8 +207,8 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
                     feed_dict[pl]=np.zeros((batch_size, info.all_node_num,
                                             config["embedding_dim"]))
             else:
-                if key in scaling_target:
-                    feed_dict[pl]=kwargs["embedded_layer"]*scaling #features[batch_idx,:,:]
+                if key in perturbation_target:
+                    feed_dict[pl]=add_perturbation(kwargs["embedded_layer"],scaling,enabled_noise)
                 else:
                     feed_dict[pl]=kwargs["embedded_layer"]
 

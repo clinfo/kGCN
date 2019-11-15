@@ -58,10 +58,10 @@ class CompoundVisualizer(object):
         assay_str (str):
         model:
         logger:
-        scaling_target:
+        perturbation_target:
     """
     def __init__(self, sess, outdir, idx, info, config, batch_idx, placeholders, all_data, prediction, *,
-            model=None, logger=None, ig_modal_target='all', scaling_target='all', grads=None):
+            model=None, logger=None, ig_modal_target='all', perturbation_target='all', grads=None):
         self.logger = _default_logger if logger is None else logger
         self.outdir = outdir
         self.idx = idx
@@ -74,7 +74,7 @@ class CompoundVisualizer(object):
         self.shapes = OrderedDict()
         self.vector_modal = None
         self.sum_of_ig = 0.0
-        self.scaling_target = scaling_target
+        self.perturbation_target = perturbation_target
         self.ig_modal_target = ig_modal_target
         self.config = config
 
@@ -84,21 +84,21 @@ class CompoundVisualizer(object):
             self.logger.info('self.amino_acid_seq is not used.')
             self.logger.info('backward compability')
 
-        if self.scaling_target == 'all':
-            self.scaling_target = self._set_ig_modal_target()
-        elif self.scaling_target == 'profeat':
+        if self.perturbation_target == 'all':
+            self.perturbation_target = self._set_ig_modal_target()
+        elif self.perturbation_target == 'profeat':
             self._set_ig_modal_target()
-            self.scaling_target = ['embedded_layer', 'profeat']
+            self.perturbation_target = ['embedded_layer', 'profeat']
         else:
             self._set_ig_modal_target()
-            self.scaling_target = [self.scaling_target]
+            self.perturbation_target = [self.perturbation_target]
 
         if self.ig_modal_target == 'all':
-            self.ig_modal_target = self.scaling_target
+            self.ig_modal_target = self.perturbation_target
         else:
             self.ig_modal_target = [self.ig_modal_target]
         self.logger.info(f"target modala = {self.ig_modal_target}")
-        self.logger.info(f"scaling modal = {self.scaling_target}")
+        self.logger.info(f"scaling modal = {self.perturbation_target}")
 
         self._set_ig_modal_data(sess)
         # construct computational graph for grad
@@ -195,16 +195,16 @@ class CompoundVisualizer(object):
                 if target in placeholders.keys():
                     _ig_placeholders.append(placeholders[target])
         return _ig_placeholders
-    def _construct_feed(self,scaling_coef):
+    def _construct_feed(self,scaling,enabled_noise=False):
         if 'embedded_layer' not in self.ig_modal_target_data:
             feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data, info=self.info, config=self.config,
-                                       scaling=scaling_coef, scaling_target=self.scaling_target)
+                                       scaling=scaling, perturbation_target=self.perturbation_target,enabled_noise=enabled_noise)
         else:
             feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data, info=self.info, config=self.config,
-                                       scaling=scaling_coef, scaling_target=self.scaling_target,
-                                       embedded_layer=self.ig_modal_target_data['embedded_layer'] )
+                                       scaling=scaling, perturbation_target=self.perturbation_target,
+                                       embedded_layer=self.ig_modal_target_data['embedded_layer'] ,enabled_noise=enabled_noise)
         return feed_dict
-    def cal_integrated_gradients(self, sess, divide_number):
+    def cal_integrated_gradients(self, sess, divide_number, method="ig"):
         """
         Args:
             sess: session object
@@ -216,18 +216,72 @@ class CompoundVisualizer(object):
             IGs[key] = np.zeros(self.shapes[key])
 
         # grads.shape: #ig_placeholders x <input_shape>
-        for k in range(divide_number):
-            scaling_coef = (k + 1) / float(divide_number)
-            feed_dict=self._construct_feed(scaling_coef)
+        
+        ### Integrated gradients
+        if method=="ig":
+            for k in range(divide_number):
+                scaling_coef = (k + 1) / float(divide_number)
+                feed_dict=self._construct_feed(scaling_coef)
+                out_grads = sess.run(self.grads, feed_dict=feed_dict)
+                for idx, modal_name in enumerate(IGs):
+                    _target_data = self.ig_modal_target_data[modal_name]
+                    if modal_name is 'adjs':
+                        adj_grad = sparse_to_dense_core(self.all_data.adjs[self.idx][0][0], out_grads[idx],
+                                                        self.shapes[modal_name])
+                        IGs[modal_name] += adj_grad * _target_data / float(divide_number)
+                    else:
+                        IGs[modal_name] += out_grads[idx][0] * _target_data / float(divide_number)
+        elif method=="grad_prod":
+            ### Gradient+
+            feed_dict=self._construct_feed(1.0)
             out_grads = sess.run(self.grads, feed_dict=feed_dict)
             for idx, modal_name in enumerate(IGs):
                 _target_data = self.ig_modal_target_data[modal_name]
                 if modal_name is 'adjs':
                     adj_grad = sparse_to_dense_core(self.all_data.adjs[self.idx][0][0], out_grads[idx],
                                                     self.shapes[modal_name])
-                    IGs[modal_name] += adj_grad * _target_data / float(divide_number)
+                    IGs[modal_name] += adj_grad * _target_data
                 else:
-                    IGs[modal_name] += out_grads[idx][0] * _target_data / float(divide_number)
+                    IGs[modal_name] += out_grads[idx][0] * _target_data
+        elif method=="grad":
+            ### Gradient
+            feed_dict=self._construct_feed(1.0)
+            out_grads = sess.run(self.grads, feed_dict=feed_dict)
+            for idx, modal_name in enumerate(IGs):
+                _target_data = self.ig_modal_target_data[modal_name]
+                if modal_name is 'adjs':
+                    adj_grad = sparse_to_dense_core(self.all_data.adjs[self.idx][0][0], out_grads[idx],
+                                                    self.shapes[modal_name])
+                    IGs[modal_name] += adj_grad
+                else:
+                    IGs[modal_name] += out_grads[idx][0]
+        elif method=="smooth_grad":
+            ### Smooth grad
+            for k in range(divide_number):
+                feed_dict=self._construct_feed(1.0,enabled_noise=True)
+                out_grads = sess.run(self.grads, feed_dict=feed_dict)
+                for idx, modal_name in enumerate(IGs):
+                    _target_data = self.ig_modal_target_data[modal_name]
+                    if modal_name is 'adjs':
+                        adj_grad = sparse_to_dense_core(self.all_data.adjs[self.idx][0][0], out_grads[idx],
+                                                        self.shapes[modal_name])
+                        IGs[modal_name] += adj_grad / float(divide_number)
+                    else:
+                        IGs[modal_name] += out_grads[idx][0] / float(divide_number)
+        elif method=="smooth_ig":
+            ### Smooth IG
+            for k in range(divide_number):
+                scaling_coef = (k + 1) / float(divide_number)
+                feed_dict=self._construct_feed(scaling_coef,enabled_noise=True)
+                out_grads = sess.run(self.grads, feed_dict=feed_dict)
+                for idx, modal_name in enumerate(IGs):
+                    _target_data = self.ig_modal_target_data[modal_name]
+                    if modal_name is 'adjs':
+                        adj_grad = sparse_to_dense_core(self.all_data.adjs[self.idx][0][0], out_grads[idx],
+                                                        self.shapes[modal_name])
+                        IGs[modal_name] += adj_grad*_target_data / float(divide_number)
+                    else:
+                        IGs[modal_name] += out_grads[idx][0]*_target_data / float(divide_number)
         self.IGs = IGs
 
         # If IG is calculated correctly, "total of IG" approximately equal to "difference between the prediction score
@@ -274,7 +328,7 @@ class KnowledgeGraphVisualizer:
         self.model = model
 
         # set `adjs` as visuzalization target
-        self.scaling_target = ['embedded_layer',]
+        self.perturbation_target = ['embedded_layer',]
         self.ig_modal_target = ['embedded_layer',]
         self.shapes = dict(embedded_layer=(1, # batch_size
                                            info.all_node_num,
@@ -307,7 +361,7 @@ class KnowledgeGraphVisualizer:
             scaling_coef = (k + 1) / float(divide_number)
             feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data,
                                        config=self.config, info=self.info, scaling=scaling_coef,
-                                       scaling_target=self.scaling_target)
+                                       perturbation_target=self.perturbation_target)
             out_grads = sess.run(tf_grads, feed_dict=feed_dict)
             for idx, modal_name in enumerate(IGs):
                 _target_data = self.ig_modal_target_data[modal_name]
@@ -522,10 +576,10 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                   f"true_label= {true_label}, target_label= {target_index}, target_score= {target_score})")
             # --- 各化合物に対応した可視化オブジェクトにより可視化処理を実行
             visualizer = CompoundVisualizer(sess, outdir, compound_id, info, config, batch_idx, placeholders, all_data, target_prediction,
-                                            logger=logger, model=model, ig_modal_target=ig_modal_target, scaling_target=ig_modal_target)
+                                            logger=logger, model=model, ig_modal_target=ig_modal_target, perturbation_target=ig_modal_target,grads=tf_grads)
             if tf_grads is None:
                 tf_grads=visualizer.grads
-            visualizer.cal_integrated_gradients(sess, divide_number)
+            visualizer.cal_integrated_gradients(sess, divide_number,method=args.visualize_method)
             visualizer.check_IG(sess, target_prediction)
             visualizer.dump(f"{header}_{compound_id:04d}_task_{idx}_{assay_str}_{ig_modal_target}_scaling.jbl",
                     assay_str=assay_str,
