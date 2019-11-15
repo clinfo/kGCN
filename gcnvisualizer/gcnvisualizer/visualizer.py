@@ -93,15 +93,18 @@ class GCNVisualizer(object):
                 "we assume pickle data contains dictionary data structure. "
             self.logger.info(f'load {filename}')
         return data
-    
+    def _check_and_absmax(self,absmax,data, name="data"):
+        if isinstance(absmax, Number):
+            self.logger.info(f'absmax = {absmax}')
+            return absmax
+        else:
+            self.logger.info(f'use default abamax with np.max(np.abs({name}))')
+            return np.max(np.abs(data))
+
+        
     def _get_atoms_color(self, atom_num):
         ig_data = self.ig_dict['features_IG']
-        if isinstance(self.feat_absmax, Number):
-            absmax = self.feat_absmax
-            self.logger.info(f'absmax = {absmax}')
-        else:
-            self.logger.info('use default abamax with np.max(np.abs(ig_data))')
-            absmax = np.max(np.abs(ig_data))
+        absmax= self._check_and_absmax(self.feat_absmax,ig_data,"feature")
         highlight_atoms = []
         color_atoms = {}
         cmap = cm.coolwarm
@@ -234,13 +237,8 @@ class GCNVisualizer(object):
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
-        if isinstance(self.adj_absmax, Number):
-            absmax = self.adj_absmax
-            self.logger.info(f'absmax = {absmax}')
-        else:
-            self.logger.info('use default abamax with np.max(np.abs(self.ig_dict["adjs_IG"]))')
-            absmax = np.max(np.abs(self.ig_dict['adjs_IG']))
 
+        absmax= self._check_and_absmax(self.adj_absmax,self.ig_dict['adjs_IG'],"adj")
         im = ax.imshow(self.ig_dict['adjs_IG'], aspect='equal', cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -255,12 +253,7 @@ class GCNVisualizer(object):
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-        if isinstance(self.feat_absmax, Number):
-            absmax = self.feat_absmax
-            self.logger.info(f'absmax = {absmax}')
-        else:
-            self.logger.info('use default abamax with np.max(np.abs(self.ig_dict["features_IG"]))')
-            absmax = np.max(np.abs(self.ig_dict['features_IG']))
+        absmax= self._check_and_absmax(self.feat_absmax,self.ig_dict['features_IG'],"feature")
 
         im = ax.imshow(self.ig_dict['features_IG'], aspect='equal', cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
         divider = make_axes_locatable(ax)
@@ -278,12 +271,6 @@ class GCNVisualizer(object):
             self.logger.info("drawing %s." % modal_name)
             fig = plt.figure()
             ax = fig.add_subplot(111)
-            if isinstance(self.modal_absmax, Number):
-                absmax = self.modal_absmax
-                self.logger.info(f'absmax = {absmax}')
-            else:
-                self.logger.info(f'use default abamax with np.max(np.abs(self.ig_dict[{modal_name}]))')
-                absmax = np.max(np.abs(self.ig_dict[modal_name]))
 
             if 'embedded_layer_IG' == modal_name:
                 if 'amino_acid_seq' in self.ig_dict.keys():
@@ -303,6 +290,7 @@ class GCNVisualizer(object):
                     plt.colorbar(im, cax=cax)
 
             else:
+                absmax=_check_and_absmax(self.modal_absmax,self.ig_dict[modal_name],modal_name)
                 im = ax.imshow(self.ig_dict[modal_name], aspect='auto',
                                cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
                 divider = make_axes_locatable(ax)
