@@ -233,6 +233,32 @@ python gcn_gen.py --config example_config/vae.json train
 gcn_gen.py is an alternative gcn.py for generative models.
 example_config/vae.json is a setting for VAE (Variational Auto-encoder) that is implemented in example_model/model_vae.py
 
+## Sparse task
+First, prepare .tfrecords files in a dataset folder.
+The files that are named '*[train, eval, test]*.tfrecords' are used for training, eval, test.  
+You can have multiple files for training, etc. Alternatively, you can just have one file that contains multiple examples for training.  
+The format of serialized data in .tfrecords:
+```
+features = {
+        'label': tf.io.FixedLenFeature([label_length], tf.float32),
+        'mask_label': tf.io.FixedLenFeature([label_length], tf.float32),
+        'adj_row': tf.io.VarLenFeature(tf.int64),
+        'adj_column': tf.io.VarLenFeature(tf.int64),
+        'adj_values': tf.io.VarLenFeature(tf.float32),
+        'adj_elem_len': tf.io.FixedLenFeature([1], tf.int64),
+        'adj_degrees': tf.io.VarLenFeature(tf.int64),
+        'feature_row': tf.io.VarLenFeature(tf.int64),
+        'feature_column': tf.io.VarLenFeature(tf.int64),
+        'feature_values': tf.io.VarLenFeature(tf.float32),
+        'feature_elem_len': tf.io.FixedLenFeature([1], tf.int64),
+        'size': tf.io.FixedLenFeature([2], tf.int64)
+}
+```
+Then, run following command.
+```bash
+python task_sparse_gcn.py --dataset your_dataset --other_flags
+```
+
 ## Hyperparamter optimization
 
 ```bash

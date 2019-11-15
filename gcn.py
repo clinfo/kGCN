@@ -603,15 +603,12 @@ def restore_ckpt(sess,ckpt):
         print_ckpt(sess,ckpt)
         raise Exception
     return saver
-#------------------------------------------------------------------------------
-# visualization using IG
-#------------------------------------------------------------------------------
+
+
 def visualize(sess, config, args):
     from kgcn.visualization import cal_feature_IG, cal_feature_IG_for_kg
-    # 入力は１分子づつ
+    # input a molecule at a time
     batch_size = 1
-    # 入力データから、全データの情報, 学習用データの情報, 検証用データの情報, および
-    # グラフに関する情報を順に取得する
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
         dataset_filename=config["dataset_test"]
@@ -622,9 +619,8 @@ def visualize(sess, config, args):
     model = CoreModel(sess,config,info)
     load_model_py(model,config["model.py"],is_train=False,feed_embedded_layer=True,batch_size=batch_size)
     placeholders = model.placeholders
-    #--- セッションの初期化
     restore_ckpt(sess,config['load_model'])
-    #--- integrated gradientsの計算
+    # calculate integrated gradients
     if config['visualize_type'] == 'graph':
         cal_feature_IG(sess, all_data, placeholders, info, config, model.prediction,
                        args.ig_modal_target, args.ig_label_target,

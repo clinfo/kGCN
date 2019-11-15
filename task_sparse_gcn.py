@@ -1,38 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Module for GCN training for molecule profiling.
-
-This module trains a Graph Convolutional Network for predictions of molecular properties.
-
-USAGE
------
-1. Prepare .tfrecords files in a dataset folder.
-
-The files that are named '*[train, eval, test]*.tfrecords' are used for training, eval, test.
-
-You can have multiple files for training, etc.Alternatively, you can just have one file that contains multiple examples for training.
-
-The format of serialized data in .tfrecords:
-
-features = {
-        'label': tf.io.FixedLenFeature([label_length], tf.float32),
-        'mask_label': tf.io.FixedLenFeature([label_length], tf.float32),
-        'adj_row': tf.io.VarLenFeature(tf.int64),
-        'adj_column': tf.io.VarLenFeature(tf.int64),
-        'adj_values': tf.io.VarLenFeature(tf.float32),
-        'adj_elem_len': tf.io.FixedLenFeature([1], tf.int64),
-        'adj_degrees': tf.io.VarLenFeature(tf.int64),
-        'feature_row': tf.io.VarLenFeature(tf.int64),
-        'feature_column': tf.io.VarLenFeature(tf.int64),
-        'feature_values': tf.io.VarLenFeature(tf.float32),
-        'feature_elem_len': tf.io.FixedLenFeature([1], tf.int64),
-        'size': tf.io.FixedLenFeature([2], tf.int64)
-}
-
-2. python task_sparse_gcn.py --dataset your_dataset --other_flags
-
-@author: taro.kiritani
-"""
 import argparse
 import importlib
 import json
