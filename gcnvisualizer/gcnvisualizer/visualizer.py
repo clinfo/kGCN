@@ -108,7 +108,7 @@ class GCNVisualizer(object):
         color_atoms = {}
         cmap = cm.coolwarm
         values = [np.sum(ig_data[row]) for row in range(atom_num)]
-        absmax= self._check_and_absmax(self.feat_absmax,values,"feature")
+        absmax= self._check_and_absmax(self.feat_absmax,values,"featureIG")
         for row,value in enumerate(values):
             # condition on the highlighting atom
             if value != 0.0:
@@ -232,7 +232,7 @@ class GCNVisualizer(object):
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-        absmax= self._check_and_absmax(self.adj_absmax,self.ig_dict['adjs_IG'],"adj")
+        absmax= self._check_and_absmax(self.adj_absmax,self.ig_dict['adjs_IG'],"adjIG")
         im = ax.imshow(self.ig_dict['adjs_IG'], aspect='equal', cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -247,7 +247,7 @@ class GCNVisualizer(object):
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-        absmax= self._check_and_absmax(self.feat_absmax,self.ig_dict['features_IG'],"feature")
+        absmax= self._check_and_absmax(self.feat_absmax,self.ig_dict['features_IG'],"featureIG")
 
         im = ax.imshow(self.ig_dict['features_IG'], aspect='equal', cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
         divider = make_axes_locatable(ax)
@@ -284,7 +284,7 @@ class GCNVisualizer(object):
                     plt.colorbar(im, cax=cax)
 
             else:
-                absmax=_check_and_absmax(self.modal_absmax,self.ig_dict[modal_name],modal_name)
+                absmax=_check_and_absmax(self.modal_absmax,self.ig_dict[modal_name],modal_name+"IG")
                 im = ax.imshow(self.ig_dict[modal_name], aspect='auto',
                                cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
                 divider = make_axes_locatable(ax)
