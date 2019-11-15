@@ -93,8 +93,8 @@ class GCNVisualizer(object):
                 "we assume pickle data contains dictionary data structure. "
             self.logger.info(f'load {filename}')
         return data
-
-    def _get_atoms_color(self):
+    
+    def _get_atoms_color(self, atom_num):
         ig_data = self.ig_dict['features_IG']
         if isinstance(self.feat_absmax, Number):
             absmax = self.feat_absmax
@@ -105,7 +105,7 @@ class GCNVisualizer(object):
         highlight_atoms = []
         color_atoms = {}
         cmap = cm.coolwarm
-        for row in range(ig_data.shape[0]):
+        for row in range(atom_num):
             for col in range(ig_data.shape[1]):
                 # 75次元の特徴行列では、43列以上は原子の情報が入っていない。
                 if col > 42:
@@ -134,10 +134,13 @@ class GCNVisualizer(object):
         drawer = rdMolDraw2D.MolDraw2DSVG(*figsize)
 
         drawer.drawOptions().updateAtomPalette({k : (0, 0, 0) for k in DrawingOptions.elemDict.keys()})
-        drawer.SetLineWidth(3)
+        try:
+            drawer.SetLineWidth(3)
+        except AttributeError: # for RDkit bug : https://github.com/rdkit/rdkit/issues/2251
+            pass
         drawer.SetFontSize(0.7)
 
-        highlight_atoms, color_atoms = self._get_atoms_color()
+        highlight_atoms, color_atoms = self._get_atoms_color(mol.GetNumAtoms())
         highlight_bonds = []
         color_bonds = {}
         drawer.DrawMolecule(mol,
@@ -157,7 +160,7 @@ class GCNVisualizer(object):
         import networkx as nx
         G = nx.Graph()
         pos = nx.spring_layout(G)
-        highlight_atoms, color_atoms = self._get_atoms_color()
+        highlight_atoms, color_atoms = self._get_atoms_color(len(self.ig_dict['nodes']))
         for idx in self.ig_dict['nodes']:
             pos[idx] = self.ig_dict['nodes'][idx][:2]  # x, y
             nx.draw_networkx_nodes(G, pos, node_color=color_atoms[idx], nodelist=[idx])
@@ -185,7 +188,7 @@ class GCNVisualizer(object):
         for e in G.edges():
             _G.add_edge(*e, weight=100, length=1)
 
-        highlight_atoms, color_atoms = self._get_atoms_color()
+        highlight_atoms, color_atoms = self._get_atoms_color(_G.number_of_nodes())
         node_color = list(color_atoms.values())
         pos = nx.spring_layout(_G)
 
@@ -209,8 +212,8 @@ class GCNVisualizer(object):
             except ImportError as e:
                 self.logger.warning("you don't install rdkit yet.")
                 self.logger.warning("skip drawing a structure image.")
-            except:
-                self.logger.warning("RDkit error")
+            #except:
+            #    self.logger.warning("RDkit error")
         if 'nodes' in list(self.ig_dict.keys()):
             self._draw_structure()
             return True
