@@ -62,7 +62,7 @@ class CompoundVisualizer(object):
         logger:
         scaling_target:
     """
-    def __init__(self, sess, outdir, idx, info, batch_idx, placeholders, all_data, prediction, mol, name, assay_str,
+    def __init__(self, sess, outdir, idx, info, config, batch_idx, placeholders, all_data, prediction, mol, name, assay_str,
                  target_label, true_label, *, model=None, logger=None, ig_modal_target='all', scaling_target='all'):
         self.logger = _default_logger if logger is None else logger
         self.outdir = outdir
@@ -83,6 +83,7 @@ class CompoundVisualizer(object):
         self.sum_of_ig = 0.0
         self.scaling_target = scaling_target
         self.ig_modal_target = ig_modal_target
+        self.config = config
 
         try:
             self.amino_acid_seq = self.all_data.sequence_symbol[idx]
@@ -187,10 +188,10 @@ class CompoundVisualizer(object):
         return _ig_placeholders
     def _construct_feed(self,scaling_coef):
         if 'embedded_layer' not in self.ig_modal_target_data:
-            feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data, info=self.info,
+            feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data, info=self.info, config=self.config,
                                        scaling=scaling_coef, ig_modal_target=self.scaling_target)
         else:
-            feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data, info=self.info,
+            feed_dict = construct_feed(self.batch_idx, self.placeholders, self.all_data, info=self.info, config=self.config,
                                        scaling=scaling_coef, ig_modal_target=self.scaling_target,
                                        embedded_layer=self.ig_modal_target_data['embedded_layer'] )
         return feed_dict
@@ -435,7 +436,11 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
 
     all_count=0
     correct_count=0
-    for compound_id in range(all_data.num):
+    visualize_ids=range(all_data.num)
+    if args.visualize_resample_num:
+        visualize_ids=np.random.choice(visualize_ids, args.visualize_resample_num, replace=False)
+
+    for compound_id in visualize_ids:
         s = time.time()
         batch_idx = [compound_id]
         #--- まず通常の予測を行って、最大スコアを持つノードを特定する
@@ -516,7 +521,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                   f"true_label= {true_label}, target_label= {target_index}, target_score= {target_score})")
 
             # --- 各化合物に対応した可視化オブジェクトにより可視化処理を実行
-            visualizer = CompoundVisualizer(sess, outdir, compound_id, info, batch_idx, placeholders, all_data,
+            visualizer = CompoundVisualizer(sess, outdir, compound_id, info, config, batch_idx, placeholders, all_data,
                                             target_score, mol_obj, mol_name, assay_str, target_index, true_label,
                                             logger=logger, model=model, ig_modal_target=ig_modal_target, scaling_target=ig_modal_target)
             visualizer.cal_integrated_gradients(sess, placeholders, target_prediction, divide_number)

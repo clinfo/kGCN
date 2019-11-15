@@ -709,6 +709,9 @@ def main():
     parser.add_argument('--visualize_target', type=int,
             default=None,
             help="set the target's number you want to visualize. from: [0, ~)")
+    parser.add_argument('--visualize_resample_num', type=int,
+            default=None,
+            help="resampling for visualization: [0, ~v)")
     parser.add_argument('--graph_distance', type=int,
             default=1,
             help=("set the distance from target node. An output graph is created within "
