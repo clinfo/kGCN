@@ -84,7 +84,7 @@ def get_preference_label_list_feed(config,info,label_list,label_itr,batch_size):
 
 
 
-def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,is_train=False, info=None, scaling=1.0, config=None, label_itr=None,ig_targets=[],**kwargs):
+def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,is_train=False, info=None, scaling=1.0, config=None, label_itr=None,scaling_target=[],**kwargs):
     adjs=data.adjs
     features=data.features
     nodes=data.nodes
@@ -109,7 +109,7 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
                     if b <len(batch_idx):
                         bb=batch_idx[b]
                         b_shape=adjs[bb][ch][2]
-                        if 'adjs' in ig_targets:
+                        if 'adjs' in scaling_target:
                             feed_dict[ab_pl]=tf.SparseTensorValue(adjs[bb][ch][0],adjs[bb][ch][1]*scaling,adjs[bb][ch][2])#*scaling
                         else:
                             feed_dict[ab_pl]=tf.SparseTensorValue(adjs[bb][ch][0],adjs[bb][ch][1],adjs[bb][ch][2])
@@ -120,7 +120,7 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
         elif key=="features" and features is not None:
             temp_features=np.zeros((batch_size,features.shape[1],features.shape[2]),dtype=np.float32)
             temp_features[:len(batch_idx),:,:]=features[batch_idx,:,:]
-            if key in ig_targets:
+            if key in scaling_target:
                 feed_dict[pl]=temp_features*scaling #features[batch_idx,:,:]
             else:
                 feed_dict[pl]=temp_features
@@ -181,7 +181,7 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
             j=info.vector_modal_name[key]
             vecs=np.zeros((batch_size,vector_modal[j].shape[1]),np.float32)
             vecs[:len(batch_idx),:]=vector_modal[j][batch_idx,:]
-            if key in ig_targets:
+            if key in scaling_target:
                 feed_dict[pl]=vecs*scaling
             else:
                 feed_dict[pl]=vecs
@@ -205,7 +205,7 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
                     feed_dict[pl]=np.zeros((batch_size, info.all_node_num,
                                             config["embedding_dim"]))
             else:
-                if key in ig_targets:
+                if key in scaling_target:
                     feed_dict[pl]=kwargs["embedded_layer"]*scaling #features[batch_idx,:,:]
                 else:
                     feed_dict[pl]=kwargs["embedded_layer"]
