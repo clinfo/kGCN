@@ -10,7 +10,6 @@ class GCN(DefaultModel):
             ['adjs','nodes','labels','mask','dropout_rate',
             'enabled_node_nums','is_train','features',
             'sequences','sequences_len','embedded_layer'],**kwargs)
-        
     def build_model(self,placeholders,info,config,batch_size,feed_embedded_layer=False,**kwargs):
         adj_channel_num=info.adj_channel_num
         in_adjs=placeholders["adjs"]
@@ -33,15 +32,6 @@ class GCN(DefaultModel):
         # layer: batch_size x graph_node_num x dim
         layer=kgcn.layers.GraphConv(50,adj_channel_num)(layer,adj=in_adjs)
         layer=tf.sigmoid(layer)
-        layer=kgcn.layers.GraphConv(50,adj_channel_num)(layer,adj=in_adjs)
-        layer=tf.sigmoid(layer)
-        layer=kgcn.layers.GraphConv(50,adj_channel_num)(layer,adj=in_adjs)
-        layer=kgcn.layers.GraphMaxPooling(adj_channel_num)(layer,adj=in_adjs)
-        layer=kgcn.layers.GraphBatchNormalization()(layer,
-            max_node_num=info.graph_node_num,
-            enabled_node_nums=enabled_node_nums)
-        layer=tf.sigmoid(layer)
-        layer=K.layers.Dropout(dropout_rate)(layer)
         layer=kgcn.layers.GraphDense(50)(layer)
         layer=tf.sigmoid(layer)
         layer=kgcn.layers.GraphGather()(layer)
@@ -66,8 +56,6 @@ class GCN(DefaultModel):
             layer=K.layers.MaxPooling1D(stride)(layer)
             # LSTM 1
             output_dim=32
-            layer=K.layers.LSTM(output_dim,return_sequences=True ,go_backwards=True)(layer)
-            # LSTM 2
             layer=K.layers.LSTM(output_dim,return_sequences=False,go_backwards=True)(layer)
                 #layer = tf.squeeze(layer)
             seq_output_layer=layer

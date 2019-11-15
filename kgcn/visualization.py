@@ -440,11 +440,11 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
     for compound_id in visualize_ids:
         s = time.time()
         batch_idx = [compound_id]
-        if all_data['sequences'] is not None:
-            _data = all_data['sequences']
-            _data = np.expand_dims(_data[compound_id, ...], axis=0)
-            _data = model.embedding(sess,_data)
-            feed_dict = construct_feed(batch_idx, placeholders, all_data, batch_size=1, info=info,embedded_layer=_data)
+        if all_data['sequences'] is not None and hasattr(model,"embedding"):
+                _data = all_data['sequences']
+                _data = np.expand_dims(_data[compound_id, ...], axis=0)
+                _data = model.embedding(sess,_data)
+                feed_dict = construct_feed(batch_idx, placeholders, all_data, batch_size=1, info=info,embedded_layer=_data)
         else:
             feed_dict = construct_feed(batch_idx, placeholders, all_data, batch_size=1, info=info)
 
@@ -514,7 +514,6 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                 mol_obj = None
             print(f"No.{compound_id}, task={idx}: \"{mol_name}\": {assay_str} (score= {_out_prediction}, "
                   f"true_label= {true_label}, target_label= {target_index}, target_score= {target_score})")
-
             # --- 各化合物に対応した可視化オブジェクトにより可視化処理を実行
             visualizer = CompoundVisualizer(sess, outdir, compound_id, info, config, batch_idx, placeholders, all_data,
                                             target_score, mol_obj, mol_name, assay_str, target_index, true_label,
