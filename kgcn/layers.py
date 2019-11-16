@@ -63,13 +63,13 @@ class GraphConv(Layer):
         batch_size = inputs.shape[0]
         if enabled_bconv:
             print("## bconv ##")
-            o = []
+            # o = []  # unused variable
             # Batched Convolution kernel
             fw = [[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
             for batch_idx in range(batch_size):
                 for adj_ch in range(adj_channel_num):
                     fb = inputs[batch_idx, :, :]
-                    fw[batch_idx][adj_ch] = tf.matmul(fb,self.w[adj_ch])+self.bias[adj_ch]
+                    fw[batch_idx][adj_ch] = tf.matmul(fb, self.w[adj_ch])+self.bias[adj_ch]
             oo = self.bconv_obj.call(adjs, fw)
             return tf.stack(oo)
         elif enabled_bspmm:
@@ -82,10 +82,7 @@ class GraphConv(Layer):
                     fb = inputs[batch_idx,:,:]
                     fw_list[batch_idx] = tf.matmul(fb, self.w[adj_ch]) + self.bias[adj_ch]
                 oo = self.bspmm_obj.call(adj_list, fw_list)
-                if o == []:
-                    o = oo
-                else:
-                    o = tf.add(o, oo)
+                o = oo if not o else tf.add(o, oo)
             return tf.stack(o)
         elif enabled_batched:
             print("## batched ##")
@@ -94,7 +91,7 @@ class GraphConv(Layer):
             input_row = inputs.shape[1]
             input_col = inputs.shape[2]
             for adj_ch in range(adj_channel_num):
-                w_col = tf.shape(self.w[adj_ch])[1]
+                # w_col = tf.shape(self.w[adj_ch])[1]  # unused variable
                 fs = tf.reshape(inputs, [batch_size*input_row, input_col])
                 fw = tf.matmul(fs, self.w[adj_ch])+self.bias[adj_ch]
                 adj_list = [adjs[batch_idx][adj_ch] for batch_idx in range(batch_size)]
@@ -178,7 +175,7 @@ class GraphBatchNormalization(Layer):
         normalize_axis_dim = -1
         if node_num is not None and input_dim is not None:
             normalize_axis_dim = node_num*input_dim
-        return batch_size,normalize_axis_dim
+        return batch_size, normalize_axis_dim
 
     def build(self, input_shape):  # input: batch_size x node_num x #inputs
         self.data_shape = input_shape
@@ -231,8 +228,6 @@ class GraphDense(Dense):
     def call(self, inputs, enabled_node_nums=None, shape=None, max_node_num=None, **kwargs):
         # initialize
         # Dynamic
-        # dims=tf.shape(inputs)
-        # batch_size,node_num,dim_in=dims[0],dims[1],dims[2]
         if shape is None:
             batch_size = self.data_shape[0]
             node_num = max_node_num
@@ -274,17 +269,10 @@ class GraphDecoderInnerProd(Layer):
         super(GraphDecoderInnerProd, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
-        # initialize
-        dims = tf.shape(inputs)
-        batch_size = dims[0]
-        node_num = dims[1]
-        dim_in = dims[2]
-        # computing
         layer = inputs
         layer_t = tf.transpose(layer, [0, 2, 1])
         adj = tf.matmul(layer, layer_t)
         return adj
-        # tf.reshape(out,[batch_size,node_num,node_num])
 
     def compute_output_shape(self, input_shape):
         return input_shape[0], input_shape[1], input_shape[1]
@@ -304,12 +292,6 @@ class GraphDecoderDistMult(Layer):
         super(GraphDecoderDistMult, self).build(input_shape)
 
     def call(self, inputs, **kwargs):
-        # initialize
-        dims = tf.shape(inputs)
-        batch_size = dims[0]
-        node_num = dims[1]
-        dim_in = dims[2]
-        # computing
         layer = inputs
         layer_t = tf.transpose(layer, [0, 2, 1])
         adj = tf.matmul(self.w[0]*layer, layer_t)
@@ -333,10 +315,7 @@ class BatchGraphConv(Layer):
         # self.ww
         # self.bias=[]
         for i in range(adj_channel_num):
-            if self.input_dim is None:
-                input_dim = input_shape[0][1]
-            else:
-                input_dim = self.input_dim
+            input_dim = input_shape[0][1] if self.input_dim is None else self.input_dim
             self.w = self.add_weight(name='kernel'+str(i),
                                      shape=(int(input_dim), int(self.output_dim)),
                                      initializer=self.initializer,
