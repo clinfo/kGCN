@@ -73,13 +73,13 @@ def read_profeat():
         return None
 
 
-def read_label_file(args):
-    file = args.label
+def read_label_file(path_to_label, no_header):
+    file = path_to_label
     if file is None:
         return None, None, None
     _, ext = os.path.splitext(file)
     sep = "\t" if ext == ".txt" else ","
-    csv = pd.read_csv(file, header=None, delimiter=sep) if args.no_header else pd.read_csv(file, delimiter=sep)
+    csv = pd.read_csv(file, header=None, delimiter=sep) if no_header else pd.read_csv(file, delimiter=sep)
 
     header = csv.columns.tolist()
     print("label name: ", header)
@@ -91,8 +91,8 @@ def read_label_file(args):
     return header, label, mask_label
 
 
-def parse_csv(args):
-    df = pd.read_csv(args.csv_reaxys, dtype={'product': 'str', 'reaction_core': 'str', 'max_publication_year': 'int16'})
+def parse_csv(path_to_file):
+    df = pd.read_csv(path_to_file, dtype={'product': 'str', 'reaction_core': 'str', 'max_publication_year': 'int16'})
     df = df.sample(frac=1, random_state=1234)
     df.set_index(pd.Index(range(len(df))), inplace=True)
     le = LabelEncoder()
@@ -115,19 +115,20 @@ def create_adjancy_matrix(mol):
     return adj
 
 
-def create_feature_matrix(mol, args, en_list=None):
-    if args.use_sybyl or args.use_gasteiger:
+def create_feature_matrix(mol, atom_num_limit, use_electronegativity=False, use_sybyl=False, use_gasteiger=False,
+                          use_tfrecords=False, degree_dim=17, en_list=None):
+    if use_sybyl or use_gasteiger:
         Chem.SanitizeMol(mol)
-    if args.use_gasteiger:
+    if use_gasteiger:
         ComputeGasteigerCharges(mol)
     feature = [atom_features(atom,
                              en_list=en_list,
-                             use_sybyl=args.use_sybyl,
-                             use_electronegativity=args.use_electronegativity,
-                             use_gasteiger=args.use_gasteiger,
-                             degree_dim=args.degree_dim) for atom in mol.GetAtoms()]
-    if not args.tfrecords:
-        for _ in range(args.atom_num_limit - len(feature)):
+                             use_sybyl=use_sybyl,
+                             use_electronegativity=use_electronegativity,
+                             use_gasteiger=use_gasteiger,
+                             degree_dim=degree_dim) for atom in mol.GetAtoms()]
+    if not use_tfrecords:
+        for _ in range(atom_num_limit - len(feature)):
             feature.append(np.zeros(len(feature[0]), dtype=np.int))
     return feature
 
