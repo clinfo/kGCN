@@ -175,7 +175,7 @@ direct_copy_keys = ["max_node_num", "node", "sequence_symbol", "task_names", "cl
                     "sequence_symbol_num"]
 sparse_data_keys = ["label_sparse", "mask_label_sparse"]
 label_list_keys = ["node_label", "mask_node_label", "label_list"]
-index_llist_keys = ["graph_index_list"]
+index_list_keys = ["graph_index_list"]
 
 
 def get_data_num_jbl_obj(obj, label_list_flag=False, index_list_flag=False):
@@ -403,7 +403,7 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
         pass
     else:
         print("[ERROR] feature or node are required")
-        raise DataLoadError("Please confirm input data (%s) and configuration"%(filename) )
+        raise DataLoadError("Please confirm input data and configuration")
     if sequences is not None:
         info.sequence_max_length = sequences.shape[1]
         info.sequence_symbol_num = data["sequence_symbol_num"]
@@ -457,7 +457,7 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
         if nodes is not None:
             print(">> ", nodes.shape[0])
         print(">> ", len(adjs))
-        raise DataLoadError("Please confirm input data (%s)"%(filename) )
+        raise DataLoadError("Please confirm input data")
 
     # multi modal info
     info.vector_modal_dim = []
@@ -556,12 +556,13 @@ def shuffle_label_list(data):
         np.random.shuffle(data.label_list[0])
 
 
+""" unused and incomplete function.
 def generate_negative_pair(label_list):
     if len(label_list) == 1:
-
         label_list[0][:]
     if "label_list" in data and data["label_list"] is not None:
         np.random.shuffle(data.label_list[0])
+"""
 
 
 def split_label_list(all_data, valid_data_rate=0.2, indices_for_train_data=None, indices_for_valid_data=None):
