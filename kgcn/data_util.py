@@ -152,21 +152,21 @@ def shuffle_data(data):
     idx = list(range(data.num))
     np.random.shuffle(idx)
     # convert
-    if data.adjs is not None: data.adjs = np.array(data.adjs)
+    data.adjs = np.array(data.adjs) if data.adjs is not None else None
     # shuffle
-    if data.features is not None: data.features = data.features[idx]
-    if data.nodes is not None: data.nodes = data.nodes[idx]
-    if data.adjs is not None: data.adjs = data.adjs[idx]
-    if data.labels is not None: data.labels = data.labels[idx]
-    if data.mask_label is not None: data.mask_label = data.mask_label[idx]
-    if data.node_label is not None: data.node_label = data.node_label[idx]
-    if data.mask_node_label is not None: data.mask_node_label = data.mask_node_label[idx]
-    if data.label_list is not None: data.label_list = data.label_list[idx]
-    if data.sequences is not None: data.sequences = data.sequences[idx]
-    if data.sequences_len is not None: data.sequences_len = data.sequences_len[idx]
+    data.features = data.features[idx] if data.features is not None else None
+    data.nodes = data.nodes[idx] if data.nodes is not None else None
+    data.adjs = data.adjs[idx] if data.adjs is not None else None
+    data.labels = data.labels[idx] if data.labels is not None else None
+    data.mask_label = data.mask_label[idx] if data.mask_label is not None else None
+    data.node_label = data.node_label[idx] if data.node_label is not None else None
+    data.mask_node_label = data.mask_node_label[idx] if data.mask_node_label is not None else None
+    data.label_list = data.label_list[idx] if data.label_list is not None else None
+    data.sequences = data.sequences[idx] if data.sequences is not None else None
+    data.sequences_len = data.sequences_len[idx] if data.sequences_len is not None else None
+    data.enabled_node_nums = data.enabled_node_nums[idx] if data.enabled_node_nums is not None else None
     if data.vector_modal is not None:
         data.vector_modal = [data.vector_modal[j][idx] for j in range(len(data.vector_modal))]
-    if data.enabled_node_nums is not None: data.enabled_node_nums = data.enabled_node_nums[idx]
 
     return data
 
@@ -222,10 +222,7 @@ def split_jbl_obj(obj, train_idx, test_idx, label_list_flag=False, index_list_fl
         for key, val in obj.items():
             if key not in direct_copy_keys and key != "mol_info":
                 # print(key,": split")
-                if key not in sparse_data_keys:
-                    o = np.array(obj[key])
-                else:
-                    o = obj[key]
+                o = obj[key] if key in sparse_data_keys else np.array(obj[key])
                 dataset_test[key] = o[test_idx]
                 dataset_train[key] = o[train_idx]
             elif key == "mol_info":
@@ -279,9 +276,7 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
     # Num x (N x N)
     normalize_flag = config["normalize_adj_flag"]
     split_flag = config["split_adj_flag"]
-    order = 1
-    if "order" in config:
-        order = config["order"]
+    order = config["order"] if "order" in config else 1
     adj_channel_num = 1
     enabled_node_nums = None
     try:
@@ -314,34 +309,19 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
         adjs = None
         pass
     # Setting label info.
-    labels = None
-    if "label" in data:
-        labels = data["label"]
-    mask_label = None
-    if "mask_label" in data:
-        mask_label = data["mask_label"]
-    if "label_sparse" in data:
-        labels = np.array(data["label_sparse"].todense())
-    if "mask_label_sparse" in data:
-        mask_label = np.array(data["mask_label_sparse"].todense())
-    node_label = None
-    if "node_label" in data:
-        node_label = data["node_label"]
-    mask_node_label = None
-    if "mask_node_label" in data:
-        mask_node_label = data["mask_node_label"]
-    label_list = None
-    if "label_list" in data:
-        label_list = data["label_list"]
+    labels = data["label"] if "label" in data else None
+    mask_label = data["mask_label"] if "mask_label" in data else None
+    # if sparse data
+    labels = np.array(data["label_sparse"].todense()) if "label_sparse" in data else labels
+    mask_label = np.array(data["mask_label_sparse"].todense()) if "mask_label_sparse" in data else mask_label
+    #
+    node_label = data["node_label"] if "node_label" in data else None
+    mask_node_label = data["mask_node_label"] if "mask_node_label" in data else None
+    label_list = data["label_list"] if "label_list" in data else None
     # Setting sequence data (multimodal)
-    sequences = None
-    sequences_len = None
-    if "sequence" in data:
-        sequences = data["sequence"]
-        sequences_len = np.array(data["sequence_length"], np.int32)
-    sequence_symbol = None
-    if "sequence_symbol" in data:
-        sequence_symbol = np.array(data["sequence_symbol"])
+    sequences = data["sequence"] if "sequence" in data else None
+    sequences_len = np.array(data["sequence_length"], np.int32) if "sequence" in data else None
+    sequence_symbol = np.array(data["sequence_symbol"]) if "sequence_symbol" in data else None
     # setting multi-modal data
     vector_modal = []
     vector_modal_name = {}
@@ -351,24 +331,15 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
             vector_modal_name[name] = len(vector_modal)
             vector_modal.append(data[name])
     # setting multi-graph data
-    graph_index_list = None
-    if "graph_index_list" in data:
-        graph_index_list = data["graph_index_list"]
-
+    graph_index_list = data["graph_index_list"] if "graph_index_list" in data else None
     # data num
-    if adjs is not None:
-        Num = len(adjs)
-    else:
-        Num = max([len(v) for v in vector_modal])
+    Num = len(adjs) if adjs is not None else max([len(v) for v in vector_modal])
 
     all_data = dotdict({})
     all_data.features = features
     all_data.nodes = nodes
     all_data.adjs = adjs
-    if labels is not None:
-        all_data.labels = np.array(labels)
-    else:
-        all_data.labels = None
+    all_data.labels = np.array(labels) if labels is not None else None
     all_data.mask_label = mask_label
     all_data.node_label = node_label
     all_data.mask_node_label = mask_node_label
@@ -411,19 +382,13 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
         info.sequence_max_length = 0
         info.sequence_symbol_num = 0
 
-    if adjs is not None:
-        info.graph_num = len(adjs)
-    else:
-        info.graph_num = 0
+    info.graph_num = len(adjs) if adjs is not None else 0
     info.adj_channel_num = adj_channel_num
     if labels is not None:
         if "label_dim" in data:
             info.label_dim = data["label_dim"]
         else:
-            if len(labels.shape) >= 2:
-                info.label_dim = labels.shape[1]
-            else:
-                info.label_dim = 1
+            info.label_dim = labels.shape[1] if len(labels.shape) >= 2 else 1
         if adjs is not None:
             if labels.shape[0] != info.graph_num:
                 print("[ERROR] checking not [0 dim of labels] = [length of adjacency matrices]")
@@ -441,9 +406,7 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
         info.label_dim = node_label.shape[2]
         print("[INFO] node centric mode")
     else:
-        info.label_dim = None
-        if "label_dim" in data:
-            info.label_dim = data["label_dim"]
+        info.label_dim = data["label_dim"] if "label_dim" in data else None
     if ((features is None or features.shape[0] == info.graph_num)
             and (nodes is None or nodes.shape[0] == info.graph_num)
             and (nodes is None or len(adjs) == info.graph_num)):
@@ -460,9 +423,7 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
         raise DataLoadError("Please confirm input data")
 
     # multi modal info
-    info.vector_modal_dim = []
-    for modal in vector_modal:
-        info.vector_modal_dim.append(modal.shape[1])
+    info.vector_modal_dim = [modal.shape[1] for modal in vector_modal]
     info.vector_modal_name = vector_modal_name
 
     info.graph_index_list = graph_index_list
