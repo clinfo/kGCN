@@ -94,6 +94,7 @@ def read_label_file(args):
 def parse_csv(args):
     df = pd.read_csv(args.csv_reaxys, dtype={'product': 'str', 'reaction_core': 'str', 'max_publication_year': 'int16'})
     df = df.sample(frac=1, random_state=1234)
+    df.set_index(pd.Index(range(len(df))), inplace=True)
     le = LabelEncoder()
     label_data = le.fit_transform(df['reaction_core'])
     with open("class.sma", 'w') as sma:

@@ -587,7 +587,7 @@ def main():
                         test_list.append(ex)
                     else:
                         eval_list.append(ex)
-            if index % 100000 == 0:
+            if index % 100000 == 0 and index > 0:
                 save_tfrecords(args.output, train_list, eval_list, test_list, prefix_idx)
                 train_list.clear()
                 eval_list.clear()
