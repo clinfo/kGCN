@@ -104,7 +104,7 @@ def get_parser():
         help='solubilites in SDF as labels'
     )
     parser.add_argument(
-        '--csv-reaxys', default=None, type=str,
+        '--csv_reaxys', default=None, type=str,
         help='path to a csv containing reaxys data.'
     )
     parser.add_argument(
@@ -463,13 +463,13 @@ def build_vector_modal(args):
 def extract_mol_info(args):
     dragon_data, task_name_list, seq, seq_symbol, profeat, publication_years = [], [], [], [], [], []
     if args.smarts is not None:
-        _, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
+        _, label_data, label_mask = read_label_file(args.label, args.no_header)  # label name, label, valid/invalid mask of label
         with open(args.smarts, "r") as f:
             lines = f.readlines()
         mol_obj_list = [Chem.MolFromSmarts(line) for line in lines]
 
     elif args.smiles is not None:
-        task_name_list, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
+        task_name_list, label_data, label_mask = read_label_file(args.label, args.no_header)  # label name, label, valid/invalid mask of label
         with open(args.smiles, "r") as f:
             lines = f.readlines()
         mol_obj_list = [Chem.MolFromSmiles(line) for line in lines]
@@ -479,14 +479,14 @@ def extract_mol_info(args):
         if not os.path.exists(filename):
             print(f"[PASS] not found: {filename}")
         mol_obj_list = [mol for mol in Chem.SDMolSupplier(filename)]
-        _, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
+        _, label_data, label_mask = read_label_file(args.label, args.no_header)  # label name, label, valid/invalid mask of label
 
     elif args.sdf is not None:
         filename = args.sdf
         if not os.path.exists(filename):
             print(f"[PASS] not found: {filename}")
         mol_obj_list = [mol for mol in Chem.SDMolSupplier(filename)]
-        _, label_data, label_mask = read_label_file(args)  # label name, label, valid/invalid mask of label
+        _, label_data, label_mask = read_label_file(args.label, args.no_header)  # label name, label, valid/invalid mask of label
 
     elif args.assay_dir is not None and args.multimodal:
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
@@ -501,7 +501,7 @@ def extract_mol_info(args):
         generate_inactive_data(label_data, label_mask)
 
     elif args.csv_reaxys is not None:
-        mol_obj_list, label_data, label_mask, publication_years = parse_csv(args)
+        mol_obj_list, label_data, label_mask, publication_years = parse_csv(args.csv_reaxys)
 
     else:
         print("[ERROR] --smarts, --sdf_dir, or --assay_dir is required")
@@ -574,8 +574,22 @@ def main():
         mol_list.append(mol)
         mol_name_list.append(name)
         adj = create_adjancy_matrix(mol)
-        feature = create_feature_matrix(mol, args) if not args.use_electronegativity else \
-            create_feature_matrix(mol, args, en_list=ELECTRONEGATIVITIES)
+        if args.use_electronegativity:
+            feature = create_feature_matrix(mol, args.atom_num_limit,
+                                            use_electronegativity=args.use_electronegativity,
+                                            use_sybyl=args.use_sybyl,
+                                            use_gasteiger=args.use_gasteiger,
+                                            use_tfrecords=args.tfrecords,
+                                            degree_dim=args.degree_dim,
+                                            en_list=ELECTRONEGATIVITIES)
+        else:
+            feature = create_feature_matrix(mol, args.atom_num_limit,
+                                            use_electronegativity=args.use_electronegativity,
+                                            use_sybyl=args.use_sybyl,
+                                            use_gasteiger=args.use_gasteiger,
+                                            use_tfrecords=args.tfrecords,
+                                            degree_dim=args.degree_dim)
+
         if args.tfrecords:
             ex = convert_to_example(adj, feature, label_data[index], label_mask[index])
             if args.csv_reaxys:
@@ -587,7 +601,7 @@ def main():
                         test_list.append(ex)
                     else:
                         eval_list.append(ex)
-            if index % 100000 == 0:
+            if index % 100000 == 0 and index > 0:
                 save_tfrecords(args.output, train_list, eval_list, test_list, prefix_idx)
                 train_list.clear()
                 eval_list.clear()
