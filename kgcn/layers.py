@@ -1,5 +1,3 @@
-#
-# pylint: disable=missing-docstring
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -9,9 +7,9 @@ import os
 import tensorflow as tf
 from tensorflow.python.keras.layers import Layer, Dense
 
-enabled_batched=False
-enabled_bspmm  =False
-enabled_bconv  =False
+enabled_batched = False
+enabled_bspmm = False
+enabled_bconv = False
 
 
 def load_bspmm(args):
@@ -20,20 +18,18 @@ def load_bspmm(args):
     global enabled_bconv
     external_path = "./"
     if args.batched and os.path.exists(external_path+"batched.so"):
-        enabled_batched=True
+        enabled_batched = True
     elif args.bspmm and os.path.exists(external_path+"bspmm.so"):
-        enabled_bspmm=True
+        enabled_bspmm = True
     elif args.bconv and os.path.exists(external_path+"bconv.so"):
-        enabled_bconv=True
+        enabled_bconv = True
 
-###
-### for graph convolution net
-###
+
 class GraphConv(Layer):
-    def __init__(self, output_dim,adj_channel_num,initializer='glorot_uniform', **kwargs):
+    def __init__(self, output_dim, adj_channel_num, initializer='glorot_uniform', **kwargs):
         self.output_dim = output_dim
-        self.adj_channel_num=adj_channel_num
-        self.initializer=initializer
+        self.adj_channel_num = adj_channel_num
+        self.initializer = initializer
         if enabled_bspmm:
             import kgcn.bspmm_call as bspmm
             self.bspmm_obj = bspmm.BatchedSpMM()
@@ -44,35 +40,36 @@ class GraphConv(Layer):
             import kgcn.batched_call as batched
             self.bspmdt_obj = batched.BatchedSpMDT()
         super(GraphConv, self).__init__(**kwargs)
-    # input: batch_size x node_num x #inputs
-    def build(self, input_shape):
-        adj_channel_num=self.adj_channel_num
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
+        adj_channel_num = self.adj_channel_num
         # Create a trainable weight variable for this layer.
-        self.w=[]
-        self.bias=[]
+        self.w = []
+        self.bias = []
         for i in range(adj_channel_num):
-            self.w.append( self.add_weight(name='kernel'+str(i),
-                shape=(int(input_shape[2]), int(self.output_dim)),
-                initializer=self.initializer,
-                trainable=True))
-            self.bias.append( self.add_weight(name='bias'+str(i),
-                shape=(1, int(self.output_dim)),
-                initializer='zeros',
-                trainable=True))
+            self.w.append(self.add_weight(name='kernel'+str(i),
+                                          shape=(int(input_shape[2]), int(self.output_dim)),
+                                          initializer=self.initializer,
+                                          trainable=True))
+            self.bias.append(self.add_weight(name='bias'+str(i),
+                                             shape=(1, int(self.output_dim)),
+                                             initializer='zeros',
+                                             trainable=True))
         super(GraphConv, self).build(input_shape)  # Be sure to call this somewhere!
+
     def call(self, inputs, adj=None):
-        adjs=adj
-        adj_channel_num=self.adj_channel_num
-        batch_size=inputs.shape[0]
+        adjs = adj
+        adj_channel_num = self.adj_channel_num
+        batch_size = inputs.shape[0]
         if enabled_bconv:
             print("## bconv ##")
             o = []
             # Batched Convolution kernel
-            fw=[[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
+            fw = [[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
             for batch_idx in range(batch_size):
                 for adj_ch in range(adj_channel_num):
-                    fb=inputs[batch_idx,:,:]
-                    fw[batch_idx][adj_ch]=tf.matmul(fb,self.w[adj_ch])+self.bias[adj_ch]
+                    fb = inputs[batch_idx, :, :]
+                    fw[batch_idx][adj_ch] = tf.matmul(fb,self.w[adj_ch])+self.bias[adj_ch]
             oo = self.bconv_obj.call(adjs, fw)
             return tf.stack(oo)
         elif enabled_bspmm:
@@ -94,238 +91,262 @@ class GraphConv(Layer):
             print("## batched ##")
             # Batched version
             o = [None for _ in range(adj_channel_num)]
-            input_row=inputs.shape[1]
-            input_col=inputs.shape[2]
+            input_row = inputs.shape[1]
+            input_col = inputs.shape[2]
             for adj_ch in range(adj_channel_num):
-                w_col=tf.shape(self.w[adj_ch])[1]
-                fs=tf.reshape(inputs, [batch_size*input_row, input_col])
-                fw=tf.matmul(fs, self.w[adj_ch])+self.bias[adj_ch]
+                w_col = tf.shape(self.w[adj_ch])[1]
+                fs = tf.reshape(inputs, [batch_size*input_row, input_col])
+                fw = tf.matmul(fs, self.w[adj_ch])+self.bias[adj_ch]
                 adj_list = [adjs[batch_idx][adj_ch] for batch_idx in range(batch_size)]
                 o[adj_ch] = self.bspmdt_obj.call(adj_list, fw)
             o = tf.reduce_sum(o, 0)
             return tf.stack(o)
         else:
-            ## graph conv. without bspmm
-            o=[[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
+            # graph conv. without bspmm
+            o = [[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
             for batch_idx in range(batch_size):
                 for adj_ch in range(adj_channel_num):
-                    adj=adjs[batch_idx][adj_ch]
-                    fb=inputs[batch_idx,:,:]
-                    fw=tf.matmul(fb,self.w[adj_ch])+self.bias[adj_ch]
-                    el=tf.sparse_tensor_dense_matmul(adj,fw)
-                    o[batch_idx][adj_ch]=el
+                    adj = adjs[batch_idx][adj_ch]
+                    fb = inputs[batch_idx, :, :]
+                    fw = tf.matmul(fb, self.w[adj_ch])+self.bias[adj_ch]
+                    el = tf.sparse_tensor_dense_matmul(adj, fw)
+                    o[batch_idx][adj_ch] = el
                 o[batch_idx] = tf.add_n(o[batch_idx])
-        return  tf.stack(o)
+        return tf.stack(o)
+
     def compute_output_shape(self, input_shape):
-        return (input_shape[0],input_shape[1], self.output_dim)
+        return input_shape[0], input_shape[1], self.output_dim
+
 
 class GraphMaxPooling(Layer):
     def __init__(self, adj_channel_num, **kwargs):
-        self.adj_channel_num=adj_channel_num
+        self.adj_channel_num = adj_channel_num
         super(GraphMaxPooling, self).__init__(**kwargs)
-    # input: batch_size x node_num x #inputs
-    def build(self, input_shape):
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
         super(GraphMaxPooling, self).build(input_shape)  # Be sure to call this somewhere!
+
     def call(self, inputs, adj):
-        adj_channel_num=self.adj_channel_num
-        batch_size=inputs.shape[0]
-        dim=inputs.shape[2]
-        o=[[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
+        adj_channel_num = self.adj_channel_num
+        batch_size = inputs.shape[0]
+        dim = inputs.shape[2]
+        o = [[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
         for batch_idx in range(batch_size):
             for adj_ch in range(adj_channel_num):
-                vec=[None for _ in range(dim)]
+                vec = [None for _ in range(dim)]
                 for k in range(dim):
-                    adj_mat=adj[batch_idx][adj_ch]
-                    fb=inputs[batch_idx,:,k]
-                    x=adj_mat*fb
-                    d=tf.sparse_tensor_to_dense(x)
-                    el=tf.reduce_max(d,axis=1)
-                    #el=tf.sparse_reduce_max(x,axis=1)
-                    vec[k]=el
-                o[batch_idx][adj_ch]=tf.stack(vec, axis=1)
+                    adj_mat = adj[batch_idx][adj_ch]
+                    fb = inputs[batch_idx, :, k]
+                    x = adj_mat*fb
+                    d = tf.sparse_tensor_to_dense(x)
+                    el = tf.reduce_max(d, axis=1)
+                    # el=tf.sparse_reduce_max(x,axis=1)
+                    vec[k] = el
+                o[batch_idx][adj_ch] = tf.stack(vec, axis=1)
             o[batch_idx] = tf.add_n(o[batch_idx])
-        output=tf.stack(o)
+        output = tf.stack(o)
         output.set_shape(inputs.shape)
         return output
 
     def compute_output_shape(self, input_shape):
         return input_shape
 
+
 class GraphGather(Layer):
     def __init__(self, **kwargs):
         super(GraphGather, self).__init__(**kwargs)
-    # input: batch_size x node_num x #inputs
-    def build(self, input_shape):
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
         super(GraphGather, self).build(input_shape)
+
     def call(self, inputs):
-        return tf.reduce_sum(inputs,axis=1)
+        return tf.reduce_sum(inputs, axis=1)
+
     def compute_output_shape(self, input_shape):
-        return (input_shape[0],input_shape[2])
+        return input_shape[0], input_shape[2]
+
 
 class GraphBatchNormalization(Layer):
-    def __init__(self,bn_name=None, **kwargs):
-        self.bn_name=bn_name
+    def __init__(self, bn_name=None, **kwargs):
+        self.bn_name = bn_name
         super(GraphBatchNormalization, self).__init__(**kwargs)
-    def normalization_shape(self,input_shape):
-        batch_size=input_shape[0]
-        node_num=input_shape[1]
-        input_dim=input_shape[2]
-        normalize_axis_dim=-1
+
+    def normalization_shape(self, input_shape):
+        batch_size = input_shape[0]
+        node_num = input_shape[1]
+        input_dim = input_shape[2]
+        normalize_axis_dim = -1
         if node_num is not None and input_dim is not None:
-            normalize_axis_dim=node_num*input_dim
-        return (batch_size,normalize_axis_dim)
-    # input: batch_size x node_num x #inputs
-    def build(self, input_shape):
-        self.data_shape=input_shape
+            normalize_axis_dim = node_num*input_dim
+        return batch_size,normalize_axis_dim
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
+        self.data_shape = input_shape
         super(GraphBatchNormalization, self).build(input_shape)
-    def call(self, inputs, enabled_node_nums=None,shape=None,max_node_num=None,training=True,):
-        #shape needs to be explicitly specified. tf cannot automatically keep track of the size.
+
+    def call(self, inputs, enabled_node_nums=None, shape=None, max_node_num=None, training=True,):
+        # shape needs to be explicitly specified. tf cannot automatically keep track of the size.
         # initialize
         if shape is None:
-            batch_size=self.data_shape[0]
-            node_num=max_node_num
-            input_dim=self.data_shape[2]
+            batch_size = self.data_shape[0]
+            node_num = max_node_num
+            input_dim = self.data_shape[2]
         else:
-            batch_size=shape[0]
-            node_num=shape[1]
-            input_dim=shape[2]
+            batch_size = shape[0]
+            node_num = shape[1]
+            input_dim = shape[2]
         # computing
         if enabled_node_nums is not None:
-            inputs.set_shape([batch_size,node_num,input_dim])
-            extracted_nodes=[feature_map[:enabled_node_num] for feature_map, enabled_node_num in zip(tf.unstack(inputs), tf.unstack(enabled_node_nums))]
-            stacked_nodes=tf.concat(extracted_nodes,0)
-            normalized_data=tf.keras.layers.BatchNormalization(trainable=training, name=self.bn_name)(stacked_nodes)
-            split_data=tf.split(normalized_data,enabled_node_nums)
-            padded_data=[tf.pad(feature_map, [[0, node_num-tf.shape(feature_map)[0]], [0, 0]]) for feature_map in split_data]
+            inputs.set_shape([batch_size, node_num, input_dim])
+            extracted_nodes = [feature_map[:enabled_node_num] for feature_map, enabled_node_num in
+                               zip(tf.unstack(inputs), tf.unstack(enabled_node_nums))]
+            stacked_nodes = tf.concat(extracted_nodes, 0)
+            normalized_data = tf.keras.layers.BatchNormalization(trainable=training, name=self.bn_name)(stacked_nodes)
+            split_data = tf.split(normalized_data, enabled_node_nums)
+            padded_data = [tf.pad(feature_map, [[0, node_num-tf.shape(feature_map)[0]], [0, 0]])
+                           for feature_map in split_data]
             output = tf.stack(padded_data)
-            output.set_shape([batch_size,node_num,input_dim])
+            output.set_shape([batch_size, node_num, input_dim])
             return output
         else:
-            #if node_num is not None and input_dim is not None:
-            #
-            layer=tf.reshape(inputs,(-1, input_dim))
-            layer=tf.keras.layers.BatchNormalization(trainable=training, name=self.bn_name)(layer)
-            layer=tf.reshape(layer,(batch_size, -1,input_dim))
+            # if node_num is not None and input_dim is not None:
+            layer = tf.reshape(inputs, (-1, input_dim))
+            layer = tf.keras.layers.BatchNormalization(trainable=training, name=self.bn_name)(layer)
+            layer = tf.reshape(layer, (batch_size, -1, input_dim))
             return layer
 
     def compute_output_shape(self, input_shape):
         return input_shape
 
+
 class GraphDense(Dense):
     def __init__(self, output_dim, **kwargs):
-        self.output_dim=output_dim
+        self.output_dim = output_dim
         super(GraphDense, self).__init__(output_dim, **kwargs)
-    # input: batch_size x node_num x #inputs
-    def build(self, input_shape):
-        self.data_shape=input_shape
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
+        self.data_shape = input_shape
         super(GraphDense, self).build(input_shape)
-    def call(self, inputs,enabled_node_nums=None,shape=None,max_node_num=None,**kwargs):
+
+    def call(self, inputs, enabled_node_nums=None, shape=None, max_node_num=None, **kwargs):
         # initialize
         # Dynamic
-        #dims=tf.shape(inputs)
-        #batch_size,node_num,dim_in=dims[0],dims[1],dims[2]
+        # dims=tf.shape(inputs)
+        # batch_size,node_num,dim_in=dims[0],dims[1],dims[2]
         if shape is None:
-            batch_size=self.data_shape[0]
-            node_num=max_node_num
-            input_dim=self.data_shape[2]
+            batch_size = self.data_shape[0]
+            node_num = max_node_num
+            input_dim = self.data_shape[2]
         else:
-            batch_size=shape[0]
-            node_num=shape[1]
-            input_dim=shape[2]
+            batch_size = shape[0]
+            node_num = shape[1]
+            input_dim = shape[2]
         if enabled_node_nums is not None:
-            inputs.set_shape([batch_size,node_num,input_dim])
-            extracted_nodes=[feature_map[:enabled_node_num] for feature_map, enabled_node_num in zip(tf.unstack(inputs), tf.unstack(enabled_node_nums))]
-            stacked_nodes=tf.concat(extracted_nodes,0)
-            out=super(GraphDense, self).call(stacked_nodes,**kwargs)
-            split_data=tf.split(out,enabled_node_nums)
-            padded_data=[tf.pad(feature_map, [[0, node_num-tf.shape(feature_map)[0]], [0, 0]]) for feature_map in split_data]
+            inputs.set_shape([batch_size, node_num, input_dim])
+            extracted_nodes = [feature_map[:enabled_node_num] for feature_map, enabled_node_num in
+                               zip(tf.unstack(inputs), tf.unstack(enabled_node_nums))]
+            stacked_nodes = tf.concat(extracted_nodes, 0)
+            out = super(GraphDense, self).call(stacked_nodes, **kwargs)
+            split_data = tf.split(out, enabled_node_nums)
+            padded_data = [tf.pad(feature_map, [[0, node_num-tf.shape(feature_map)[0]], [0, 0]])
+                           for feature_map in split_data]
             output = tf.stack(padded_data)
-            output.set_shape([batch_size,node_num,self.output_dim])
+            output.set_shape([batch_size, node_num, self.output_dim])
             return output
         else:
-            dims=inputs.shape
-            batch_size,node_num,dim_in=dims[0],dims[1],dims[2]
+            dims = inputs.shape
+            batch_size, node_num, dim_in = dims[0], dims[1], dims[2]
             # computing
-            data=tf.reshape(inputs,(-1,dim_in))
-            out=super(GraphDense, self).call(data,**kwargs)
-            out=tf.reshape(out,(batch_size,-1,self.output_dim))
+            data = tf.reshape(inputs, (-1, dim_in))
+            out = super(GraphDense, self).call(data, **kwargs)
+            out = tf.reshape(out, (batch_size, -1, self.output_dim))
             return out
+
     def compute_output_shape(self, input_shape):
-        return (input_shape[0],input_shape[1], self.output_dim)
+        return input_shape[0], input_shape[1], self.output_dim
+
 
 class GraphDecoderInnerProd(Layer):
     def __init__(self, **kwargs):
         super(GraphDecoderInnerProd, self).__init__(**kwargs)
-    # input: batch_size x node_num x #inputs
-    def build(self, input_shape):
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
         super(GraphDecoderInnerProd, self).build(input_shape)
-    def call(self, inputs,**kwargs):
+
+    def call(self, inputs, **kwargs):
         # initialize
-        dims=tf.shape(inputs)
-        batch_size=dims[0]
-        node_num=dims[1]
-        dim_in=dims[2]
+        dims = tf.shape(inputs)
+        batch_size = dims[0]
+        node_num = dims[1]
+        dim_in = dims[2]
         # computing
-        layer=inputs
-        layer_t=tf.transpose(layer,[0,2,1])
-        adj=tf.matmul(layer,layer_t)
+        layer = inputs
+        layer_t = tf.transpose(layer, [0, 2, 1])
+        adj = tf.matmul(layer, layer_t)
         return adj
-        #tf.reshape(out,[batch_size,node_num,node_num])
+        # tf.reshape(out,[batch_size,node_num,node_num])
+
     def compute_output_shape(self, input_shape):
-        return (input_shape[0],input_shape[1],input_shape[1])
+        return input_shape[0], input_shape[1], input_shape[1]
+
 
 class GraphDecoderDistMult(Layer):
     def __init__(self, initializer='glorot_uniform', **kwargs):
-        self.initializer=initializer
+        self.initializer = initializer
         super(GraphDecoderDistMult, self).__init__(**kwargs)
-    # input: batch_size x node_num x #inputs
-    def build(self, input_shape):
-        self.w=[]
-        self.w.append( self.add_weight(name='kernel',
-                shape=(int(input_shape[2]),),
-                initializer=self.initializer,
-                trainable=True))
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
+        self.w = []
+        self.w.append(self.add_weight(name='kernel',
+                                      shape=(int(input_shape[2]),),
+                                      initializer=self.initializer,
+                                      trainable=True))
         super(GraphDecoderDistMult, self).build(input_shape)
-    def call(self, inputs,**kwargs):
+
+    def call(self, inputs, **kwargs):
         # initialize
-        dims=tf.shape(inputs)
-        batch_size=dims[0]
-        node_num=dims[1]
-        dim_in=dims[2]
+        dims = tf.shape(inputs)
+        batch_size = dims[0]
+        node_num = dims[1]
+        dim_in = dims[2]
         # computing
-        layer=inputs
-        layer_t=tf.transpose(layer,[0,2,1])
-        adj=tf.matmul(self.w[0]*layer,layer_t)
+        layer = inputs
+        layer_t = tf.transpose(layer, [0, 2, 1])
+        adj = tf.matmul(self.w[0]*layer, layer_t)
         return adj
+
     def compute_output_shape(self, input_shape):
-        return (input_shape[0],input_shape[1],input_shape[1])
+        return input_shape[0], input_shape[1], input_shape[1]
+
 
 class BatchGraphConv(Layer):
-    def __init__(self, output_dim, adj_channel_num=1, initializer='glorot_uniform', input_dim=None,**kwargs):
+    def __init__(self, output_dim, adj_channel_num=1, initializer='glorot_uniform', input_dim=None, **kwargs):
         self.output_dim = output_dim
         self.adj_channel_num = adj_channel_num
         self.initializer = initializer
         self.input_dim = input_dim
         super(BatchGraphConv, self).__init__(**kwargs)
+
     def build(self, input_shape):
         adj_channel_num = self.adj_channel_num
         # Create a trainable weight variable for this layer.
-        #self.ww
-        #self.bias=[]
+        # self.ww
+        # self.bias=[]
         for i in range(adj_channel_num):
             if self.input_dim is None:
                 input_dim = input_shape[0][1]
             else:
                 input_dim = self.input_dim
             self.w = self.add_weight(name='kernel'+str(i),
-                shape=(int(input_dim), int(self.output_dim)),
-                initializer=self.initializer,
-                trainable=True)
+                                     shape=(int(input_dim), int(self.output_dim)),
+                                     initializer=self.initializer,
+                                     trainable=True)
             self.bias = self.add_weight(name='bias'+str(i),
-                shape=(int(self.output_dim)),
-                initializer='zeros',
-                trainable=True)
+                                        shape=(int(self.output_dim)),
+                                        initializer='zeros',
+                                        trainable=True)
         super(BatchGraphConv, self).build(input_shape)  # Be sure to call this somewhere!ef __init__(self, out_dim, **kwargs):
+
     def call(self, inputs):
         net = inputs[0]
         adj = inputs[1]
@@ -333,8 +354,7 @@ class BatchGraphConv(Layer):
         net = tf.nn.bias_add(net, self.bias)
         net = tf.sparse_tensor_dense_matmul(adj, net)
         net = tf.nn.relu(net)
-        return  net
+        return net
+
     def compute_output_shape(self, input_shape):
-        return (input_shape[0][0], self.output_dim)
-
-
+        return input_shape[0][0], self.output_dim
