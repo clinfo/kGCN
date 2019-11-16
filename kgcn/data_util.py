@@ -391,14 +391,14 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
             info.label_dim = labels.shape[1] if len(labels.shape) >= 2 else 1
         if adjs is not None:
             if labels.shape[0] != info.graph_num:
-                print("[ERROR] checking not [0 dim of labels] = [length of adjacency matrices]")
-                print(">>info.graph_num: ", info.graph_num)
-                print(">>labels.shape[0]: ", labels.shape[0])
+                print(f"[ERROR] checking not [0 dim of labels] = [length of adjacency matrices]"
+                      f">>info.graph_num: {info.graph_num}"
+                      f">>labels.shape[0]: {labels.shape[0]}")
         else:
             if labels.shape[0] != Num:
-                print("[ERROR] checking not [0 dim of labels] = [the number of data]")
-                print(">>info.graph_num: ", info.graph_num)
-                print(">>#data: ", labels.shape[0])
+                print(f"[ERROR] checking not [0 dim of labels] = [the number of data]"
+                      f">>info.graph_num: {info.graph_num}"
+                      f">>#data: {labels.shape[0]}")
 
     elif node_label is not None:
         # node_label: graph_num x node_num x label_dim
@@ -413,13 +413,13 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
         if verbose:
             print("[OK] checking #graphs")
     else:
-        print("[ERROR] checking not  [0 dim of features] = [0 dim of nodes] = [length of adjacency matrices]")
-        print(">> ", info.graph_num)
+        print(f"[ERROR] checking not  [0 dim of features] = [0 dim of nodes] = [length of adjacency matrices]"
+              f">> {info.graph_num}")
         if features is not None:
-            print(">> ", features.shape[0])
+            print(f">> {features.shape[0]}")
         if nodes is not None:
-            print(">> ", nodes.shape[0])
-        print(">> ", len(adjs))
+            print(f">> {nodes.shape[0]}")
+        print(f">> {len(adjs)}")
         raise DataLoadError("Please confirm input data")
 
     # multi modal info
@@ -448,14 +448,14 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
         info.mol_info = data["mol_info"]
 
     if verbose:
-        print("The number of graphs                   =", info.graph_num)
-        print("Dimension of a feature                 =", info.feature_dim)
-        print("The maximum number of nodes in a graph =", info.graph_node_num)
-        print("The number of nodes in all graphs      =", info.all_node_num)
-        print("Dimension of a label                   =", info.label_dim)
-        print("The number of adj. matrices in a graph =", info.adj_channel_num)
+        print(f"The number of graphs                   ={info.graph_num}"
+              f"Dimension of a feature                 ={info.feature_dim}"
+              f"The maximum number of nodes in a graph ={info.graph_node_num}"
+              f"The number of nodes in all graphs      ={info.all_node_num}"
+              f"Dimension of a label                   ={info.label_dim}"
+              f"The number of adj. matrices in a graph ={info.adj_channel_num}")
         if graph_index_list is not None:
-            print("The number of graph_index_lists         =", len(info.graph_index_list))
+            print(f"The number of graph_index_lists         ={info.graph_index_list}")
 
     return all_data, info
 
@@ -540,9 +540,9 @@ def split_label_list(all_data, valid_data_rate=0.2, indices_for_train_data=None,
     train_data : a dotdict containing data organized the same way as in all_data. Use this for training.
     valid_data : same as above, for validation.
     """
-    print(">>", len(all_data.label_list))
-    print(">>", len(all_data.label_list[0]))
-    print(">>", len(all_data.label_list[0][0]))
+    print(f">>{len(all_data.label_list)}"
+          f">>{len(all_data.label_list[0])}"
+          f">>{len(all_data.label_list[0][0])}")
     if indices_for_train_data is None or indices_for_valid_data is None:
         n = len(all_data.label_list[0])
         valid_num = int(n*valid_data_rate)
@@ -563,22 +563,9 @@ def split_label_list(all_data, valid_data_rate=0.2, indices_for_train_data=None,
     return train_data, valid_data
 
 
-def construct_batched_adjacency_and_feature_matrices(
-    size,
-    adj_row,
-    adj_column,
-    adj_values,
-    adj_elem_len,
-    adj_degrees,
-    feature_row,
-    feature_column,
-    feature_values,
-    feature_elem_len,
-    input_dim,
-    max_degree=5,
-    normalize=True,
-    split_adj=False,
-):
+def construct_batched_adjacency_and_feature_matrices(size, adj_row, adj_column, adj_values, adj_elem_len, adj_degrees,
+                                                     feature_row, feature_column, feature_values, feature_elem_len,
+                                                     input_dim, max_degree=5, normalize=True, split_adj=False,):
     """
     Constructs a batched, sparse adjacency matrix.
     For example to make a batch of two adjacency matrices of 2 and 3 nodes:
