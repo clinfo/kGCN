@@ -79,7 +79,7 @@ class GraphConv(Layer):
                 adj_list = [adjs[i][adj_ch] for i in range(batch_size)]
                 fw_list = [None for _ in range(batch_size)]
                 for batch_idx in range(batch_size):
-                    fb = inputs[batch_idx,:,:]
+                    fb = inputs[batch_idx, :, :]
                     fw_list[batch_idx] = tf.matmul(fb, self.w[adj_ch]) + self.bias[adj_ch]
                 oo = self.bspmm_obj.call(adj_list, fw_list)
                 o = oo if not o else tf.add(o, oo)
@@ -123,7 +123,7 @@ class GraphMaxPooling(Layer):
     def build(self, input_shape):  # input: batch_size x node_num x #inputs
         super(GraphMaxPooling, self).build(input_shape)  # Be sure to call this somewhere!
 
-    def call(self, inputs, adj):
+    def call(self, inputs, adj=None):
         adj_channel_num = self.adj_channel_num
         batch_size = inputs.shape[0]
         dim = inputs.shape[2]
@@ -156,7 +156,7 @@ class GraphGather(Layer):
     def build(self, input_shape):  # input: batch_size x node_num x #inputs
         super(GraphGather, self).build(input_shape)
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         return tf.reduce_sum(inputs, axis=1)
 
     def compute_output_shape(self, input_shape):
@@ -326,7 +326,7 @@ class BatchGraphConv(Layer):
                                         trainable=True)
         super(BatchGraphConv, self).build(input_shape)  # Be sure to call this somewhere!ef __init__(self, out_dim, **kwargs):
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         net = inputs[0]
         adj = inputs[1]
         net = tf.matmul(net, self.w)
