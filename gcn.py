@@ -303,7 +303,7 @@ def train(sess, graph, config):
     start_t = time.time()
     model.fit(train_data, valid_data)
     train_time = time.time() - start_t
-    print("traing time:{0}".format(train_time) + "[sec]")
+    print("training time:{0}".format(train_time) + "[sec]")
     if valid_data.num > 0:
         # Validation
         start_t = time.time()
@@ -324,8 +324,8 @@ def train(sess, graph, config):
             save_path = config["save_info_valid"]
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
             print("[SAVE] ", save_path)
-            fp = open(save_path, "w")
-            json.dump(result, fp, indent=4, cls=NumPyArangeEncoder)
+            with open(save_path, "w") as fp:
+                json.dump(result, fp, indent=4, cls=NumPyArangeEncoder)
 
     if config["export_model"]:
         try:
@@ -387,7 +387,7 @@ def train_cv(sess, graph, config):
         start_t = time.time()
         model.fit(train_data, valid_data, k_fold_num=kf_count)
         train_time = time.time() - start_t
-        print("traing time:{0}".format(train_time) + "[sec]")
+        print("training time:{0}".format(train_time) + "[sec]")
         # Test
         print("== valid data ==")
         start_t = time.time()
@@ -452,8 +452,8 @@ def train_cv(sess, graph, config):
         print("[SAVE] ", save_path)
         _, ext = os.path.splitext(save_path)
         if ext == ".json":
-            fp = open(save_path, "w")
-            json.dump(fold_data_list, fp, indent=4, cls=NumPyArangeEncoder)
+            with open(save_path, "w") as fp:
+                json.dump(fold_data_list, fp, indent=4, cls=NumPyArangeEncoder)
         else:
             joblib.dump(fold_data_list, save_path, compress=True)
     #
@@ -479,8 +479,8 @@ def train_cv(sess, graph, config):
         print("[SAVE] ", save_path)
         _, ext = os.path.splitext(save_path)
         if ext == ".json":
-            fp = open(save_path, "w")
-            json.dump(result_cv, fp, indent=4, cls=NumPyArangeEncoder)
+            with open(save_path, "w") as fp:
+                json.dump(result_cv, fp, indent=4, cls=NumPyArangeEncoder)
         else:
             joblib.dump(result_cv, save_path, compress=True)
     #
@@ -491,8 +491,8 @@ def train_cv(sess, graph, config):
             result_cv.append(v)
         save_path = config["save_result_cv"]
         print("[SAVE] ", save_path)
-        fp = open(save_path, "w")
-        json.dump(result_cv, fp, indent=4, cls=NumPyArangeEncoder)
+        with open(save_path, "w") as fp:
+            json.dump(result_cv, fp, indent=4, cls=NumPyArangeEncoder)
     #
     for i, fold_data in enumerate(fold_data_list):
         prefix = "fold"+str(i)+"_"
@@ -549,8 +549,8 @@ def infer(sess, graph, config):
         save_path = config["save_info_test"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         print("[SAVE] ", save_path)
-        fp = open(save_path, "w")
-        json.dump(result, fp, indent=4, cls=NumPyArangeEncoder)
+        with open(save_path, "w") as fp:
+            json.dump(result, fp, indent=4, cls=NumPyArangeEncoder)
 
     if config["save_result_test"] is not None:
         filename = config["save_result_test"]
@@ -576,8 +576,8 @@ def infer(sess, graph, config):
         print("[SAVE] ", save_path)
         _, ext = os.path.splitext(save_path)
         if ext == ".json":
-            fp = open(save_path, "w")
-            json.dump(fold, fp, indent=4, cls=NumPyArangeEncoder)
+            with open(save_path, "w") as fp:
+                json.dump(fold, fp, indent=4, cls=NumPyArangeEncoder)
         else:
             joblib.dump(fold, save_path, compress=True)
     if config["prediction_data"] is not None:
@@ -698,8 +698,8 @@ def main():
         pass
     else:
         print("[LOAD] ", args.config)
-        fp = open(args.config, 'r')
-        config.update(json.load(fp))
+        with open(args.config, "r") as fp:
+            config.update(json.load(fp))
     # option
     if args.model is not None:
         config["load_model"] = args.model
@@ -754,8 +754,8 @@ def main():
     if args.save_config is not None:
         print("[SAVE] ", args.save_config)
         os.makedirs(os.path.dirname(args.save_config), exist_ok=True)
-        fp = open(args.save_config, "w")
-        json.dump(config, fp, indent=4, cls=NumPyArangeEncoder)
+        with open(args.save_config, "w") as fp:
+            json.dump(config, fp, indent=4, cls=NumPyArangeEncoder)
 
 
 if __name__ == '__main__':
