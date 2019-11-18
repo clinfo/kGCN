@@ -184,12 +184,12 @@ def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_
         active_count = np.where(label_data[enabled_mol_index, enabled_task_index] == 1)[0].shape[0]
         inactive_count = np.where(label_data[enabled_mol_index, enabled_task_index] == 0)[0].shape[0]
         make_count = active_count - inactive_count
-        print(f"[INFO] count = {len(enabled_mol_index)}"
-              f"[INFO] active count = {active_count}"
-              f"[INFO] inactive count = {inactive_count}"
-              f"[INFO] pseudo inactive count = {make_count}"
-              f"[INFO] #mols: {len(mol_obj_list)}"
-              f"[INFO] #proteins: {len(task_name_list)}")
+        print(f"[INFO] count = {len(enabled_mol_index)}\n"
+              f"[INFO] active count = {active_count}\n"
+              f"[INFO] inactive count = {inactive_count}\n"
+              f"[INFO] pseudo inactive count = {make_count}\n"
+              f"[INFO] #mols: {len(mol_obj_list)}\n"
+              f"[INFO] #proteins: {len(task_name_list)}\n")
         if make_count+active_count+inactive_count > len(mol_obj_list)*len(task_name_list):
             print("[WARN] all of the rest data are pseudo negative!")
             # negative_data_index = np.where(label_mask == 0)  #REVIEW why the local variable exists.
