@@ -126,8 +126,6 @@ def get_default_config():
 
 
 def plot_cost(config, data, model, prefix=""):
-    data_idx = list(range(data.num))
-    # plot cost
     result_path = config["plot_path"]
     os.makedirs(result_path, exist_ok=True)
     training_acc = [el["training_accuracy"] for el in model.training_metrics_list]
@@ -150,7 +148,6 @@ def plot_r2(config, labels, pred_data, prefix=""):
     os.makedirs(result_path, exist_ok=True)
     if config["plot_multitask"]:
         print("not supported")
-        #make_r2_plot(labels, pred_data, result_path+prefix)
     else:
         make_r2_plot(labels, pred_data, result_path+prefix)
 
@@ -175,7 +172,6 @@ def load_model_py(model, model_py, is_train=True, feed_embedded_layer=False, bat
 
 
 def print_ckpt(sess, ckpt):
-    #checkpoint = tf.train.get_checkpoint_state(args.ckpt)
     print("==", ckpt)
     for var_name, _ in tf.contrib.framework.list_variables(ckpt):
         var = tf.contrib.framework.load_variable(ckpt, var_name)
@@ -184,7 +180,6 @@ def print_ckpt(sess, ckpt):
 
 
 def print_variables():
-    # print variables
     print('== neural network')
     vars_em = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
     for v in vars_em:
@@ -282,9 +277,6 @@ def compute_metrics(config, info, prediction_data, labels):
 
 
 def train(sess, graph, config):
-    batch_size = config["batch_size"]
-    learning_rate = config["learning_rate"]
-
     if config["validation_dataset"] is None:
         _, train_data, valid_data, info = load_and_split_data(config, filename=config["dataset"],
                                                               valid_data_rate=config["validation_data_rate"])
@@ -306,7 +298,6 @@ def train(sess, graph, config):
     if config["profile"]:
         vars_to_train = tf.trainable_variables()
         print(vars_to_train)
-        writer = tf.summary.FileWriter('logs', sess.graph)
 
     # Training
     start_t = time.time()
@@ -356,9 +347,6 @@ def train(sess, graph, config):
 
 
 def train_cv(sess, graph, config):
-    batch_size = config["batch_size"]
-    learning_rate = config["learning_rate"]
-
     all_data, info = load_data(config, filename=config["dataset"], prohibit_shuffle=True)  # shuffle is done by KFold
     model = CoreModel(sess, config, info)
     load_model_py(model, config["model.py"])
@@ -468,7 +456,7 @@ def train_cv(sess, graph, config):
             json.dump(fold_data_list, fp, indent=4, cls=NumPyArangeEncoder)
         else:
             joblib.dump(fold_data_list, save_path, compress=True)
-    ##
+    #
     if "save_edge_result_cv" in config and config["save_edge_result_cv"] is not None:
         result_cv = []
         for j, fold_data in enumerate(fold_data_list):
@@ -496,7 +484,6 @@ def train_cv(sess, graph, config):
         else:
             joblib.dump(result_cv, save_path, compress=True)
     #
-    #
     if "save_result_cv" in config and config["save_result_cv"] is not None:
         result_cv = []
         for j, fold_data in enumerate(fold_data_list):
@@ -513,28 +500,23 @@ def train_cv(sess, graph, config):
         os.makedirs(result_path, exist_ok=True)
         if config["make_plot"]:
             if config["task"] == "regression":
-                # plot cost
                 make_cost_acc_plot(fold_data.training_cost, fold_data.validation_cost,
                                    fold_data.training_mse, fold_data.validation_mse, result_path+prefix)
                 pred_score = np.array(fold_data.prediction_data)
                 plot_r2(config, fold_data.test_labels, pred_score, prefix=prefix)
             elif config["task"] == "regression_gmfe":
-                # plot cost
                 make_cost_acc_plot(fold_data.training_cost, fold_data.validation_cost,
                                    fold_data.training_mse, fold_data.validation_mse, result_path+prefix)
                 pred_score = np.array(fold_data.prediction_data)
                 plot_r2(config, fold_data.test_labels, pred_score, prefix=prefix)
             else:
-                # plot cost
                 make_cost_acc_plot(fold_data.training_cost, fold_data.validation_cost,
                                    fold_data.training_acc, fold_data.validation_acc, result_path+prefix)
-                # plot AUC
                 pred_score = np.array(fold_data.prediction_data)
                 plot_auc(config, fold_data.test_labels, pred_score, prefix=prefix)
 
 
 def infer(sess, graph, config):
-    batch_size = config["batch_size"]
     dataset_filename = config["dataset"]
     if "dataset_test" in config:
         dataset_filename = config["dataset_test"]
@@ -579,7 +561,6 @@ def infer(sess, graph, config):
         output_data = model.output(all_data)
         pred_score = np.array(prediction_data)
         true_label = np.array(all_data.label_list)
-        test_idx = all_data.test_data_idx
         score_list = []
         print(true_label.shape)
         for pair in true_label[0]:
@@ -630,8 +611,6 @@ def visualize(sess, config, args):
         dataset_filename = config["dataset_test"]
     all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True)
 
-    #tf.compat.v1.logging.info("[LOAD]", config["load_model"])
-
     model = CoreModel(sess, config, info)
     load_model_py(model, config["model.py"], is_train=False, feed_embedded_layer=True, batch_size=batch_size)
     placeholders = model.placeholders
@@ -641,15 +620,12 @@ def visualize(sess, config, args):
         cal_feature_IG(sess, all_data, placeholders, info, config, model.prediction,
                        args.ig_modal_target, args.ig_label_target,
                        logger=tf.logging, model=model.nn, args=args)
-                       #logger=tf.compat.v1.logging, model=_model)
     else:
         cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, model.prediction,
                               logger=tf.logging, model=model.nn, args=args)
-                              #logger=tf.compat.v1.logging, model=_model)
 
 
 def main():
-    # set random seed
     seed = 1234
     np.random.seed(seed)
 
@@ -714,15 +690,12 @@ def main():
                         help="filename header of visualization")
 
     args = parser.parse_args()
-    #tf.compat.v1.logging.set_verbosity(args.verbose.upper())
     tf.logging.set_verbosity(args.verbose.upper())
 
     # config
     config = get_default_config()
     if args.config is None:
         pass
-        #parser.print_help()
-        #quit()
     else:
         print("[LOAD] ", args.config)
         fp = open(args.config, 'r')
@@ -764,7 +737,6 @@ def main():
     config["graph_distance"] = args.graph_distance
 
     with tf.Graph().as_default() as graph:
-    # with tf.Graph().as_default(), tf.device('/cpu:0'):
         seed = 1234
         tf.set_random_seed(seed)
         with tf.Session(config=tf.ConfigProto(log_device_placement=False,
