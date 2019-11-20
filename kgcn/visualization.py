@@ -561,6 +561,10 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction,
                     continue
                 target_prediction = prediction[:, target_index]
                 target_score = _out_prediction[target_index]
+            elif ig_label_target == "label":
+                target_index = true_label
+                target_prediction = prediction[:, target_index]
+                target_score = _out_prediction[target_index]
             else:
                 target_index = int(ig_label_target)
                 target_prediction = prediction[:, target_index]
