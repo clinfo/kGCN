@@ -51,7 +51,7 @@ class NumPyArangeEncoder(json.JSONEncoder):
 
 
 def save_prediction(filename, prediction_data):
-    print("[SAVE] ", filename)
+    print(f"[SAVE] {filename}")
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     pred = np.array(prediction_data)
@@ -172,7 +172,7 @@ def load_model_py(model, model_py, is_train=True, feed_embedded_layer=False, bat
 
 
 def print_ckpt(sess, ckpt):
-    print("==", ckpt)
+    print(f"== {ckpt}")
     for var_name, _ in tf.contrib.framework.list_variables(ckpt):
         var = tf.contrib.framework.load_variable(ckpt, var_name)
         print(var_name, var.shape)
@@ -303,15 +303,15 @@ def train(sess, graph, config):
     start_t = time.time()
     model.fit(train_data, valid_data)
     train_time = time.time() - start_t
-    print("training time:{0}".format(train_time) + "[sec]")
+    print(f"training time: {train_time}[sec]")
     if valid_data.num > 0:
         # Validation
         start_t = time.time()
         valid_cost, valid_metrics, prediction_data = model.pred_and_eval(valid_data)
         infer_time = time.time() - start_t
-        print("final cost =", valid_cost)
-        print(f"{metric_name} = {valid_metrics[metric_name]}")
-        print("validation time:{0}".format(infer_time) + "[sec]")
+        print(f"final cost = {valid_cost}\n"
+              f"{metric_name} = {valid_metrics[metric_name]}\n"
+              f"validation time: {infer_time}[sec]\n")
         # Saving
         if config["save_info_valid"] is not None:
             result = {}
@@ -323,13 +323,13 @@ def train(sess, graph, config):
             ##
             save_path = config["save_info_valid"]
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
-            print("[SAVE] ", save_path)
+            print(f"[SAVE] {save_path}")
             with open(save_path, "w") as fp:
                 json.dump(result, fp, indent=4, cls=NumPyArangeEncoder)
 
     if config["export_model"]:
         try:
-            print("[SAVE]", config["export_model"])
+            print(f"[SAVE] {config['export_model']}")
             graph_def = graph_util.convert_variables_to_constants(sess, graph.as_graph_def(), ['output'])
             tf.train.write_graph(graph_def, '.', config["export_model"], as_text=False)
         except:
@@ -375,7 +375,7 @@ def train_cv(sess, graph, config):
         metric_name = "accuracy"
     split_data_generator = kf.split(split_base, split_base) if config["stratified_kfold"] else kf.split(split_base)
     for train_valid_list, test_list in split_data_generator:
-        print("starting fold:{0}".format(kf_count))
+        print(f"starting fold: {kf_count}")
         train_valid_data, test_data = split_data(all_data,
                                                  indices_for_train_data=train_valid_list,
                                                  indices_for_valid_data=test_list)
@@ -387,30 +387,29 @@ def train_cv(sess, graph, config):
         start_t = time.time()
         model.fit(train_data, valid_data, k_fold_num=kf_count)
         train_time = time.time() - start_t
-        print("training time:{0}".format(train_time) + "[sec]")
+        print(f"training time: {train_time}[sec]")
         # Test
         print("== valid data ==")
         start_t = time.time()
         valid_cost, valid_metrics, prediction_data = model.pred_and_eval(valid_data)
         infer_time = time.time() - start_t
-        print("final cost =", valid_cost)
-        print("%s   =%f" % (metric_name, valid_metrics[metric_name]))
-        print("infer time:{0}".format(infer_time) + "[sec]")
-
+        print(f"final cost = {valid_cost}\n"
+              f"{metric_name} = {valid_metrics[metric_name]}\n"
+              f"infer time: {infer_time}[sec]\n")
         print("== test data ==")
         start_t = time.time()
         test_cost, test_metrics, prediction_data = model.pred_and_eval(test_data)
         infer_time = time.time() - start_t
-        print("final cost =", test_cost)
-        print("%s   =%f" % (metric_name, test_metrics[metric_name]))
+        print(f"final cost = {test_cost}\n"
+              f"{metric_name} = {test_metrics[metric_name]}\n")
         score_metrics.append(test_metrics[metric_name])
-        print("infer time:{0}".format(infer_time) + "[sec]")
+        print(f"infer time: {infer_time}[sec]")
 
         if config["export_model"]:
             try:
                 name, ext = os.path.splitext(config["export_model"])
                 filename = name+"."+str(kf_count)+ext
-                print("[SAVE]", filename)
+                print(f"[SAVE] {filename}")
                 graph_def = graph_util.convert_variables_to_constants(sess, graph.as_graph_def(), ['output'])
                 tf.train.write_graph(graph_def, '.', filename, as_text=False)
             except:
@@ -444,12 +443,12 @@ def train_cv(sess, graph, config):
         fold_data_list.append(fold_data)
         kf_count += 1
 
-    print("cv %s(mean)   =%f" % (metric_name, np.mean(score_metrics)))
-    print("cv %s(std.)   =%f" % (metric_name, np.std(score_metrics)))
+    print(f"cv {metric_name}(mean) = {np.mean(score_metrics)}\n"
+          f"cv {metric_name}(std.)   = {np.std(score_metrics)}\n")
     if "save_info_cv" in config and config["save_info_cv"] is not None:
         save_path = config["save_info_cv"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        print("[SAVE] ", save_path)
+        print(f"[SAVE] {save_path}")
         _, ext = os.path.splitext(save_path)
         if ext == ".json":
             with open(save_path, "w") as fp:
@@ -476,7 +475,7 @@ def train_cv(sess, graph, config):
             result_cv.append(fold)
         save_path = config["save_edge_result_cv"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        print("[SAVE] ", save_path)
+        print(f"[SAVE] {save_path}")
         _, ext = os.path.splitext(save_path)
         if ext == ".json":
             with open(save_path, "w") as fp:
@@ -490,7 +489,7 @@ def train_cv(sess, graph, config):
             v = compute_metrics(config, info, fold_data.prediction_data, fold_data.test_labels)
             result_cv.append(v)
         save_path = config["save_result_cv"]
-        print("[SAVE] ", save_path)
+        print(f"[SAVE] {save_path}")
         with open(save_path, "w") as fp:
             json.dump(result_cv, fp, indent=4, cls=NumPyArangeEncoder)
     #
@@ -536,9 +535,9 @@ def infer(sess, graph, config):
     start_t = time.time()
     test_cost, test_metrics, prediction_data = model.pred_and_eval(all_data)
     infer_time = time.time() - start_t
-    print("final cost =", test_cost)
-    print(f"{metric_name} = {test_metrics[metric_name]}")
-    print("infer time:{0}".format(infer_time) + "[sec]")
+    print(f"final cost = {test_cost}\n"
+          f"{metric_name} = {test_metrics[metric_name]}\n"
+          f"infer time: {infer_time}[sec]\n")
 
     if config["save_info_test"] is not None:
         result = {}
@@ -548,7 +547,7 @@ def infer(sess, graph, config):
         result["test_metrics"] = compute_metrics(config, info, prediction_data, all_data.labels)
         save_path = config["save_info_test"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        print("[SAVE] ", save_path)
+        print(f"[SAVE] {save_path}")
         with open(save_path, "w") as fp:
             json.dump(result, fp, indent=4, cls=NumPyArangeEncoder)
 
@@ -573,7 +572,7 @@ def infer(sess, graph, config):
         fold["score"] = np.array(score_list)
         save_path = config["save_edge_result_test"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        print("[SAVE] ", save_path)
+        print(f"[SAVE] {save_path}")
         _, ext = os.path.splitext(save_path)
         if ext == ".json":
             with open(save_path, "w") as fp:
@@ -697,7 +696,7 @@ def main():
     if args.config is None:
         pass
     else:
-        print("[LOAD] ", args.config)
+        print(f"[LOAD] {args.config}")
         with open(args.config, "r") as fp:
             config.update(json.load(fp))
     # option
@@ -752,7 +751,7 @@ def main():
             elif args.mode == "visualize":
                 visualize(sess, config, args)
     if args.save_config is not None:
-        print("[SAVE] ", args.save_config)
+        print(f"[SAVE] {args.save_config}")
         os.makedirs(os.path.dirname(args.save_config), exist_ok=True)
         with open(args.save_config, "w") as fp:
             json.dump(config, fp, indent=4, cls=NumPyArangeEncoder)
