@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
+import os
 
 plt.switch_backend('Agg')
 
@@ -52,12 +52,14 @@ class GCNVisualizer(object):
             self.logger = logger
 
         if out_filename is None:
-            out_filename = in_filename.split('.')[0] \
-                                if '.' in in_filename else in_filename  # remove suffix
+            path, ext = os.path.splitext(in_filename)
+            out_filename = path
         else:
             out_filename = out_filename
+        print(str(out_filename))
 
         self.out_filename = Path(out_filename).expanduser().resolve()
+        print(str(self.out_filename))
         self.in_filename = Path(in_filename).expanduser().resolve()
 
         self.show_adj = show_adj
@@ -152,6 +154,7 @@ class GCNVisualizer(object):
         saved_filename = "{}_mol.svg".format(str(self.out_filename))
         with open(saved_filename, "w") as f:
             f.write(svg)
+        self.logger.info("[SAVE] "+saved_filename)
 
     def _draw_structure(self):
         import networkx as nx
@@ -170,6 +173,7 @@ class GCNVisualizer(object):
         plt.title(Chem.MolToSmiles(self.ig_dict['mol']))
         saved_filename = "{}_nx_mol.png".format(str(self.out_filename))
         plt.savefig(saved_filename)
+        self.logger.info("[SAVE] "+saved_filename)
         plt.close()
 
     def _draw_from_adj_mat(self):
@@ -195,6 +199,7 @@ class GCNVisualizer(object):
         self.logger.info(Chem.MolToSmiles(self.ig_dict['mol']))
         saved_filename = "{}_nx_mol.png".format(str(self.out_filename))
         plt.savefig(saved_filename)
+        self.logger.info("[SAVE] "+saved_filename)
         plt.close()
 
     def draw_structure(self):
@@ -227,6 +232,7 @@ class GCNVisualizer(object):
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(im, cax=cax)
         plt.savefig(str(self.out_filename) + '_adj.png')
+        self.logger.info("[SAVE] "+str(self.out_filename) + '_adj.png')
         plt.close()
 
         fig = plt.figure()
@@ -238,6 +244,7 @@ class GCNVisualizer(object):
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(im, cax=cax)
         plt.savefig(str(self.out_filename) + '_adj_IG.png')
+        self.logger.info("[SAVE] "+str(self.out_filename) + '_adj_IG.png')
         plt.close()
 
     def draw_feat(self):
@@ -254,6 +261,7 @@ class GCNVisualizer(object):
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(im, cax=cax)
         plt.savefig(str(self.out_filename) + '_features_IG.png')
+        self.logger.info("[SAVE] "+str(self.out_filename) + "_features_IG.png")
         plt.close()
 
     def draw_modals(self):
@@ -291,6 +299,7 @@ class GCNVisualizer(object):
                 cax = divider.append_axes("right", size="5%", pad=0.05)
                 plt.colorbar(im, cax=cax)
 
+            self.logger.info("[SAVE] "+str(self.out_filename) + f'_{modal_name}.png')
             plt.savefig(str(self.out_filename) + f'_{modal_name}.png')
             plt.close()
 

@@ -12,13 +12,43 @@ import os
 import kgcn.layers
 from scipy.sparse import coo_matrix
 
-from gcn import dotdict,NumPyArangeEncoder
+from kgcn.gcn import dotdict,NumPyArangeEncoder
 from kgcn.data_util import align_size,dense_to_sparse,high_order_adj,split_adj,normalize_adj,DataLoadError
-from gcn import get_default_config, save_prediction
+from kgcn.gcn import get_default_config, save_prediction, load_model_py
 
 from kgcn.data_util import load_and_split_data, load_data, split_data
 from kgcn.core import CoreModel,EarlyStopping
 from kgcn.feed_index import construct_feed
+
+def print_ckpt(sess,ckpt):
+    #checkpoint = tf.train.get_checkpoint_state(args.ckpt)
+    print("==",ckpt)
+    for var_name, _ in tf.contrib.framework.list_variables(ckpt):
+        var = tf.contrib.framework.load_variable(ckpt, var_name)
+        print(var_name,var.shape)
+    print("==")
+
+def print_variables():
+    # print variables
+    print('== neural network')
+    vars_em = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+    for v in vars_em:
+        print(v.name,v.shape)
+    print("==")
+
+
+def restore_ckpt(sess,ckpt):
+    saver = tf.train.Saver()
+    tf.logging.info(f"[LOAD]{ckpt}")
+    try:
+        saver.restore(sess, ckpt)
+    except:
+        print("======LOAD ERROR======")
+        print_variables()
+        print_ckpt(sess,ckpt)
+        raise Exception
+    return saver
+
 
 def get_pos_weight(data):
     adjs=data.adjs
@@ -60,7 +90,7 @@ def train(sess,config):
     print("norm=",info.pos_weight)
 
     model = CoreModel(sess,config,info,construct_feed_callback=construct_feed)
-    model.build(importlib.import_module(config["model.py"]))
+    load_model_py(model, config["model.py"])
 
     vars_to_train = tf.trainable_variables()
     for v in vars_to_train:
@@ -143,10 +173,7 @@ def reconstruct(sess,config):
         print(v)
 
     # initialize session
-    saver = tf.train.Saver()
-    #sess.run(tf.global_variables_initializer())
-    print("[load]",config["load_model"])
-    saver.restore(sess,config["load_model"])
+    restore_ckpt(sess,config["load_model"])
 
     start_t = time.time()
     cost,acc,pred_data=model.pred_and_eval(all_data)
@@ -187,8 +214,7 @@ def generate(sess,config):
     # initialize session
     saver = tf.train.Saver()
     #sess.run(tf.global_variables_initializer())
-    print("[load]",config["load_model"])
-    saver.restore(sess,config["load_model"])
+    restore_ckpt(sess,config["load_model"])
 
     start_t = time.time()
     generated_data=None
@@ -205,8 +231,7 @@ def generate(sess,config):
 
 
 
-
-if __name__ == '__main__':
+def main():
     seed = 1234
     np.random.seed(seed)
     tf.set_random_seed(seed)
@@ -276,3 +301,5 @@ if __name__ == '__main__':
         fp=open(args.save_config,"w")
         json.dump(config,fp, indent=4)
 
+if __name__ == '__main__':
+    main()
