@@ -1,3 +1,4 @@
+import os
 from itertools import cycle
 
 import numpy as np
@@ -164,3 +165,29 @@ def make_r2_plot(true_label, pred_score, result_dir, postfix=None):
     #plt.title('ROC_curve')
     #plt.legend(loc="lower right", fontsize=10)
 
+
+def plot_cost(config, data, model, prefix=""):
+    result_path = config["plot_path"]
+    os.makedirs(result_path, exist_ok=True)
+    training_acc = [el["training_accuracy"] for el in model.training_metrics_list]
+    validation_acc = [el["validation_accuracy"] for el in model.validation_metrics_list]
+    make_cost_acc_plot(model.training_cost_list, model.validation_cost_list, training_acc, validation_acc,
+                       result_path+prefix)
+
+
+def plot_auc(config, labels, pred_data, prefix=""):
+    result_path = config["plot_path"]
+    os.makedirs(result_path, exist_ok=True)
+    if config["plot_multitask"]:
+        make_multitask_auc_plot(labels, pred_data, result_path+prefix)
+    else:
+        make_auc_plot(labels, pred_data, result_path+prefix)
+
+
+def plot_r2(config, labels, pred_data, prefix=""):
+    result_path = config["plot_path"]
+    os.makedirs(result_path, exist_ok=True)
+    if config["plot_multitask"]:
+        print("not supported")
+    else:
+        make_r2_plot(labels, pred_data, result_path+prefix)

@@ -17,9 +17,8 @@ from tensorflow.python.framework import graph_util
 import kgcn.layers
 from kgcn.data_util import load_and_split_data, load_data, split_data
 from kgcn.core import CoreModel
-from kgcn.make_plots import make_multitask_auc_plot
-from kgcn.make_plots import make_r2_plot
-from kgcn.make_plots import make_auc_plot, make_cost_acc_plot
+from kgcn.make_plots import plot_cost, plot_auc, plot_r2
+from kgcn.make_plots import make_cost_acc_plot
 
 
 class dotdict(dict):
@@ -123,33 +122,6 @@ def get_default_config():
     config["prediction_data"] = None
 
     return config
-
-
-def plot_cost(config, data, model, prefix=""):
-    result_path = config["plot_path"]
-    os.makedirs(result_path, exist_ok=True)
-    training_acc = [el["training_accuracy"] for el in model.training_metrics_list]
-    validation_acc = [el["validation_accuracy"] for el in model.validation_metrics_list]
-    make_cost_acc_plot(model.training_cost_list, model.validation_cost_list, training_acc, validation_acc,
-                       result_path+prefix)
-
-
-def plot_auc(config, labels, pred_data, prefix=""):
-    result_path = config["plot_path"]
-    os.makedirs(result_path, exist_ok=True)
-    if config["plot_multitask"]:
-        make_multitask_auc_plot(labels, pred_data, result_path+prefix)
-    else:
-        make_auc_plot(labels, pred_data, result_path+prefix)
-
-
-def plot_r2(config, labels, pred_data, prefix=""):
-    result_path = config["plot_path"]
-    os.makedirs(result_path, exist_ok=True)
-    if config["plot_multitask"]:
-        print("not supported")
-    else:
-        make_r2_plot(labels, pred_data, result_path+prefix)
 
 
 def load_model_py(model, model_py, is_train=True, feed_embedded_layer=False, batch_size=None):
