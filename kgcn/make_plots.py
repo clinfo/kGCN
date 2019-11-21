@@ -30,52 +30,54 @@ def make_cost_acc_plot(train_cost_list, valid_cost_list, train_acc_list, valid_a
     plt.ylabel(metric_show_name)
     plt.legend(loc='lower right')
     plt.savefig(result_dir + metric_name+".png")
-    print("[SAVE] cost and accuracy in [ {} ] ".format(result_dir +metric_name+ ".png"))
+    print("[SAVE] cost and accuracy in [ {} ] ".format(result_dir + metric_name + ".png"))
     plt.clf()
 
+
 def regularize_multitask_label(label):
-    if len(label.shape)==2:
-        num_classes=int(np.max(label)+1)
+    if len(label.shape) == 2:
+        num_classes = int(np.max(label)+1)
         encoder = OneHotEncoder(n_values=num_classes)
-        x=[]
+        x = []
         for l in label:
-            l=l.reshape((-1,1))
+            l = l.reshape((-1, 1))
             x.append(encoder.fit_transform(l).toarray())
         return np.array(x)
-    elif len(label.shape)==3:
+    elif len(label.shape) == 3:
         return label
     else:
         pass
     return None
+
+
 def regularize_multitask_score(score):
-    if len(score.shape)==2:
-        score0=1-score
-        score1=score
-        return np.stack((score0,score1),axis=-1)
-    elif len(score.shape)==3:
+    if len(score.shape) == 2:
+        score0 = 1-score
+        score1 = score
+        return np.stack((score0, score1), axis=-1)
+    elif len(score.shape) == 3:
         return score
     else:
         pass
     return None
 
+
 def make_multitask_auc_plot(true_label, pred_score, result_dir, plot_each_class=True):
-    true_label=regularize_multitask_label(true_label)
-    pred_score=regularize_multitask_score(pred_score)
-    num_task=true_label.shape[1]
+    true_label = regularize_multitask_label(true_label)
+    pred_score = regularize_multitask_score(pred_score)
+    num_task = true_label.shape[1]
     for i in range(num_task):
-        make_auc_plot(true_label[:,i,:],pred_score[:,i,:],result_dir,plot_each_class,postfix=str(i))
+        make_auc_plot(true_label[:, i, :], pred_score[:, i, :], result_dir, plot_each_class, postfix=str(i))
 
-def make_auc_plot(true_label, pred_score, result_dir, plot_each_class=True,postfix=None):
 
-    print(true_label.shape,pred_score.shape)
+def make_auc_plot(true_label, pred_score, result_dir, plot_each_class=True, postfix=None):
+    print(true_label.shape, pred_score.shape)
     n_classes = len(true_label[0])
     # Compute ROC curve and ROC area for each class
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
     pred_score = np.array(pred_score)
-#	true_label = pd.DataFrame(true_label)
-#	pred_score = pd.DataFrame(pred_score)
     for i in range(n_classes):
         fpr[i], tpr[i], _ = roc_curve(true_label[:, i], pred_score[:, i], pos_label=1)
         roc_auc[i] = auc(fpr[i], tpr[i])
@@ -98,20 +100,20 @@ def make_auc_plot(true_label, pred_score, result_dir, plot_each_class=True,postf
     # Plot all ROC curves
     plt.figure()
     plt.plot(fpr["micro"], tpr["micro"],
-            label='micro-average ROC curve (area = {0:0.2f})'
-                ''.format(roc_auc["micro"]),
-            color='deeppink', linestyle=':', linewidth=4)
+             label='micro-average ROC curve (area = {0:0.2f})'
+                   ''.format(roc_auc["micro"]),
+             color='deeppink', linestyle=':', linewidth=4)
     plt.plot(fpr["macro"], tpr["macro"],
-            label='macro-average ROC curve (area = {0:0.2f})'
-                ''.format(roc_auc["macro"]),
-            color='navy', linestyle=':', linewidth=4)
+             label='macro-average ROC curve (area = {0:0.2f})'
+                   ''.format(roc_auc["macro"]),
+             color='navy', linestyle=':', linewidth=4)
     lw = 2
     colors = cycle(['aqua', 'darkorange', 'cornflowerblue', 'green', 'darkred'])
     if plot_each_class:
         for i, color in zip(range(n_classes), colors):
             plt.plot(fpr[i], tpr[i], color=color, lw=lw,
-                    label='ROC curve of class {0} (area = {1:0.2f})'
-                    ''.format(i, roc_auc[i]))
+                     label='ROC curve of class {0} (area = {1:0.2f})'
+                           ''.format(i, roc_auc[i]))
     plt.plot([0, 1], [0, 1], 'k--', lw=lw)
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
@@ -120,9 +122,9 @@ def make_auc_plot(true_label, pred_score, result_dir, plot_each_class=True,postf
     plt.title('ROC_curve')
     plt.legend(loc="lower right", fontsize=10)
     if postfix is None:
-        filename=result_dir + "auc.png"
+        filename = result_dir + "auc.png"
     else:
-        filename=result_dir + "auc"+postfix+".png"
+        filename = result_dir + "auc"+postfix+".png"
     plt.savefig(filename)
     plt.clf()
     print("[SAVE] ROC/AUC in [ {} ] ".format(filename))
@@ -130,40 +132,34 @@ def make_auc_plot(true_label, pred_score, result_dir, plot_each_class=True,postf
 
 def make_r2_plot(true_label, pred_score, result_dir, postfix=None):
     plt.figure()
-    r2 = sklearn.metrics.r2_score(true_label,pred_score)
-    mse = sklearn.metrics.mean_squared_error(true_label,pred_score)
-    if len(true_label.shape)==1:
-        true_label=true_label[:,np.newaxis]
-    x=true_label
-    y=pred_score
+    r2 = sklearn.metrics.r2_score(true_label, pred_score)
+    mse = sklearn.metrics.mean_squared_error(true_label, pred_score)
+    if len(true_label.shape) == 1:
+        true_label = true_label[:, np.newaxis]
+    x = true_label
+    y = pred_score
     # Create linear regression object
     regr = LinearRegression()
-    regr.fit(x,y)
+    regr.fit(x, y)
     yp = regr.predict(x)
     # The coefficients
     print('Coefficients: \n', regr.coef_)
     # The mean squared error
-    print("Mean squared error: %.2f"% mse)
+    print("Mean squared error: %.2f" % mse)
     # Explained variance score: 1 is perfect prediction
     print('r2: %.2f' % r2)
 
     # Plot outputs
-    plt.scatter(x,y,  color='black')
+    plt.scatter(x, y,  color='black')
     plt.plot(x, yp, color='blue', linewidth=3)
 
     if postfix is None:
-        filename=result_dir + "r2.png"
+        filename = result_dir + "r2.png"
     else:
-        filename=result_dir + "r2"+postfix+".png"
+        filename = result_dir + "r2"+postfix+".png"
     plt.savefig(filename)
     plt.clf()
     print("[SAVE] R2 plot in [ {} ] ".format(filename))
-    #plt.xlim([0.0, 1.0])
-    #plt.ylim([0.0, 1.05])
-    #plt.xlabel('False Positive Rate')
-    #plt.ylabel('True Positive Rate')
-    #plt.title('ROC_curve')
-    #plt.legend(loc="lower right", fontsize=10)
 
 
 def plot_cost(config, data, model, prefix=""):
