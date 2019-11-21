@@ -13,24 +13,26 @@ from sklearn.preprocessing import OneHotEncoder
 
 
 def make_cost_acc_plot(train_cost_list, valid_cost_list, train_acc_list, valid_acc_list, result_dir, metric_name="acc", metric_show_name="Accuracy"):
+    loss_path = os.path.join(result_dir, "loss.png")
     plt.plot(train_cost_list, 'k-', label='Train Set Cost')
     plt.plot(valid_cost_list, 'r-', label='Validation Set Cost')
-    lw = 2
     plt.title("Loss per Epochs")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.legend(loc='lower right')
-    plt.savefig(result_dir + "loss.png")
+    plt.savefig(loss_path)
+    print(f"[SAVE] Cost figure in [ {loss_path} ] ")
     plt.clf()
 
+    metric_path = os.path.join(result_dir, f"{metric_name}.png")
     plt.plot(train_acc_list, 'k-', label='Train Set '+metric_show_name)
     plt.plot(valid_acc_list, 'r-', label='Validation Set '+metric_show_name)
     plt.title('Train and Validation '+metric_show_name)
     plt.xlabel('Epochs')
     plt.ylabel(metric_show_name)
     plt.legend(loc='lower right')
-    plt.savefig(result_dir + metric_name+".png")
-    print("[SAVE] cost and accuracy in [ {} ] ".format(result_dir + metric_name + ".png"))
+    plt.savefig(metric_path)
+    print(f"[SAVE] {metric_show_name} figure in [ {metric_path} ] ")
     plt.clf()
 
 
@@ -40,8 +42,8 @@ def regularize_multitask_label(label):
         encoder = OneHotEncoder(n_values=num_classes)
         x = []
         for l in label:
-            l = l.reshape((-1, 1))
-            x.append(encoder.fit_transform(l).toarray())
+            l_ = l.reshape((-1, 1))
+            x.append(encoder.fit_transform(l_).toarray())
         return np.array(x)
     elif len(label.shape) == 3:
         return label
@@ -121,10 +123,7 @@ def make_auc_plot(true_label, pred_score, result_dir, plot_each_class=True, post
     plt.ylabel('True Positive Rate')
     plt.title('ROC_curve')
     plt.legend(loc="lower right", fontsize=10)
-    if postfix is None:
-        filename = result_dir + "auc.png"
-    else:
-        filename = result_dir + "auc"+postfix+".png"
+    filename = os.path.join(result_dir, "auc.png") if postfix is None else os.path.join(result_dir, f"auc{postfix}.png")
     plt.savefig(filename)
     plt.clf()
     print("[SAVE] ROC/AUC in [ {} ] ".format(filename))
@@ -153,10 +152,7 @@ def make_r2_plot(true_label, pred_score, result_dir, postfix=None):
     plt.scatter(x, y,  color='black')
     plt.plot(x, yp, color='blue', linewidth=3)
 
-    if postfix is None:
-        filename = result_dir + "r2.png"
-    else:
-        filename = result_dir + "r2"+postfix+".png"
+    filename = os.path.join(result_dir, "r2.png") if postfix is None else os.path.join(result_dir, f"r2{postfix}.png")
     plt.savefig(filename)
     plt.clf()
     print("[SAVE] R2 plot in [ {} ] ".format(filename))
