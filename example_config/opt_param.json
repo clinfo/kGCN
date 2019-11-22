@@ -1,5 +1,5 @@
 {
-    "model.py": "example_model.opt_param",
+    "model.py": "example_model.opt_param:GCN",
     "save_result_test": "./result/synth_test.csv",
     "save_result_train": "./result/synth_train.csv",
     "save_info_valid": "./result/synth.json",

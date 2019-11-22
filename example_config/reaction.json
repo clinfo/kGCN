@@ -1,5 +1,5 @@
 {
-    "model.py": "example_model.model_rxn_3layer",
+    "model.py": "example_model.model_rxn_3layer:GCN",
     "load_model": "model/reaction/model.best.ckpt",
     "order": 1,
     "dataset": "example_jbl/reaction.jbl",
