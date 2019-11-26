@@ -3,10 +3,13 @@
 This library is for visualizing for most effective input features.
 
 ## Requirements
-
-* python >= 3.6.5
+* python >= 3.6
 * matplotlib >= 2.0.0
+* networkx
+
+### optional
 * bioplot >= 0.0.2
+* ipython
 
 ## Installation
 

@@ -1,3 +1,2 @@
 networkX
 matplotlib
-bioplot >= 0.0.2
