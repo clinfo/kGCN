@@ -2,7 +2,6 @@ import os
 import sys
 import time
 import pickle
-import collections
 from collections import OrderedDict
 from pathlib import Path
 import string
@@ -13,35 +12,8 @@ from rdkit import Chem
 from scipy.sparse import coo_matrix
 import tensorflow as tf
 
+from kgcn.data_util import sparse_to_dense, sparse_to_dense_core
 from kgcn.feed import construct_feed
-
-
-def sparse_to_dense(sparse):
-    """ convert sparse matrix in COOrdinate format to dense matrix.
-    Args:
-        sparse: sparse matrix in coordinate format
-    Returns:
-        Return a dense matrix representation of the matrix. The dense matrix is in ndarray format.
-    """
-    index = sparse[0]  # list(row index, column index)
-    data = sparse[1]
-    shape = sparse[2]  # matrix size
-    return sparse_to_dense_core(index, data, shape)
-
-
-def sparse_to_dense_core(index, data, shape):
-    """ convert sparse matrix in COOrdinate format to dense matrix. (more flexible arguments)
-    Args:
-        index: list(row index, column index)
-        data:
-        shape: matrix size
-    Returns:
-        Return a dense matrix representation of a sparse matrix. The dense matrix is in ndarray format.
-    """
-    i = index[:, 0]
-    j = index[:, 1]
-    coo = coo_matrix((data, (i, j)), shape)
-    return coo.todense().A  # convert numpy.matrix to ndarray format.
 
 
 class CompoundVisualizer(object):
