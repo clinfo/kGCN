@@ -544,13 +544,11 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
                                 "target_label": target_index,
                                 "true_label": true_label, }
                             )
-            if args.verbose:
-                print(f"prediction score: {target_score}\n"
-                      f"check score: {visualizer.end_score - visualizer.start_score}\n"
-                      f"sum of IG: {visualizer.sum_of_ig}\n"
-                      f"time : {time.time() - s}\n")
+            logger.info(f"prediction score: {target_score}\n"
+                        f"check score: {visualizer.end_score - visualizer.start_score}\n"
+                        f"sum of IG: {visualizer.sum_of_ig}\n"
+                        f"time : {time.time() - s}\n")
             all_count += 1
             if np.argmax(_out_prediction) == int(true_label):
                 correct_count += 1
-    if args.verbose:
-        print(f"accuracy(visualized_data) = {correct_count/all_count}")
+    logger.info(f"accuracy(visualized_data) = {correct_count/all_count}")

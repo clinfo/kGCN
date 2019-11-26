@@ -3,7 +3,6 @@ from pathlib import Path
 from logging import getLogger, StreamHandler, Formatter
 from numbers import Number
 
-from bioplot.bioplot import Bioplot
 import joblib
 import numpy as np
 import matplotlib.cm as cm
@@ -46,17 +45,9 @@ class GCNVisualizer(object):
     def __init__(self, in_filename, out_filename=None, show_adj=True, show_feat=True, show_modals=True,
                  show_struct=True, map_on_struct='feat', *, logger=None, loglevel='DEBUG', img_fmt='png',
                  adj_absmax=None, feat_absmax=None, modal_absmax=None):
-        if logger is None:
-            self.logger = get_logger('gcnvisualizer', loglevel)
-        else:
-            self.logger = logger
-
-        if out_filename is None:
-            path, ext = os.path.splitext(in_filename)
-            out_filename = path
-        else:
-            out_filename = out_filename
-        print(str(out_filename))
+        self.logger = get_logger('gcnvisualizer', loglevel) if logger is None else logger
+        out_filename = os.path.splitext(in_filename)[0] if out_filename is None else out_filename
+        print(out_filename)
 
         self.out_filename = Path(out_filename).expanduser().resolve()
         print(str(self.out_filename))
@@ -95,14 +86,14 @@ class GCNVisualizer(object):
                 "we assume pickle data contains dictionary data structure. "
             self.logger.info(f'load {filename}')
         return data
-    def _check_and_absmax(self,absmax,data, name="data"):
+
+    def _check_and_absmax(self, absmax, data, name="data"):
         if isinstance(absmax, Number):
             self.logger.info(f'absmax = {absmax}')
             return absmax
         else:
             self.logger.info(f'use default abamax with np.max(np.abs({name}))')
             return np.max(np.abs(data))
-
         
     def _get_atoms_color(self, atom_num):
         ig_data = self.ig_dict['features_IG']
@@ -110,8 +101,8 @@ class GCNVisualizer(object):
         color_atoms = {}
         cmap = cm.coolwarm
         values = [np.sum(ig_data[row]) for row in range(atom_num)]
-        absmax= self._check_and_absmax(self.feat_absmax,values,"featureIG")
-        for row,value in enumerate(values):
+        absmax = self._check_and_absmax(self.feat_absmax, values, "featureIG")
+        for row, value in enumerate(values):
             # condition on the highlighting atom
             if value != 0.0:
                 highlight_atoms.append(row)
@@ -125,17 +116,16 @@ class GCNVisualizer(object):
         from rdkit.Chem import rdDepictor
         from rdkit.Chem.Draw import rdMolDraw2D
         from rdkit.Chem.Draw.MolDrawing import DrawingOptions
-        from collections import defaultdict
 
         self.logger.info(Chem.MolToSmiles(mol))
 
         rdDepictor.Compute2DCoords(mol)
         drawer = rdMolDraw2D.MolDraw2DSVG(*figsize)
 
-        drawer.drawOptions().updateAtomPalette({k : (0, 0, 0) for k in DrawingOptions.elemDict.keys()})
+        drawer.drawOptions().updateAtomPalette({k: (0, 0, 0) for k in DrawingOptions.elemDict.keys()})
         try:
             drawer.SetLineWidth(3)
-        except AttributeError: # for RDkit bug : https://github.com/rdkit/rdkit/issues/2251
+        except AttributeError:  # for RDkit bug : https://github.com/rdkit/rdkit/issues/2251
             pass
         drawer.SetFontSize(0.7)
 
@@ -151,10 +141,10 @@ class GCNVisualizer(object):
         drawer.FinishDrawing()
         svg = drawer.GetDrawingText().replace('svg:', '')
         SVG(svg)
-        saved_filename = "{}_mol.svg".format(str(self.out_filename))
+        saved_filename = f"{self.out_filename}_mol.svg"
         with open(saved_filename, "w") as f:
             f.write(svg)
-        self.logger.info("[SAVE] "+saved_filename)
+        self.logger.info(f"[SAVE] {saved_filename}")
 
     def _draw_structure(self):
         import networkx as nx
@@ -171,9 +161,9 @@ class GCNVisualizer(object):
         plt.axis('off')
         plt.axes().set_aspect('equal')
         plt.title(Chem.MolToSmiles(self.ig_dict['mol']))
-        saved_filename = "{}_nx_mol.png".format(str(self.out_filename))
+        saved_filename = f"{self.out_filename}_nx_mol.png"
         plt.savefig(saved_filename)
-        self.logger.info("[SAVE] "+saved_filename)
+        self.logger.info(f"[SAVE] {saved_filename}")
         plt.close()
 
     def _draw_from_adj_mat(self):
@@ -197,9 +187,9 @@ class GCNVisualizer(object):
         nx.draw(_G, pos=pos, node_color=node_color, weight=200)
 
         self.logger.info(Chem.MolToSmiles(self.ig_dict['mol']))
-        saved_filename = "{}_nx_mol.png".format(str(self.out_filename))
+        saved_filename = f"{self.out_filename}_nx_mol.png"
         plt.savefig(saved_filename)
-        self.logger.info("[SAVE] "+saved_filename)
+        self.logger.info(f"[SAVE] {saved_filename}")
         plt.close()
 
     def draw_structure(self):
@@ -212,10 +202,10 @@ class GCNVisualizer(object):
                 self._draw_mol_structure(self.ig_dict['mol'])
                 return True
             except ImportError as e:
+                import traceback
+                traceback.print_exc()
                 self.logger.warning("you don't install rdkit yet.")
                 self.logger.warning("skip drawing a structure image.")
-            #except:
-            #    self.logger.warning("RDkit error")
         if 'nodes' in list(self.ig_dict.keys()):
             self._draw_structure()
             return True
@@ -231,20 +221,22 @@ class GCNVisualizer(object):
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(im, cax=cax)
-        plt.savefig(str(self.out_filename) + '_adj.png')
-        self.logger.info("[SAVE] "+str(self.out_filename) + '_adj.png')
+        filename_adj = f"{self.out_filename}_adj.png"
+        plt.savefig(filename_adj)
+        self.logger.info(f"[SAVE] {filename_adj}")
         plt.close()
 
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-        absmax= self._check_and_absmax(self.adj_absmax,self.ig_dict['adjs_IG'],"adjIG")
+        absmax = self._check_and_absmax(self.adj_absmax, self.ig_dict['adjs_IG'], "adjIG")
         im = ax.imshow(self.ig_dict['adjs_IG'], aspect='equal', cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(im, cax=cax)
-        plt.savefig(str(self.out_filename) + '_adj_IG.png')
-        self.logger.info("[SAVE] "+str(self.out_filename) + '_adj_IG.png')
+        filename_adj_ig = f"{self.out_filename}_adj_IG.png"
+        plt.savefig(filename_adj_ig)
+        self.logger.info(f"[SAVE] {filename_adj_ig}")
         plt.close()
 
     def draw_feat(self):
@@ -254,14 +246,15 @@ class GCNVisualizer(object):
         fig = plt.figure()
         ax = fig.add_subplot(111)
 
-        absmax= self._check_and_absmax(self.feat_absmax,self.ig_dict['features_IG'],"featureIG")
+        absmax = self._check_and_absmax(self.feat_absmax, self.ig_dict['features_IG'], "featureIG")
 
         im = ax.imshow(self.ig_dict['features_IG'], aspect='equal', cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)
         plt.colorbar(im, cax=cax)
-        plt.savefig(str(self.out_filename) + '_features_IG.png')
-        self.logger.info("[SAVE] "+str(self.out_filename) + "_features_IG.png")
+        filename = f"{self.out_filename}_features_IG.png"
+        plt.savefig(filename)
+        self.logger.info(f"[SAVE] {filename}")
         plt.close()
 
     def draw_modals(self):
@@ -270,12 +263,13 @@ class GCNVisualizer(object):
         self.logger.info(_modal_name_list)
 
         for modal_name in _modal_name_list:
-            self.logger.info("drawing %s." % modal_name)
+            self.logger.info(f"drawing {modal_name}.")
             fig = plt.figure()
             ax = fig.add_subplot(111)
 
             if 'embedded_layer_IG' == modal_name:
                 if 'amino_acid_seq' in self.ig_dict.keys():
+                    from bioplot.bioplot import Bioplot
                     bplot = Bioplot(ax)
                     seq = self.ig_dict['amino_acid_seq']
                     data = np.sum(np.squeeze(self.ig_dict[modal_name]), axis=1)
@@ -285,22 +279,21 @@ class GCNVisualizer(object):
                     # backward compability
                     data = np.sum(np.squeeze(self.ig_dict[modal_name]), axis=1, keepdims=True)
                     absmax = np.max(np.abs(self.ig_dict[modal_name]))
-                    im = ax.imshow(data, aspect='auto', cmap=plt.get_cmap('bwr'),
-                                   vmin=-absmax, vmax=absmax)
+                    im = ax.imshow(data, aspect='auto', cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
                     divider = make_axes_locatable(ax)
                     cax = divider.append_axes("right", size="5%", pad=0.05)
                     plt.colorbar(im, cax=cax)
 
             else:
-                absmax=_check_and_absmax(self.modal_absmax,self.ig_dict[modal_name],modal_name+"IG")
+                absmax = self._check_and_absmax(self.modal_absmax, self.ig_dict[modal_name], modal_name+"IG")
                 im = ax.imshow(self.ig_dict[modal_name], aspect='auto',
                                cmap=plt.get_cmap('bwr'), vmin=-absmax, vmax=absmax)
                 divider = make_axes_locatable(ax)
                 cax = divider.append_axes("right", size="5%", pad=0.05)
                 plt.colorbar(im, cax=cax)
-
-            self.logger.info("[SAVE] "+str(self.out_filename) + f'_{modal_name}.png')
-            plt.savefig(str(self.out_filename) + f'_{modal_name}.png')
+            filename = f"{self.out_filename}_{modal_name}.png"
+            self.logger.info(f"[SAVE] {filename}")
+            plt.savefig(filename)
             plt.close()
 
     def run(self):
