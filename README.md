@@ -212,7 +212,7 @@ kgcn visualize --config example_config/reaction.json
 ```
 - Finally, run "gcnv" command to create the figures of the visualization.
 ```bash
-gcnv -i visualization/mol_0000_task_0_active_all_scaling.jbl
+gcnv -i visualization/mol_0000_task_0_class285_all_scaling.jbl
 ```
 The implementation of extracting reaction template on GitHub at https://github.com/clinfo/extract_reaction_template.git.  
 (For instruction of `gcnv`, please see gcnvisualizer/README.md)
