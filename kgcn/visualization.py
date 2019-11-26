@@ -143,7 +143,7 @@ class CompoundVisualizer(object):
         _out_dict["check_score"] = self.end_score - self.start_score
         _out_dict["sum_of_IG"] = self.sum_of_ig
 
-        self.logger.info(f"[SAVE] {filename}")
+        print(f"[SAVE] {filename}")
         with open(filename, 'wb') as f:
             if suffix == '.jbl':
                 joblib.dump(_out_dict, f)
@@ -483,7 +483,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
             true_label = np.argmax(all_data.labels[compound_id]) if not multitask else all_data.labels[compound_id, idx]
             # convert a assay string according to a prediction score
             if len(_out_prediction) > 2:  # softmax output
-                assay_str = "class"+str(np.argmax(_out_prediction))
+                assay_str = f"class {np.argmax(_out_prediction)}"
             elif len(_out_prediction) == 2:  # softmax output
                 assay_str = "active" if _out_prediction[1] > 0.5 else "inactive"
             else:
@@ -525,9 +525,11 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
             except:
                 mol_name = None
                 mol_obj = None
-            print(f"No.{compound_id}, task={idx}: \"{mol_name}\": {assay_str} (score= {_out_prediction}, "
-                  f"true_label= {true_label}, target_label= {target_index}, target_score= {target_score})")
-            # --- 各化合物に対応した可視化オブジェクトにより可視化処理を実行
+            if args.verbose:
+                print(f"No.{compound_id}, task={idx}: \"{mol_name}\": {assay_str} (score= {_out_prediction}, "
+                      f"true_label= {true_label}, target_label= {target_index}, target_score= {target_score})")
+            else:
+                print(f"No.{compound_id}, task={idx}: \"{mol_name}\": {assay_str}")
             visualizer = CompoundVisualizer(sess, outdir, compound_id, info, config, batch_idx, placeholders, all_data,
                                             target_prediction, logger=logger, model=model,
                                             ig_modal_target=ig_modal_target, perturbation_target=ig_modal_target,
@@ -542,11 +544,13 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
                                 "target_label": target_index,
                                 "true_label": true_label, }
                             )
-            print(f"prediction score: {target_score}\n"
-                  f"check score: {visualizer.end_score - visualizer.start_score}\n"
-                  f"sum of IG: {visualizer.sum_of_ig}\n"
-                  f"time : {time.time() - s}\n")
+            if args.verbose:
+                print(f"prediction score: {target_score}\n"
+                      f"check score: {visualizer.end_score - visualizer.start_score}\n"
+                      f"sum of IG: {visualizer.sum_of_ig}\n"
+                      f"time : {time.time() - s}\n")
             all_count += 1
             if np.argmax(_out_prediction) == int(true_label):
                 correct_count += 1
-    print("accuracy(visualized_data)=", correct_count/all_count)
+    if args.verbose:
+        print(f"accuracy(visualized_data) = {correct_count/all_count}")

@@ -655,13 +655,16 @@ def main():
     parser.add_argument('--graph_distance', type=int, default=1,
                         help=("set the distance from target node. An output graph is created within "
                               "the distance from target node. :[1, ~)"))
-    parser.add_argument('--verbose', type=str, default='INFO',
+    parser.add_argument('--verbose', action="store_true",
                         help="set log level")
     parser.add_argument('--visualization_header', type=str, default=None,
                         help="filename header of visualization")
 
     args = parser.parse_args()
-    tf.logging.set_verbosity(args.verbose.upper())
+    if args.verbose:
+        tf.logging.set_verbosity(tf.logging.DEBUG)
+    else:
+        tf.logging.set_verbosity(tf.logging.WARN)
 
     # config
     config = get_default_config()
