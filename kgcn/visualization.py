@@ -26,16 +26,13 @@ class CompoundVisualizer(object):
         placeholders:
         all_data:
         prediction:
-        mol: rdkit.Chem
-        name (str):
-        assay_str (str):
         model:
         logger:
         perturbation_target:
     """
     def __init__(self, sess, outdir, idx, info, config, batch_idx, placeholders, all_data, prediction, *,
                  model=None, logger=None, ig_modal_target='all', perturbation_target='all', grads=None):
-        self.logger = _default_logger if logger is None else logger
+        self.logger = logger
         self.outdir = outdir
         self.idx = idx
         self.batch_idx = batch_idx
@@ -66,10 +63,7 @@ class CompoundVisualizer(object):
             self._set_ig_modal_target()
             self.perturbation_target = [self.perturbation_target]
 
-        if self.ig_modal_target == 'all':
-            self.ig_modal_target = self.perturbation_target
-        else:
-            self.ig_modal_target = [self.ig_modal_target]
+        self.ig_modal_target = self.perturbation_target if self.ig_modal_target == "all" else [self.ig_modal_target]
 
         self.logger.info(f"target modal = {self.ig_modal_target}")
         self.logger.info(f"scaling modal = {self.perturbation_target}")
@@ -99,11 +93,11 @@ class CompoundVisualizer(object):
             self.shapes['embedded_layer'] = _shape
 
         if self.info.vector_modal_name is not None:
-            for key, ele in self.info.vector_modal_name.items():
-                self.logger.debug(f"for {key}, {ele} in self.info.vector_modal_name.items()")
-                if key in self.placeholders:
-                    all_ig_modal_target.append(key)
-                    self.shapes[key] = (1, self.info.vector_modal_dim[ele])
+            for k, v in self.info.vector_modal_name.items():
+                self.logger.debug(f"for {k}, {v} in self.info.vector_modal_name.items()")
+                if k in self.placeholders:
+                    all_ig_modal_target.append(k)
+                    self.shapes[k] = (1, self.info.vector_modal_dim[v])
         return all_ig_modal_target
 
     def _set_ig_modal_data(self, sess):
@@ -118,18 +112,16 @@ class CompoundVisualizer(object):
         if 'embedded_layer' in self.ig_modal_target:
             _data = self.all_data['sequences']
             _data = np.expand_dims(_data[self.idx, ...], axis=0)
-            _data = self.model.embedding(sess, _data)
-            self.ig_modal_target_data['embedded_layer'] = _data
+            self.ig_modal_target_data['embedded_layer'] = self.model.embedding(sess, _data)
 
         if self.info.vector_modal_name is not None:
-            for key, ele in self.info.vector_modal_name.items():
-                self.logger.debug(f"for {key}, {ele} in self.info.vector_modal_name.items()")
-                if key in self.ig_modal_target:
-                    self.ig_modal_target_data[key] = self.all_data.vector_modal[ele][self.idx]
+            for k, v in self.info.vector_modal_name.items():
+                self.logger.debug(f"for {k}, {v} in self.info.vector_modal_name.items()")
+                if k in self.ig_modal_target:
+                    self.ig_modal_target_data[k] = self.all_data.vector_modal[v][self.idx]
 
     def dump(self, filename=None, additional_data=None):
-        if additional_data is None:
-            additional_data = {}
+        additional_data = {} if additional_data is None else additional_data
         filename = Path(self.outdir) / filename
         suffix = filename.suffix
         support_suffixes = ['.pkl', '.npz', '.jbl', '.gml']
@@ -141,12 +133,12 @@ class CompoundVisualizer(object):
             self.logger.info('self.amino_acid_seq is not used.')
             self.logger.info('backward compatibility')
         #
-        for key in self.IGs:
-            _out_dict[key] = self.ig_modal_target_data[key]
-            _out_dict[key+'_IG'] = self.IGs[key]
+        for k in self.IGs:
+            _out_dict[k] = self.ig_modal_target_data[k]
+            _out_dict[k+'_IG'] = self.IGs[k]
         #
-        for key, val in additional_data.items():
-            _out_dict[key] = val
+        for k, v in additional_data.items():
+            _out_dict[k] = v
 
         _out_dict["check_score"] = self.end_score - self.start_score
         _out_dict["sum_of_IG"] = self.sum_of_ig
@@ -189,9 +181,9 @@ class CompoundVisualizer(object):
             method: IG, Gradient+, Gradient, Smooth grad, Smooth IG
         """
         IGs = OrderedDict()
-        for key in self.ig_modal_target:
-            self.logger.debug(f'initialize itegrated values: {key} ')
-            IGs[key] = np.zeros(self.shapes[key])
+        for k in self.ig_modal_target:
+            self.logger.debug(f'initialize itegrated values: {k} ')
+            IGs[k] = np.zeros(self.shapes[k])
 
         # grads.shape: #ig_placeholders x <input_shape>
         if method == "ig":  # Integrated gradients
@@ -293,10 +285,8 @@ class KnowledgeGraphVisualizer:
         self.logger = logger
         self.placeholders = placeholders
         self.all_data = all_data
-
         self.prediction = prediction
         self.model = model
-
         # set `adjs` as visuzalization target
         self.perturbation_target = ['embedded_layer', ]
         self.ig_modal_target = ['embedded_layer', ]
@@ -306,9 +296,7 @@ class KnowledgeGraphVisualizer:
         self.ig_modal_target_data = {}
         _data = self.all_data['nodes']
         _data = np.expand_dims(_data[0, ...], axis=0)
-
-        _data = self.model.embedding(sess, _data)
-        self.ig_modal_target_data['embedded_layer'] = _data
+        self.ig_modal_target_data['embedded_layer'] = self.model.embedding(sess, _data)
 
     def cal_integrated_gradients(self, sess, placeholders, prediction, divide_number):
         """
@@ -323,9 +311,9 @@ class KnowledgeGraphVisualizer:
         IGs = OrderedDict()
 
         self.logger.debug(f"self.ig_modal_target = {self.ig_modal_target}")
-        for key in self.ig_modal_target:
-            self.logger.info(f"{key}: np.zeros({self.shapes[key]})")
-            IGs[key] = np.zeros(self.shapes[key], dtype=np.float32)
+        for k in self.ig_modal_target:
+            self.logger.info(f"{k}: np.zeros({self.shapes[k]})")
+            IGs[k] = np.zeros(self.shapes[k], dtype=np.float32)
         for k in range(divide_number):
             s = time.time()
             scaling_coef = (k + 1) / float(divide_number)
@@ -400,10 +388,7 @@ def cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction
     logger.info(f"config['visualize_target'] = {config['visualize_target']}")
 
     if config['visualize_target'] is None:
-        if 'edge' in config['visualize_type']:
-            n_samples = all_data.label_list.shape[1]
-        else:
-            n_samples = prediction.shape[1]
+        n_samples = all_data.label_list.shape[1] if 'edge' in config['visualize_type'] else prediction.shape[1]
         logger.info(f'visualization targets are all.')
         logger.info(f'n_samples = {n_samples}')
         targets = range(n_samples)
@@ -495,10 +480,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
         # labels: data x #task/#label
         for idx in range(out_prediction.shape[1]):
             _out_prediction = out_prediction[0, idx, :]
-            if not multitask:
-                true_label = np.argmax(all_data.labels[compound_id])
-            else:
-                true_label = all_data.labels[compound_id, idx]
+            true_label = np.argmax(all_data.labels[compound_id]) if not multitask else all_data.labels[compound_id, idx]
             # convert a assay string according to a prediction score
             if len(_out_prediction) > 2:  # softmax output
                 assay_str = "class"+str(np.argmax(_out_prediction))
@@ -506,11 +488,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
                 assay_str = "active" if _out_prediction[1] > 0.5 else "inactive"
             else:
                 assay_str = "active" if _out_prediction > 0.5 else "inactive"
-
-            if len(prediction.shape) == 3:  # multitask
-                _prediction = prediction[:, idx, :]
-            else:
-                _prediction = prediction
+            _prediction = prediction[:, idx, :] if len(prediction.shape) == 3 else prediction  # multitask = 3
 
             if ig_label_target == "max":
                 target_index = np.argmax(_out_prediction)
@@ -554,8 +532,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
                                             target_prediction, logger=logger, model=model,
                                             ig_modal_target=ig_modal_target, perturbation_target=ig_modal_target,
                                             grads=tf_grads)
-            if tf_grads is None:
-                tf_grads = visualizer.grads
+            tf_grads = visualizer.grads if tf_grads is None else tf_grads
             visualizer.cal_integrated_gradients(sess, divide_number, method=args.visualize_method)
             visualizer.check_IG(sess, target_prediction)
             visualizer.dump(f"{header}_{compound_id:04d}_task_{idx}_{assay_str}_{ig_modal_target}_scaling.jbl",
@@ -568,9 +545,8 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
             print(f"prediction score: {target_score}\n"
                   f"check score: {visualizer.end_score - visualizer.start_score}\n"
                   f"sum of IG: {visualizer.sum_of_ig}\n"
-                  f"time : {time.time() - s}")
+                  f"time : {time.time() - s}\n")
             all_count += 1
             if np.argmax(_out_prediction) == int(true_label):
                 correct_count += 1
     print("accuracy(visualized_data)=", correct_count/all_count)
-
