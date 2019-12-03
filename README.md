@@ -218,11 +218,9 @@ The implementation of extracting reaction template on GitHub at https://github.c
 (For instruction of `gcnv`, please see gcnvisualizer/README.md)
 #### Reference
 
-```
-Shoichi Ishida , Kei Terayama,  Ryosuke Kojima, Kiyosei Takasu, Yasushi Okuno,
-[Prediction and Interpretable Visualization of Synthetic Reactions Using Graph Convolutional Networks](http://dx.doi.org/10.26434/chemrxiv.8343995),
-ChemRxiv. [DOI: 10.26434/chemrxiv.8343995]
-```
+Shoichi Ishida , Kei Terayama,  Ryosuke Kojima, Kiyosei Takasu, Yasushi Okuno  
+[Prediction and Interpretable Visualization of Retrosynthetic Reactions Using Graph Convolutional Networks](https://pubs.acs.org/doi/10.1021/acs.jcim.9b00538)  
+Journal of Chemical Information and Modeling. [DOI: 10.1021/acs.jcim.9b00538]
 
 ## Generative model
 
