@@ -70,7 +70,12 @@ class GCN(DefaultModel):
 
         correct_count = mask * tf.cast(tf.reduce_all(tf.equal(binary_activation(prediction, 0.5), labels), axis=1),
                                        tf.float32)
-        metrics["correct_count"] = tf.reduce_sum(correct_count)
+        print(correct_count)
+        metrics["each_correct_count"] = tf.reduce_sum(correct_count,axis=0)
+        metrics["each_count"] = tf.reduce_sum(mask,axis=0)
+        metrics["each_cost"] = tf.reduce_sum(cost,axis=0)
+        # #data x # task x # class
+        prediction=tf.expand_dims(prediction,-1)
         self.out = layer
         return self, prediction, cost_opt, cost_sum, metrics
 
