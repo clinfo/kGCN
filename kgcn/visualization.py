@@ -483,7 +483,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
             true_label = np.argmax(all_data.labels[compound_id]) if not multitask else all_data.labels[compound_id, idx]
             # convert a assay string according to a prediction score
             if len(_out_prediction) > 2:  # softmax output
-                assay_str = f"class {np.argmax(_out_prediction)}"
+                assay_str = f"class{np.argmax(_out_prediction)}"
             elif len(_out_prediction) == 2:  # softmax output
                 assay_str = "active" if _out_prediction[1] > 0.5 else "inactive"
             else:
