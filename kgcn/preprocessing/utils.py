@@ -44,7 +44,7 @@ def atom_features(atom, en_list=None, explicit_H=False, use_sybyl=False, use_ele
     # In case of explicit hydrogen(QM8, QM9), avoid calling `GetTotalNumHs`
     if not explicit_H:
         results = results + one_of_k_encoding_unk(atom.GetTotalNumHs(), [0, 1, 2, 3, 4])
-    return np.array(results)
+    return np.array(results, dtype=np.float32)
 
 
 def one_of_k_encoding(x, allowable_set):
@@ -109,7 +109,7 @@ def parse_csv(path_to_file):
 def create_adjancy_matrix(mol):
     mol_adj = Chem.GetAdjacencyMatrix(mol)
     row_num = len(mol_adj)
-    adj = np.array(mol_adj, dtype=np.int)
+    adj = np.array(mol_adj, dtype=np.int8)
     for i in range(row_num):  # Set diagonal elements to 1, fill others with the adjacency matrix from RDkit
         adj[i][i] = int(1)
     return adj
@@ -129,7 +129,7 @@ def create_feature_matrix(mol, atom_num_limit, use_electronegativity=False, use_
                              degree_dim=degree_dim) for atom in mol.GetAtoms()]
     if not use_tfrecords:
         for _ in range(atom_num_limit - len(feature)):
-            feature.append(np.zeros(len(feature[0]), dtype=np.int))
+            feature.append(np.zeros(len(feature[0]), dtype=np.int8))
     return feature
 
 

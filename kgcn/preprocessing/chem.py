@@ -643,7 +643,7 @@ def main():
             f.write("\n".join(task_name_list))
         sys.exit(0)
     # joblib output
-    obj = {"feature": np.asarray(feature_list),
+    obj = {"feature": np.asarray(feature_list, dtype=np.float32),
            "adj": np.asarray(adj_list)}
     if not args.sparse_label:
         obj["label"] = np.asarray(label_data_list)
@@ -652,8 +652,8 @@ def main():
         label_data = np.asarray(label_data_list)
         label_mask = np.asarray(label_mask_list)
         obj['label_dim'] = label_data.shape[1] if args.label_dim is None else args.label_dim
-        obj['label_sparse'] = csr_matrix(label_data.astype(float))
-        obj['mask_label_sparse'] = csr_matrix(label_mask.astype(float))
+        obj['label_sparse'] = csr_matrix(label_data.astype(np.float32))
+        obj['mask_label_sparse'] = csr_matrix(label_mask.astype(np.float32))
     if task_name_list is not None:
         obj["task_names"] = np.asarray(task_name_list)
     if dragon_data_list is not None:
