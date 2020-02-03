@@ -5,6 +5,7 @@ import oddt.toolkits.extras.rdkit as ordkit
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
+from scipy import sparse
 from sklearn.preprocessing import LabelEncoder
 from tensorflow.python_io import TFRecordWriter
 from tensorflow.train import Feature, Features, FloatList, Int64List, Example
@@ -73,12 +74,17 @@ def read_profeat():
         return None
 
 
-def read_label_file(path_to_label, no_header):
+def read_label_file(path_to_label, no_header, is_sparse_label):
     file = path_to_label
     if file is None:
         return None, None, None
     _, ext = os.path.splitext(file)
     sep = "\t" if ext == ".txt" else ","
+    if is_sparse_label:  # only for sparse matrix now.
+        sparse_label = sparse.load_npz(file)
+        sparse_mask_label = sparse.csr_matrix(np.ones_like(sparse_label.todense(), dtype=np.float16))
+        return None, sparse_label, sparse_mask_label
+
     csv = pd.read_csv(file, header=None, delimiter=sep) if no_header else pd.read_csv(file, delimiter=sep)
 
     header = csv.columns.tolist()
