@@ -12,7 +12,7 @@ from rdkit.Chem.rdmolops import FastFindRings
 from sklearn.utils import class_weight
 import joblib
 from mendeleev import element
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, vstack
 
 from kgcn.data_util import dense_to_sparse
 from kgcn.preprocessing.utils import read_profeat, read_label_file, parse_csv, create_adjancy_matrix, \
@@ -26,6 +26,10 @@ def get_parser():
     )
     parser.add_argument(
         '-l', '--label', default=None, type=str,
+        help='help'
+    )
+    parser.add_argument(
+        '--input_sparse_label', action='store_true', default=False,
         help='help'
     )
     parser.add_argument(
@@ -64,7 +68,7 @@ def get_parser():
         help='help'
     )
     parser.add_argument(
-        '--sparse_label', action='store_true', default=False,
+        '--output_sparse_label', action='store_true', default=False,
         help='help'
     )
     parser.add_argument(
@@ -463,13 +467,13 @@ def build_vector_modal(args):
 def extract_mol_info(args):
     dragon_data, task_name_list, seq, seq_symbol, profeat, publication_years = [], [], [], [], [], []
     if args.smarts is not None:
-        _, label_data, label_mask = read_label_file(args.label, args.no_header)  # label name, label, valid/invalid mask of label
+        _, label_data, label_mask = read_label_file(args.label, args.no_header, args.input_sparse_label)  # label name, label, valid/invalid mask of label
         with open(args.smarts, "r") as f:
             lines = f.readlines()
         mol_obj_list = [Chem.MolFromSmarts(line) for line in lines]
 
     elif args.smiles is not None:
-        task_name_list, label_data, label_mask = read_label_file(args.label, args.no_header)  # label name, label, valid/invalid mask of label
+        task_name_list, label_data, label_mask = read_label_file(args.label, args.no_header, args.input_sparse_label)  # label name, label, valid/invalid mask of label
         with open(args.smiles, "r") as f:
             lines = f.readlines()
         mol_obj_list = [Chem.MolFromSmiles(line) for line in lines]
@@ -479,14 +483,14 @@ def extract_mol_info(args):
         if not os.path.exists(filename):
             print(f"[PASS] not found: {filename}")
         mol_obj_list = [mol for mol in Chem.SDMolSupplier(filename)]
-        _, label_data, label_mask = read_label_file(args.label, args.no_header)  # label name, label, valid/invalid mask of label
+        _, label_data, label_mask = read_label_file(args.label, args.no_header, args.input_sparse_label)  # label name, label, valid/invalid mask of label
 
     elif args.sdf is not None:
         filename = args.sdf
         if not os.path.exists(filename):
             print(f"[PASS] not found: {filename}")
         mol_obj_list = [mol for mol in Chem.SDMolSupplier(filename)]
-        _, label_data, label_mask = read_label_file(args.label, args.no_header)  # label name, label, valid/invalid mask of label
+        _, label_data, label_mask = read_label_file(args.label, args.no_header, args.input_sparse_label)  # label name, label, valid/invalid mask of label
 
     elif args.assay_dir is not None and args.multimodal:
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
@@ -643,17 +647,22 @@ def main():
             f.write("\n".join(task_name_list))
         sys.exit(0)
     # joblib output
-    obj = {"feature": np.asarray(feature_list),
+    obj = {"feature": np.asarray(feature_list, dtype=np.float32),
            "adj": np.asarray(adj_list)}
-    if not args.sparse_label:
+    if not args.output_sparse_label:
         obj["label"] = np.asarray(label_data_list)
         obj["mask_label"] = np.asarray(label_mask_list)
     else:
-        label_data = np.asarray(label_data_list)
-        label_mask = np.asarray(label_mask_list)
-        obj['label_dim'] = label_data.shape[1] if args.label_dim is None else args.label_dim
-        obj['label_sparse'] = csr_matrix(label_data.astype(float))
-        obj['mask_label_sparse'] = csr_matrix(label_mask.astype(float))
+        if args.input_sparse_label:
+            obj['label_dim'] = label_data[0].get_shape()[1] if args.label_dim is None else args.label_dim
+            obj['label_sparse'] = csr_matrix(vstack(label_data))
+            obj['mask_label_sparse'] = csr_matrix(vstack(label_mask))
+        else:
+            label_data = np.asarray(label_data_list)
+            label_mask = np.asarray(label_mask_list)
+            obj['label_dim'] = label_data.shape[1] if args.label_dim is None else args.label_dim
+            obj['label_sparse'] = csr_matrix(label_data.astype(np.float32))
+            obj['mask_label_sparse'] = csr_matrix(label_mask.astype(np.float32))
     if task_name_list is not None:
         obj["task_names"] = np.asarray(task_name_list)
     if dragon_data_list is not None:
@@ -664,7 +673,7 @@ def main():
     mol_info = {"obj_list": mol_list, "name_list": mol_name_list}
     obj["mol_info"] = mol_info
     if not args.regression:
-        label_int = np.argmax(label_data_list, axis=1)
+        label_int = np.ravel(obj['label_sparse'].argmax(axis=1)) if args.input_sparse_label else np.argmax(label_data_list, axis=1)
         cw = class_weight.compute_class_weight("balanced", np.unique(label_int), label_int)
         obj["class_weight"] = cw
 

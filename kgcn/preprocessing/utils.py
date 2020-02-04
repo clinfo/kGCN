@@ -5,6 +5,7 @@ import oddt.toolkits.extras.rdkit as ordkit
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
+from scipy import sparse
 from sklearn.preprocessing import LabelEncoder
 from tensorflow.python_io import TFRecordWriter
 from tensorflow.train import Feature, Features, FloatList, Int64List, Example
@@ -44,7 +45,7 @@ def atom_features(atom, en_list=None, explicit_H=False, use_sybyl=False, use_ele
     # In case of explicit hydrogen(QM8, QM9), avoid calling `GetTotalNumHs`
     if not explicit_H:
         results = results + one_of_k_encoding_unk(atom.GetTotalNumHs(), [0, 1, 2, 3, 4])
-    return np.array(results)
+    return np.array(results, dtype=np.float32)
 
 
 def one_of_k_encoding(x, allowable_set):
@@ -73,12 +74,17 @@ def read_profeat():
         return None
 
 
-def read_label_file(path_to_label, no_header):
+def read_label_file(path_to_label, no_header, is_sparse_label):
     file = path_to_label
     if file is None:
         return None, None, None
     _, ext = os.path.splitext(file)
     sep = "\t" if ext == ".txt" else ","
+    if is_sparse_label:  # only for sparse matrix now.
+        sparse_label = sparse.load_npz(file)
+        sparse_mask_label = sparse.csr_matrix(np.ones_like(sparse_label.todense(), dtype=np.float16))
+        return None, sparse_label, sparse_mask_label
+
     csv = pd.read_csv(file, header=None, delimiter=sep) if no_header else pd.read_csv(file, delimiter=sep)
 
     header = csv.columns.tolist()
@@ -109,7 +115,7 @@ def parse_csv(path_to_file):
 def create_adjancy_matrix(mol):
     mol_adj = Chem.GetAdjacencyMatrix(mol)
     row_num = len(mol_adj)
-    adj = np.array(mol_adj, dtype=np.int)
+    adj = np.array(mol_adj, dtype=np.int8)
     for i in range(row_num):  # Set diagonal elements to 1, fill others with the adjacency matrix from RDkit
         adj[i][i] = int(1)
     return adj
@@ -129,7 +135,7 @@ def create_feature_matrix(mol, atom_num_limit, use_electronegativity=False, use_
                              degree_dim=degree_dim) for atom in mol.GetAtoms()]
     if not use_tfrecords:
         for _ in range(atom_num_limit - len(feature)):
-            feature.append(np.zeros(len(feature[0]), dtype=np.int))
+            feature.append(np.zeros(len(feature[0]), dtype=np.int8))
     return feature
 
 
