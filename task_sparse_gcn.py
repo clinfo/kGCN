@@ -11,7 +11,7 @@ import numpy as np
 import tensorflow as tf
 
 
-tf.enable_eager_execution() # only to count num of elements in datasets
+tf.enable_eager_execution()  # only to count num of elements in datasets
 tf.logging.set_verbosity(tf.logging.INFO)
 
 
@@ -20,10 +20,13 @@ class dotdict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
+
     def __getstate__(self):
         return self.__dict__
+
     def __setstate__(self, dict):
         self.__dict__ = dict
+
 
 class NumPyArangeEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -36,50 +39,51 @@ class NumPyArangeEncoder(json.JSONEncoder):
         if isinstance(obj, np.float32):
             return float(obj)
         if isinstance(obj, np.ndarray):
-            return obj.tolist() # or map(int, obj)
+            return obj.tolist()  # or map(int, obj)
         return json.JSONEncoder.default(self, obj)
 
+
 def get_default_config():
-    config={}
-    config["model.py"]="model"
-    config["dataset"]="data.jbl"
-    config["validation_dataset"]=None
+    config = {}
+    config["model.py"] = "model"
+    config["dataset"] = "data.jbl"
+    config["validation_dataset"] = None
     # optimization parameters
-    config["epoch"]=50
-    config["batch_size"]=10
-    config["patience"]=0
-    config["learning_rate"]=0.3
-    config["validation_data_rate"]=0.3
-    config["shuffle_data"]=False
+    config["epoch"] = 50
+    config["batch_size"] = 10
+    config["patience"] = 0
+    config["learning_rate"] = 0.3
+    config["validation_data_rate"] = 0.3
+    config["shuffle_data"] = False
     config["k-fold_num"] = 2
     # model parameters
-    config["with_feature"]=True
-    config["with_node_embedding"]=False
-    config["embedding_dim"]=10
-    config["normalize_adj_flag"]=False
-    config["split_adj_flag"]=False
+    config["with_feature"] = True
+    config["with_node_embedding"] = False
+    config["embedding_dim"] = 10
+    config["normalize_adj_flag"] = False
+    config["split_adj_flag"] = False
     config["order"] = 1
-    config["param"]=None
+    config["param"] = None
     # model
-    config["save_interval"]=10
-    config["save_model_path"]="model"
+    config["save_interval"] = 10
+    config["save_model_path"] = "model"
     # result/info
     #config["save_result_train"]=None
-    config["save_result_valid"]=None
-    config["save_result_test"]=None
-    config["save_result_cv"]=None
-    config["save_info_train"]=None
-    config["save_info_valid"]=None
-    config["save_info_test"]=None
-    config["save_info_cv"]=None
-    config["make_plot"]=False
-    config["plot_path"]="./result/"
-    config["plot_multitask"]=False
-    config["task"]="classification"
-    config["retrain"]=None
+    config["save_result_valid"] = None
+    config["save_result_test"] = None
+    config["save_result_cv"] = None
+    config["save_info_train"] = None
+    config["save_info_valid"] = None
+    config["save_info_test"] = None
+    config["save_info_cv"] = None
+    config["make_plot"] = False
+    config["plot_path"] = "./result/"
+    config["plot_multitask"] = False
+    config["task"] = "classification"
+    config["retrain"] = None
     #
-    config["profile"]=False
-    config["export_model"]=None
+    config["profile"] = False
+    config["export_model"] = None
     config["stratified_kfold"] = False
 
     return config
@@ -131,13 +135,13 @@ def make_input_fn(files, input_parser, cache, shuffle_on_memory, epoch_num, spli
         input_dim = None
     else:
         input_dim = d[0]['size'][1].numpy()
-    info = {'num_elements': num_elements, 'input_dim': input_dim}
+    info = {'num_elements': num_elements,
+            'input_dim': input_dim}
 
     return input_fn, info
 
 
 def train(config):
-
     with tf.io.gfile.GFile(
         tf.io.gfile.glob(os.path.join(os.path.dirname(config['dataset']), "tasks.txt"))[0], "r"
     ) as text_file:
@@ -198,17 +202,9 @@ def train(config):
         config['input_dim'] = info['input_dim']
 
         steps_per_epoch = math.ceil(info['num_elements'] / config['batch_size'])
-        tf.logging.info(
-            "example num: {}, steps per epoch: {}".format(
-                info['num_elements'], steps_per_epoch
-            )
-        )
+        tf.logging.info(f"example num: {info['num_elements']}, steps per epoch: {steps_per_epoch}")
         steps_per_epoch_eval = math.ceil(valid_info['num_elements'] / config['batch_size'])
-        tf.logging.info(
-            "example num: {}, steps per epoch: {}".format(
-                valid_info['num_elements'], steps_per_epoch_eval
-            )
-        )
+        tf.logging.info(f"example num: {valid_info['num_elements']}, steps per epoch: {steps_per_epoch_eval}")
 
         config['steps_per_epoch'] = steps_per_epoch
         model = importlib.import_module(config["model.py"]).build(config)
@@ -217,16 +213,10 @@ def train(config):
         feature_spec_predict = feature_spec.copy()
         feature_spec_predict.pop("label")
         feature_spec_predict.pop("mask_label")
-        serving_input_receiver_fn = tf.estimator.export.build_parsing_serving_input_receiver_fn(
-            feature_spec_predict
-        )
-        exporter = tf.estimator.BestExporter(
-            serving_input_receiver_fn=serving_input_receiver_fn, exports_to_keep=1
-        )
+        serving_input_receiver_fn = tf.estimator.export.build_parsing_serving_input_receiver_fn(feature_spec_predict)
+        exporter = tf.estimator.BestExporter(serving_input_receiver_fn=serving_input_receiver_fn, exports_to_keep=1)
 
-        train_spec = tf.estimator.TrainSpec(
-            input_fn=train_input_fn,
-        )
+        train_spec = tf.estimator.TrainSpec(input_fn=train_input_fn)
         if valid_info['num_elements'] > 0:
             eval_spec = tf.estimator.EvalSpec(
                 input_fn=valid_input_fn,
@@ -241,13 +231,9 @@ def train(config):
             elapsed = time.time() - t
             print("elapsed time: {}".format(elapsed))
             sys.exit(0)
-        checkpoint_path = tf.io.gfile.glob(
-            os.path.join(model.model_dir, "export/best_exporter/*/variables")
-        )[0]
+        checkpoint_path = tf.io.gfile.glob(os.path.join(model.model_dir, "export/best_exporter/*/variables"))[0]
         checkpoint_path = checkpoint_path + "/variables"
-        metafile = tf.io.gfile.glob(os.path.join(model.model_dir, "*.meta"))[
-            -1
-        ]
+        metafile = tf.io.gfile.glob(os.path.join(model.model_dir, "*.meta"))[-1]
         tf.io.gfile.copy(metafile, checkpoint_path + ".meta", overwrite=True)
         test_result = model.evaluate(
             input_fn=valid_input_fn,
@@ -256,10 +242,8 @@ def train(config):
         )
         tf.io.gfile.mkdir(os.path.join(model.model_dir, "test"))
         test_result = {k: np.float(v) for k, v in test_result.items()}
-        with tf.io.gfile.GFile(
-            os.path.join(model.model_dir, "test", "test.json"), "w"
-        ) as outfile:
-            json.dump(test_result, outfile)
+        with tf.io.gfile.GFile(os.path.join(model.model_dir, "test", "test.json"), "w") as f:
+            json.dump(test_result, f)
 
 
 def _between(tensor, lower, upper):
@@ -268,15 +252,11 @@ def _between(tensor, lower, upper):
     return tf.math.logical_and(lower_bound, upper_bound)
 
 
-def split_dataset(
-        dataset: tf.data.Dataset, split: Iterable[int], buffer_shuffle: int = None
-) -> List[tf.data.Dataset]:
+def split_dataset(dataset: tf.data.Dataset, split: Iterable[int], buffer_shuffle: int = None) -> List[tf.data.Dataset]:
     partitions = np.insert(np.cumsum(split), 0, 0)
     if buffer_shuffle is None:
         buffer_shuffle = 100 * partitions[-1]
-    dataset = dataset.shuffle(
-        buffer_shuffle, seed=22, reshuffle_each_iteration=False
-    ).enumerate()
+    dataset = dataset.shuffle(buffer_shuffle, seed=22, reshuffle_each_iteration=False).enumerate()
     partitions = np.stack([partitions[:-1], partitions[1:]], axis=1)
     datasets = map(
         lambda partition: dataset.filter(
@@ -289,107 +269,92 @@ def split_dataset(
     return list(datasets)
 
 
+def infer(config):
+    print("Under the construction")
+    pass
+
+
 if __name__ == "__main__":
     seed = 1234
     np.random.seed(seed)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', type=str,
-            help='train/infer/train_cv/visualize')
-    parser.add_argument('--config', type=str,
-            default=None,
-            nargs='?',
-            help='config json file')
-    parser.add_argument('--save-config',
-            default=None,
-            nargs='?',
-            help='save config json file')
-    parser.add_argument('--retrain', type=str,
-            default=None,
-            help='retrain from checkpoint')
-    parser.add_argument('--no-config',
-            action='store_true',
-            help='use default setting')
-    parser.add_argument('--model', type=str,
-            default=None,
-            help='model')
-    parser.add_argument('--dataset', type=str,
-            default=None,
-            help='dataset')
-    parser.add_argument('--gpu', type=str,
-            default=None,
-            help='constraint gpus (default: all) (e.g. --gpu 0,2)')
-    parser.add_argument('--cpu',
-            action='store_true',
-            help='cpu mode (calcuration only with cpu)')
-    parser.add_argument('--bspmm',
-            action='store_true',
-            help='bspmm')
-    parser.add_argument('--bconv',
-            action='store_true',
-            help='bconv')
-    parser.add_argument('--batched',
-            action='store_true',
-            help='batched')
-    parser.add_argument('--profile',
-            action='store_true',
-            help='')
-    parser.add_argument('--skfold',
-            action='store_true',
-            help='stratified k-fold')
-    parser.add_argument('--param', type=str,
-            default=None,
-            help='parameter')
-    parser.add_argument('--ig_targets', type=str,
-            default='all',
-            choices=['all', 'profeat', 'features', 'adjs', 'dragon'],
-            help='[deplicated (use ig_modal_target)]set scaling targets for Integrated Gradients')
-    parser.add_argument('--ig_modal_target', type=str,
-            default='all',
-            choices=['all', 'profeat', 'features', 'adjs', 'dragon'],
-            help='set scaling targets for Integrated Gradients')
-    parser.add_argument('--ig_label_target', type=str,
-            default='max',
-            help='[visualization mode only] max/all/(label index)')
-    parser.add_argument('--job_dir', type=str,
-            default='train',
-            help='Directory in which log is stored.')
-    args=parser.parse_args()
+                        help='train/infer/train_cv/visualize')
+    parser.add_argument('--config', type=str, default=None, nargs='?',
+                        help='config json file')
+    parser.add_argument('--save-config', default=None, nargs='?',
+                        help='save config json file')
+    parser.add_argument('--retrain', type=str, default=None,
+                        help='retrain from checkpoint')
+    parser.add_argument('--no-config', action='store_true',
+                        help='use default setting')
+    parser.add_argument('--model', type=str, default=None,
+                        help='model')
+    parser.add_argument('--dataset', type=str, default=None,
+                        help='dataset')
+    parser.add_argument('--gpu', type=str, default=None,
+                        help='constraint gpus (default: all) (e.g. --gpu 0,2)')
+    parser.add_argument('--cpu', action='store_true',
+                        help='cpu mode (calcuration only with cpu)')
+    parser.add_argument('--bspmm', action='store_true',
+                        help='bspmm')
+    parser.add_argument('--bconv', action='store_true',
+                        help='bconv')
+    parser.add_argument('--batched', action='store_true',
+                        help='batched')
+    parser.add_argument('--profile', action='store_true',
+                        help='')
+    parser.add_argument('--skfold', action='store_true',
+                        help='stratified k-fold')
+    parser.add_argument('--param', type=str, default=None,
+                        help='parameter')
+    parser.add_argument('--ig_targets', type=str, default='all',
+                        choices=['all', 'profeat', 'features', 'adjs', 'dragon'],
+                        help='[deplicated (use ig_modal_target)]set scaling targets for Integrated Gradients')
+    parser.add_argument('--ig_modal_target', type=str, default='all',
+                        choices=['all', 'profeat', 'features', 'adjs', 'dragon'],
+                        help='set scaling targets for Integrated Gradients')
+    parser.add_argument('--ig_label_target', type=str, default='max',
+                        help='[visualization mode only] max/all/(label index)')
+    parser.add_argument('--job_dir', type=str, default='train',
+                        help='Directory in which log is stored.')
+    args = parser.parse_args()
 
-    config=get_default_config()
+    config = get_default_config()
     if args.config is None:
         pass
     else:
-        print("[LOAD] ",args.config)
-        fp = open(args.config, 'r')
-        config.update(json.load(fp))
+        print("[LOAD] ", args.config)
+        with open(args.config, 'r') as f:
+            config.update(json.load(f))
     if args.model is not None:
-        config["load_model"]=args.model
+        config["load_model"] = args.model
     if args.dataset is not None:
-        config["dataset"]=args.dataset
+        config["dataset"] = args.dataset
     if args.param is not None:
-        config["param"]=args.param
+        config["param"] = args.param
     if args.retrain is not None:
-        config["retrain"]=args.retrain
+        config["retrain"] = args.retrain
     if args.cpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
     elif args.gpu is not None:
         os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     #
     if args.profile:
-        config["profile"]=True
+        config["profile"] = True
     if args.skfold is not None:
         config["stratified_kfold"] = args.skfold
-    if args.ig_targets!="all":
-        args.ig_model_target=args.ig_targets
+    if args.ig_targets != "all":
+        args.ig_model_target = args.ig_targets
     config['job_dir'] = args.job_dir
-    config["mode"]=args.mode
+    config["mode"] = args.mode
     if args.mode in ["train", "train_cv"]:
         train(config)
-    elif args.mode=="infer":
+    elif args.mode == "infer":
         infer(config)
     if args.save_config is not None:
-        print("[SAVE] ",args.save_config)
+        print("[SAVE] ", args.save_config)
         os.makedirs(os.path.dirname(args.save_config), exist_ok=True)
-        fp=open(args.save_config,"w")
-        json.dump(config,fp, indent=4, cls=NumPyArangeEncoder)
+        with open(args.save_config, "w") as f:
+            json.dump(config, f, indent=4, cls=NumPyArangeEncoder)
