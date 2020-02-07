@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse
 import importlib
 import json
@@ -10,11 +9,6 @@ from typing import Iterable, List
 
 import numpy as np
 import tensorflow as tf
-
-try:
-    from .model_functions import gcn_multitask_model_sparse
-except ModuleNotFoundError:
-    from model_functions import gcn_multitask_model_sparse
 
 
 tf.enable_eager_execution() # only to count num of elements in datasets
@@ -108,10 +102,6 @@ def make_input_fn(files, input_parser, cache, shuffle_on_memory, epoch_num, spli
 
         if cache:
             dataset = dataset.cache()
-        # elif cache == "temp_file":
-        #    tempd = tempfile.mkdtemp()
-        #    tempds.append(tempd)
-        #    dataset.cache(tempd)
         if shuffle_on_memory > 0:
             dataset = dataset.shuffle(shuffle_on_memory, reshuffle_each_iteration=True)
         dataset = dataset.batch(config['batch_size'])
@@ -219,10 +209,6 @@ def train(config):
                 valid_info['num_elements'], steps_per_epoch_eval
             )
         )
-#                if flags.shuffle_on_memory == -1:
-#                    shuffle_on_memory = count_examples
-#                elif flags.shuffle_on_memory > 0:
-#                    shuffle_on_memory = flags.shuffle_on_memory
 
         config['steps_per_epoch'] = steps_per_epoch
         model = importlib.import_module(config["model.py"]).build(config)
@@ -285,20 +271,6 @@ def _between(tensor, lower, upper):
 def split_dataset(
         dataset: tf.data.Dataset, split: Iterable[int], buffer_shuffle: int = None
 ) -> List[tf.data.Dataset]:
-    """
-    Shuffles and distributes data points in a tf.data.Dataset to smaller subdatasets.
-    buffer_shuffle is the buffer size used to shuffle the elements in the dataset, and
-    it changes the degree of randomness. For example, if split is an array with k 1s,
-    split = [1, 1, ..., 1],
-    the probability the first element in a dataset will be put in the first subdataset
-    is given by (assuming that the dataset is infinitely long)
-    p = 1/(buffer_size * (1 - ((buffer_size-1)/buffer_size) ** k) -> 1/k (buffer_size -> infinity).
-    With k = 5 and buffer_size=1000,
-    p = 0.2004.
-    If the buffer_size is the same as the number of elements in the given dataset,
-    p = 1/k,
-    ignoring the effect of mod(len(dataset)) % k.
-    """
     partitions = np.insert(np.cumsum(split), 0, 0)
     if buffer_shuffle is None:
         buffer_shuffle = 100 * partitions[-1]
@@ -318,7 +290,6 @@ def split_dataset(
 
 
 if __name__ == "__main__":
-    # set random seed
     seed = 1234
     np.random.seed(seed)
 
@@ -385,28 +356,21 @@ if __name__ == "__main__":
             help='Directory in which log is stored.')
     args=parser.parse_args()
 
-    # config
     config=get_default_config()
     if args.config is None:
         pass
-        #parser.print_help()
-        #quit()
     else:
         print("[LOAD] ",args.config)
         fp = open(args.config, 'r')
         config.update(json.load(fp))
-    # option
     if args.model is not None:
         config["load_model"]=args.model
     if args.dataset is not None:
         config["dataset"]=args.dataset
-    # param
     if args.param is not None:
         config["param"]=args.param
-    # option
     if args.retrain is not None:
         config["retrain"]=args.retrain
-    # gpu/cpu
     if args.cpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = ""
     elif args.gpu is not None:
@@ -416,18 +380,9 @@ if __name__ == "__main__":
         config["profile"]=True
     if args.skfold is not None:
         config["stratified_kfold"] = args.skfold
-    # bspmm
-    #if args.disable_bspmm:
-    #    print("[INFO] disabled bspmm")
-    #else:
-    #print("[INFO] enabled bspmm")
-    # depricated options
     if args.ig_targets!="all":
         args.ig_model_target=args.ig_targets
-    # directory for logging
     config['job_dir'] = args.job_dir
-    # setup
-    # mode
     config["mode"]=args.mode
     if args.mode in ["train", "train_cv"]:
         train(config)
