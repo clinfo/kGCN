@@ -6,10 +6,10 @@ import math
 import os
 import sys
 import time
+from typing import Iterable, List
 
 import numpy as np
 import tensorflow as tf
-from tfdata_util.tools import split_dataset
 
 try:
     from .model_functions import gcn_multitask_model_sparse
@@ -274,6 +274,47 @@ def train(config):
             os.path.join(model.model_dir, "test", "test.json"), "w"
         ) as outfile:
             json.dump(test_result, outfile)
+
+
+def _between(tensor, lower, upper):
+    lower_bound = tf.math.greater_equal(tensor, lower)
+    upper_bound = tf.math.less(tensor, upper)
+    return tf.math.logical_and(lower_bound, upper_bound)
+
+
+def split_dataset(
+        dataset: tf.data.Dataset, split: Iterable[int], buffer_shuffle: int = None
+) -> List[tf.data.Dataset]:
+    """
+    Shuffles and distributes data points in a tf.data.Dataset to smaller subdatasets.
+    buffer_shuffle is the buffer size used to shuffle the elements in the dataset, and
+    it changes the degree of randomness. For example, if split is an array with k 1s,
+    split = [1, 1, ..., 1],
+    the probability the first element in a dataset will be put in the first subdataset
+    is given by (assuming that the dataset is infinitely long)
+    p = 1/(buffer_size * (1 - ((buffer_size-1)/buffer_size) ** k) -> 1/k (buffer_size -> infinity).
+    With k = 5 and buffer_size=1000,
+    p = 0.2004.
+    If the buffer_size is the same as the number of elements in the given dataset,
+    p = 1/k,
+    ignoring the effect of mod(len(dataset)) % k.
+    """
+    partitions = np.insert(np.cumsum(split), 0, 0)
+    if buffer_shuffle is None:
+        buffer_shuffle = 100 * partitions[-1]
+    dataset = dataset.shuffle(
+        buffer_shuffle, seed=22, reshuffle_each_iteration=False
+    ).enumerate()
+    partitions = np.stack([partitions[:-1], partitions[1:]], axis=1)
+    datasets = map(
+        lambda partition: dataset.filter(
+            lambda x, y: _between(
+                tf.math.floormod(x, partitions[-1, -1]), partition[0], partition[1]
+            )
+        ).map(lambda x, y: y),
+        partitions,
+    )
+    return list(datasets)
 
 
 if __name__ == "__main__":
