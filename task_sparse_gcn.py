@@ -131,10 +131,7 @@ def make_input_fn(files, input_parser, cache, shuffle_on_memory, epoch_num, spli
     num_elements = 0
     for d in dataset:
         num_elements += 1
-    if num_elements == 0:
-        input_dim = None
-    else:
-        input_dim = d[0]['size'][1].numpy()
+    input_dim = None if num_elements == 0 else d[0]['size'][1].numpy()
     info = {'num_elements': num_elements,
             'input_dim': input_dim}
 
@@ -167,12 +164,15 @@ def train(config):
     input_parser = lambda example_proto: make_parse_fn(example_proto, feature_spec)
     shuffle_on_memory = 1000
 
+    folds = 1
+    split = None
+    train_portions = None
+    valid_portions = None
     if config["mode"] == "train_cv":
         folds = config['k-fold_num']
         split = [1] * folds
         valid_dataset = config["dataset"]
     elif config["validation_dataset"] is None:
-        folds = 1
         split = [100 - 100 * config['validation_data_rate'], 100 * config['validation_data_rate']]
         split = [int(s) for s in split]
         divisor = math.gcd(split[0], split[1])
@@ -181,10 +181,6 @@ def train(config):
         valid_portions = [1]
         valid_dataset = config["dataset"]
     else:
-        folds = 1
-        split = None
-        train_portions = None
-        valid_portions = None
         valid_dataset = config["validation_dataset"]
 
     for fold_num in range(folds):
