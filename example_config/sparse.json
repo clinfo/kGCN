@@ -1,0 +1,12 @@
+{
+    "model.py": "example_model.sparse",
+    "epoch": 15, 
+    "learning_rate": 0.0001,
+    "batch_size": 128,
+    "dataset": "reaction/*train*.tfrecords",
+    "validation_dataset": "reaction/*eval*.tfrecords",
+    "test_dataset": "reaction/*test*.tfrecords",
+    "num_classes": 20014,
+    "normalize_adj_flag": true,
+    "split_adj_flag": false
+}
