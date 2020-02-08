@@ -270,10 +270,9 @@ def infer(config):
     pass
 
 
-if __name__ == "__main__":
+def main():
     seed = 1234
     np.random.seed(seed)
-
     parser = argparse.ArgumentParser()
     parser.add_argument('mode', type=str,
                         help='train/infer/train_cv/visualize')
@@ -316,7 +315,6 @@ if __name__ == "__main__":
     parser.add_argument('--job_dir', type=str, default='train',
                         help='Directory in which log is stored.')
     args = parser.parse_args()
-
     config = get_default_config()
     if args.config is None:
         pass
@@ -354,3 +352,7 @@ if __name__ == "__main__":
         os.makedirs(os.path.dirname(args.save_config), exist_ok=True)
         with open(args.save_config, "w") as f:
             json.dump(config, f, indent=4, cls=NumPyArangeEncoder)
+
+
+if __name__ == "__main__":
+    main()
