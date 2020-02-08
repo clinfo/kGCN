@@ -100,7 +100,7 @@ def make_parse_fn(example_proto, feature_spec):
     return parsed_features, label
 
 
-def make_input_fn(files, input_parser, cache, shuffle_on_memory, epoch_num, split=None, take_these_splits=None):
+def make_input_fn(files, input_parser, cache, shuffle_on_memory, epoch_num, batch_size, split=None, take_these_splits=None):
     def input_fn():
         dataset = collect_data(files, input_parser, split, take_these_splits)
 
@@ -108,8 +108,8 @@ def make_input_fn(files, input_parser, cache, shuffle_on_memory, epoch_num, spli
             dataset = dataset.cache()
         if shuffle_on_memory > 0:
             dataset = dataset.shuffle(shuffle_on_memory, reshuffle_each_iteration=True)
-        dataset = dataset.batch(config['batch_size'])
-        dataset = dataset.prefetch(buffer_size=config['batch_size'])
+        dataset = dataset.batch(batch_size)
+        dataset = dataset.prefetch(buffer_size=batch_size)
         dataset = dataset.repeat(epoch_num)
         return dataset
 
@@ -192,9 +192,9 @@ def train(config):
             config["model_dir"] = config["job_dir"]
 
         train_input_fn, info = make_input_fn(
-            config["dataset"], input_parser, True, shuffle_on_memory, config['epoch'], split, train_portions)
+            config["dataset"], input_parser, True, shuffle_on_memory, config['epoch'], config['batch_size'], split, train_portions)
         valid_input_fn, valid_info = make_input_fn(
-            valid_dataset, input_parser, True, 0, 1, split, valid_portions)
+            valid_dataset, input_parser, True, 0, 1, config['batch_size'], split, valid_portions)
         config['input_dim'] = info['input_dim']
 
         steps_per_epoch = math.ceil(info['num_elements'] / config['batch_size'])
