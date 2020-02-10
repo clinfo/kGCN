@@ -1,5 +1,5 @@
 from tensorflow.examples.tutorials.mnist import input_data
-from dbonas import Searcher, Trials
+from dbonas import Searcher, Trial
 
 
 def create_model(hidden_size=128):
@@ -10,12 +10,12 @@ def create_model(hidden_size=128):
     ])
     return model(x)
 
-def objectve(trial):
 
+def objectve(trial: Trial):
     x = tf.placeholder(tf.float32, [None, 28, 28])
     model = create_model()
     y = model(x)
-    a
+
     mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
     sess = tf.InteractiveSession()
 
@@ -35,8 +35,7 @@ def objectve(trial):
 if __name__ == '__main__':
     # tiral_config.register()
     searcher = Searcher()
-    searcher.register_trial('batchsize', )
-    searcher.register_trial('', )
+    searcher.register_trial('batchsize', [128, 256, 512])
     searcher.register_trial('lr', [0.1, 0.2])
     searcher.register_trial('optim', ['Adam', 'SGD'])
     searcher.search(objectve, n_trials=100)
