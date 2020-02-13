@@ -37,7 +37,8 @@ def test_trialgenerator_register_check_len():
     assert len(t) == 4
     t.register("lr", [0.1, 0.2, 0.3, 0.4])
     assert len(t) == 16
-
+    t.register("lr", [0.1, 0.2])
+    assert len(t) == 8
 
 def test_trial_index_accesses():
     t = TrialGenerator()
@@ -47,7 +48,21 @@ def test_trial_index_accesses():
         assert t[i].lr == lr
     bs = [128, 256, 512, 1024]
     t.register("batch_size", bs)
-    p = product(lrs, bs)
+    p = product(bs, lrs)
     for i, ele in enumerate(p):
-        assert t[i].batch_size == ele[1]
-        assert t[i].lr == ele[0]
+        assert t[i].batch_size == ele[0]
+        assert t[i].lr == ele[1]
+
+def test_trial_index_accesses_with_different_length_values():
+    t = TrialGenerator()
+    lrs = [0.1, 0.2]
+    t.register("lr", lrs)
+    for i, lr in enumerate(lrs):
+        assert t[i].lr == lr
+    bs = [128, 256, 512, 1024]
+    t.register("batch_size", bs)
+    p = product(bs, lrs)
+    assert len(t) == 8
+    for i, ele in enumerate(p):
+        assert t[i].batch_size == ele[0]
+        assert t[i].lr == ele[1]
