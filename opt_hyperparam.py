@@ -59,6 +59,8 @@ def make_config(path, config, fid):
     config["param"] = os.path.join(path, "param.json")
     config["save_info_valid"] = os.path.join(path, "result.json")
     config["save_model"] = os.path.join(path, f"model.{str(fid)}.ckpt")
+    config["load_model"] = os.path.join(path, f"model.{str(fid)}.ckpt")
+    config["save_model_path"] = path
     ###
     config["plot_path"] = path
     update_config(path, config, fid, "save_info_train")
@@ -177,11 +179,9 @@ def main():
     print("... saving config")
     fid=int(opt_index)
     path = os.path.join(opt_path, f"trial{fid:03d}")
-    #opt_config = make_config(path, config, fid)
-    #config["save_model"] = os.path.join(path, f"model.{str(fid)}.ckpt")
-    config["load_model"] = os.path.join(path, f"model.{str(fid)}.ckpt")
+    config["load_model"] = os.path.join(path, f"model.best.ckpt")
     opt_config_path = os.path.join(opt_path, f"opt_config.json")
-    save_json(out_config_path, opt_config)
+    save_json(opt_config_path, opt_config)
 
 if __name__ == '__main__':
     main()
