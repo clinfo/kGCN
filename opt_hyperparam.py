@@ -181,7 +181,7 @@ def main():
     path = os.path.join(opt_path, f"trial{fid:03d}")
     config["load_model"] = os.path.join(path, f"model.best.ckpt")
     opt_config_path = os.path.join(opt_path, f"opt_config.json")
-    save_json(opt_config_path, opt_config)
+    save_json(opt_config_path, config)
 
 if __name__ == '__main__':
     main()
