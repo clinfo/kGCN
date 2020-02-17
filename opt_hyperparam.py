@@ -148,7 +148,7 @@ def main():
                                               num_cores=num_cores)
     opt.run_optimization(max_iter=args.max_itr)
 
-    print("... saving optimized parameters")
+    print("... saving optimization result")
     n = opt.X.shape[0]
     result = []
     for i in range(n):
@@ -161,6 +161,7 @@ def main():
     save_json(out_result_path, result)
     opt_index = np.argmin(opt.Y[:, 0])
 
+    # save optimized parameters
     print("... saving optimized parameters")
     param = {}
     for j, el in enumerate(domain):
@@ -169,10 +170,18 @@ def main():
           f"cost: {opt.fx_opt}"
           f"index: {opt_index}")
     param["opt_index"] = int(opt_index)
-    # save optimized parameters
     out_path = os.path.join(opt_path, "opt_param.json")
     save_json(out_path, param)
 
+    # save optimized config
+    print("... saving config")
+    fid=int(opt_index)
+    path = os.path.join(opt_path, f"trial{fid:03d}")
+    #opt_config = make_config(path, config, fid)
+    #config["save_model"] = os.path.join(path, f"model.{str(fid)}.ckpt")
+    config["load_model"] = os.path.join(path, f"model.{str(fid)}.ckpt")
+    opt_config_path = os.path.join(opt_path, f"opt_config.json")
+    save_json(out_config_path, opt_config)
 
 if __name__ == '__main__':
     main()

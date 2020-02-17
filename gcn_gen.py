@@ -149,7 +149,6 @@ def train(sess,config):
 
 def reconstruct(sess,config):
     batch_size=config["batch_size"]
-    model = importlib.import_module(config["model.py"])
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
         dataset_filename=config["dataset_test"]
@@ -166,7 +165,7 @@ def reconstruct(sess,config):
 
 
     model = CoreModel(sess,config,info,construct_feed_callback=construct_feed)
-    model.build(importlib.import_module(config["model.py"]),is_train=False)
+    load_model_py(model, config["model.py"],is_train=False)
 
     vars_to_train = tf.trainable_variables()
     for v in vars_to_train:
@@ -193,7 +192,6 @@ def reconstruct(sess,config):
 
 def generate(sess,config):
     batch_size=config["batch_size"]
-    model = importlib.import_module(config["model.py"])
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
         dataset_filename=config["dataset_test"]
@@ -210,7 +208,7 @@ def generate(sess,config):
 
 
     model = CoreModel(sess,config,info,construct_feed_callback=construct_feed)
-    model.build(importlib.import_module(config["model.py"]),is_train=False)
+    load_model_py(model, config["model.py"],is_train=False)
     # initialize session
     saver = tf.train.Saver()
     #sess.run(tf.global_variables_initializer())
@@ -225,7 +223,8 @@ def generate(sess,config):
 
     if "generation_test" in config:
         filename=config["generation_test"]
-        os.makedirs(os.path.dirname(filename),exist_ok=True)
+        dirname=os.path.dirname(filename)
+        if dirname!="": os.makedirs(dirname,exist_ok=True)
         print("[SAVE]",filename)
         joblib.dump(generated_data, filename)
 
