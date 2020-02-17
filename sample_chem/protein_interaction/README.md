@@ -21,7 +21,7 @@ Predicting compound-protein interactions (CPIs) has played an important role in 
 To evaluate our framework, we prepare a preprocessed dataset from ChEMBL ver.20 Database.
 We define threshold for active/inactive as 30uM.
 The dataset can be downloaded from the following link:
-
+https://drive.google.com/file/d/1HxZRoxLLB8K_lG2IFic83J_aMX5a-7Iq/view?usp=sharing
 
 This dataset contains four-type assays: MMP-3, MMP-9, MMP-12, and MMP-13.
 Each assay conatains data sample (Compound) as 
