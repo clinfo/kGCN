@@ -92,11 +92,21 @@ Once you execute this command, cross-validation is performed by running a series
 
 ### [Configulation file](./docs/configulation_file.md)
 
-### [Dataset file](./docs/dataset_file.md)
-
-In order to use your own data, you have to create a *dictionary* with the following data format and compress it as a *joblib dump* file.
+### [Dataset file](./docs/dataset_file.md): To use your own data, you have to create a *dictionary* with the following data format and compress it as a *joblib dump* file.
 
 ### [Visualization file](./docs/visualization.md)
+
+## Reference
+```
+@article{Kojima2020,
+author = "Ryosuke Kojima and Shoichi Ishida and Masateru Ohta and Hiroaki Iwata and Teruki Honma and Yasushi Okuno",
+title = "{kGCN: A Graph-Based Deep Learning Framework for Chemical Structures}",
+year = "2020",
+month = "2",
+url = "https://chemrxiv.org/articles/kGCN_A_Graph-Based_Deep_Learning_Framework_for_Chemical_Structures/11859684",
+doi = "10.26434/chemrxiv.11859684.v1"
+}
+```
 
 ## Directory structure
 
@@ -216,11 +226,22 @@ gcnv -i visualization/mol_0000_task_0_class285_all_scaling.jbl
 ```
 The implementation of extracting reaction template on GitHub at https://github.com/clinfo/extract_reaction_template.git.  
 (For instruction of `gcnv`, please see gcnvisualizer/README.md)
-#### Reference
 
-Shoichi Ishida , Kei Terayama,  Ryosuke Kojima, Kiyosei Takasu, Yasushi Okuno  
-[Prediction and Interpretable Visualization of Retrosynthetic Reactions Using Graph Convolutional Networks](https://pubs.acs.org/doi/10.1021/acs.jcim.9b00538)  
-Journal of Chemical Information and Modeling. [DOI: 10.1021/acs.jcim.9b00538]
+#### Reference (Application)
+
+```
+@article{Ishida2019,
+author = {Ishida, Shoichi and Terayama, Kei and Kojima, Ryosuke and Takasu, Kiyosei and Okuno, Yasushi},
+title = {Prediction and Interpretable Visualization of Retrosynthetic Reactions Using Graph Convolutional Networks},
+journal = {Journal of Chemical Information and Modeling},
+volume = {59},
+number = {12},
+pages = {5026-5033},
+year = {2019},
+doi = {10.1021/acs.jcim.9b00538},
+URL = { https://doi.org/10.1021/acs.jcim.9b00538 },
+}
+```
 
 ## Generative model
 
@@ -273,6 +294,7 @@ For more information for this json file, see the GPyOpt document(http://nbviewer
 Depending on your environment, it might be necessary to change line 9 (opt_cmd) of opt_hyperparam.py
 
 When you want to change and add hyperparameters, please change domain.json and model file. An example of model file is example_model/opt_param.py in which a hyperparameter is num_gcn_layer.
+
 
 
 ## License
