@@ -337,3 +337,82 @@ class BatchGraphConv(Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape[0][0], self.output_dim
+
+class GINAggregate(Layer):
+    def __init__(self, adj_channel_num, initializer='zeros', **kwargs):
+        self.adj_channel_num = adj_channel_num
+        self.initializer = initializer
+        if enabled_bspmm:
+            import kgcn.bspmm_call as bspmm
+            self.bspmm_obj = bspmm.BatchedSpMM()
+        if enabled_bconv:
+            import kgcn.bconv_call as bconv
+            self.bconv_obj = bconv.BatchedConv()
+        if enabled_batched:
+            import kgcn.batched_call as batched
+            self.bspmdt_obj = batched.BatchedSpMDT()
+        super(GINAggregate, self).__init__(**kwargs)
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
+        adj_channel_num = self.adj_channel_num
+        self.epsilon = []
+        for i in range(adj_channel_num):
+            self.epsilon.append(self.add_weight(name='epsilon'+str(i),
+                                          shape=(),
+                                          initializer=self.initializer,
+                                          trainable=True))
+        super(GINAggregate, self).build(input_shape)
+
+    def call(self, inputs, adj=None):
+        adjs = adj
+        adj_channel_num = self.adj_channel_num
+        batch_size = inputs.shape[0]
+        if enabled_bconv:
+            print("## bconv ##")
+            fw = [[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
+            for batch_idx in range(batch_size):
+                for adj_ch in range(adj_channel_num):
+                    fw[batch_idx][adj_ch] = inputs[batch_idx, :, :]
+            oo = self.bconv_obj.call(adjs, fw)
+            return tf.stack(oo)
+        elif enabled_bspmm:
+            print("## bspmm ##")
+            o = []
+            for adj_ch in range(adj_channel_num):
+                adj_list = [adjs[i][adj_ch] for i in range(batch_size)]
+                fw_list = [None for _ in range(batch_size)]
+                for batch_idx in range(batch_size):
+                    fw_list[batch_idx] = inputs[batch_idx, :, :]
+                oo = self.bspmm_obj.call(adj_list, fw_list)
+                o = oo if not o else tf.add(o, oo)
+            return tf.stack(o)
+        elif enabled_batched:
+            print("## batched ##")
+            # Batched version
+            o = [None for _ in range(adj_channel_num)]
+            input_row = inputs.shape[1]
+            input_col = inputs.shape[2]
+            for adj_ch in range(adj_channel_num):
+                # w_col = tf.shape(self.w[adj_ch])[1]  # unused variable
+                fs = tf.reshape(inputs, [batch_size*input_row, input_col])
+                adj_list = [adjs[batch_idx][adj_ch] for batch_idx in range(batch_size)]
+                o[adj_ch] = self.bspmdt_obj.call(adj_list, fs)
+            o = tf.reduce_sum(o, 0)
+            return tf.stack(o)
+        else:
+            # graph conv. without bspmm
+            o = [[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
+            for batch_idx in range(batch_size):
+                for adj_ch in range(adj_channel_num):
+                    adj = adjs[batch_idx][adj_ch]
+                    fw = inputs[batch_idx, :, :]
+                    el = tf.sparse_tensor_dense_matmul(adj, fw)
+                    o[batch_idx][adj_ch] = self.epsilon[adj_ch]*fw+el
+                o[batch_idx] = tf.add_n(o[batch_idx])
+            output = tf.stack(o)
+        return output
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
