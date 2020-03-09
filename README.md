@@ -1,7 +1,8 @@
 
 # kGCN: Graph Convolutional Network tools for life science
-
-<img src="https://user-images.githubusercontent.com/1664861/64188778-f9601b00-cead-11e9-8922-da7167fbf9a2.png" height="320px">
+<div align="center">
+  <img src="https://user-images.githubusercontent.com/1664861/64188778-f9601b00-cead-11e9-8922-da7167fbf9a2.png" height="320px">
+</div>
 
 ## Installation
 
@@ -17,9 +18,9 @@ Now, you have to execute the python codes directly.
   * scikit-learn (> 0.21)
   * matplotlib
 
-### [Installation (for Ubuntu 18.04)](./docs/installation_for_ubuntu1804.md)
+### [For Ubuntu 18.04](./docs/installation_for_ubuntu1804.md)
 
-### [Installation (for CentOS 7)](./docs/installation_for_centos7.md)
+### [For CentOS 7](./docs/installation_for_centos7.md)
 
 To install additional modules:
 - Visualizer: please see gcnvisualizer/README.md
@@ -73,7 +74,7 @@ You can specify a configuration file (example_config/sample.json) as follows:
 ```bash
 kgcn train --config example_config/sample.json
 ```
-## The commands of gcn.py
+## The commands of kgcn
 
 kgcn has three commands: *train*/*infer*/*train_cv*.
 You can specify a command as follows:
@@ -99,56 +100,74 @@ Once you execute this command, cross-validation is performed by running a series
 ## Reference
 ```
 @article{Kojima2020,
-author = "Ryosuke Kojima and Shoichi Ishida and Masateru Ohta and Hiroaki Iwata and Teruki Honma and Yasushi Okuno",
-title = "{kGCN: A Graph-Based Deep Learning Framework for Chemical Structures}",
-year = "2020",
-month = "2",
-url = "https://chemrxiv.org/articles/kGCN_A_Graph-Based_Deep_Learning_Framework_for_Chemical_Structures/11859684",
-doi = "10.26434/chemrxiv.11859684.v1"
+  author = "Ryosuke Kojima and Shoichi Ishida and Masateru Ohta and Hiroaki Iwata and Teruki Honma and Yasushi Okuno",
+  title = "{kGCN: A Graph-Based Deep Learning Framework for Chemical Structures}",
+  year = "2020",
+  month = "2",
+  url = "https://chemrxiv.org/articles/kGCN_A_Graph-Based_Deep_Learning_Framework_for_Chemical_Structures/11859684",
+  doi = "10.26434/chemrxiv.11859684.v1"
 }
 ```
 ## Directory structure
 
 ```
 .
-├── LICENSE          : LICENSE file
-├── README.md        : this file
-├── example_config/  : examples of config files
-├── example_data/    : examples of adj. files, label files, etc.
-├── example_jbl/     : examples of jbl. files
-├── example_model/   : examples of model files
-├── example_param/   : examples of parameter domain files
-├── example_script/ : scripts for the examples
-├── gcn.py           : the main engin of this project
-├── gcn_gen.py       : an engin for generative models
-├── gcn_pair.py      : an engin for ranking models
-├── opt_hyperparam.py        :an engin for optimization of hyper parameters
-├── kgcn
-│   ├── core.py          : a main program files for the GCN model
-│   ├── data_util.py     : utilities for data handling
-│   ├── error_checker.py : error checker
-│   ├── feed.py          : functions to build feed dictionaries
-│   ├── feed_index.py    : functions to build feed dictionaries (index base)
-│   ├── make_plots.py    : functions to plot graphs
-│   ├── layers.py            : GCN-related layers
-│   └── visualization.py : functions to visualize trained models
-├── graph_kernel/        : graph kernel SVM
-├── logs/   : output directory for exmaples
-├── model/  : output directory for exmaples
-├── result/ : output directory for exmaples
-├── visualization/ : output directory for exmaples
-├── script                     : utility sctipts
-│   ├── make_dataset.py
-│   ├── plot_graph.py
-│   ├── show_graph.py
-│   └── show_label_balance.py
-├── script_cv                  : scripts for parallel cross validation
-│   ├── 01make_dataset.sh
-│   ├── 02run_fold.sh
-│   └── make_cross_validation_dataset.py
-└── script_synthetic_data    : synthetic data
-     ├── synth_generator.py      : random graph
-     └── synth_generator_ring.py : random graph with ring
+├── active_learning/                     :
+├── data_generator/                      :
+│    ├── synth_generator.py              : random graph
+│    └── synth_generator_ring.py         : random graph with ring
+├── docs/                                : a set of documents
+├── example_config/                      : examples of config files
+├── example_data/                        : examples of adj. files, label files, etc.
+├── example_jbl/                         : examples of jbl. files
+├── example_model/                       : examples of model files
+├── example_param/                       : examples of parameter domain files
+├── example_script/                      : scripts for the examples
+├── gcn_modules/                         :
+├── gcnvisualizer/                       : kgcn visualization modules
+├── graph_kernel/                        : graph kernel SVM
+├── hooks/                               : 
+├── kgcn                                 :
+│   ├── legacy                           : duplicated scripts
+│   ├── preprocessing/                   : scripts for dataset preparaiton for kgcn 
+│   ├── core.py                          : a main program files for the GCN model
+│   ├── data_util.py                     : utilities for data handling
+│   ├── default_model.py                 : 
+│   ├── error_checker.py                 : error checker
+│   ├── feed.py                          : functions to build feed dictionaries
+│   ├── feed_index.py                    : functions to build feed dictionaries (index base)
+│   ├── layers.py                        : GCN-related layers
+│   ├── make_plots.py                    : functions to plot graphs
+│   └── visualization.py                 : functions to visualize trained models
+├── kgcn_tf2                             : 
+├── kgcn_torch                           :
+├── KNIME/                               : 
+├── logs/                                : output directory for exmaples
+├── model/                               : output directory for exmaples
+├── Notebook/                            : examples of jupyter notebook
+├── result/                              : output directory for exmaples
+├── sample_chem/                         : 
+├── sample_nx/                           :
+├── script                               : utility sctipts
+│   ├── make_dataset.py                  :
+│   ├── plot_graph.py                    :
+│   ├── show_graph.py                    :
+│   └── show_label_balance.py            :
+├── script_cv                            : scripts for parallel cross validation
+│   ├── 01make_dataset.sh                :
+│   ├── 02run_fold.sh                    :
+│   └── make_cross_validation_dataset.py : 
+├── visualization/                       : output directory for exmaples
+├── Dockerfile                           :
+├── gcn.py                               : the main engin of this project
+├── gcn_gen.py                           : an engin for generative models
+├── gcn_pair.py                          : an engin for ranking models
+├── LICENSE                              : LICENSE file
+├── model_functions.py                   :
+├── opt_hyperparam.py                    :an engin for optimization of hyper parameters
+├── README.md                            : this file
+├── setup.py                             :
+└── task_sparse_gcn.py                   : 
 
 ```
 ## Additional sample1
@@ -199,51 +218,7 @@ Please reffer to sample_data/multi_label.txt and a coverting program (make_sampl
 
 ## [Application example1: compound-protein interaction](./sample_chem/protein_interaction/)
 
-## Application example2: Reaction prediction and visualization
-
-This is a sample usage of a reaction prediction.
-- The following additional library is required:
-```
-pip install mendeleev
-```
-- First, create the input dataset from a molecule file and a label file
-```bash
-kgcn-chem -s example_data/mol.sma -l example_data/reaction_label.csv --no_header -o example_jbl/reaction.jbl -a 203 --sparse_label --use_deepchem_feature
-```
-- Then, run "gcn.py" by "infer" command to get the accuracy.
-```bash
-kgcn infer --config example_config/reaction.json
-```
-This is a sample usage of visualization of the prediction.
-- First, install the gcnvisualizer following "kGCN/gcnvisualizer" instruction.
-- Then, prepare the input files for gcnvisualizer.
-```bash
-kgcn visualize --config example_config/reaction.json
-```
-- Finally, run "gcnv" command to create the figures of the visualization.
-```bash
-gcnv -i visualization/mol_0000_task_0_class285_all_scaling.jbl
-```
-The implementation of extracting reaction template on GitHub at https://github.com/clinfo/extract_reaction_template.git.  
-(For instruction of `gcnv`, please see gcnvisualizer/README.md)
-
-
-
-#### Reference (Application)
-
-```
-@article{Ishida2019,
-author = {Ishida, Shoichi and Terayama, Kei and Kojima, Ryosuke and Takasu, Kiyosei and Okuno, Yasushi},
-title = {Prediction and Interpretable Visualization of Retrosynthetic Reactions Using Graph Convolutional Networks},
-journal = {Journal of Chemical Information and Modeling},
-volume = {59},
-number = {12},
-pages = {5026-5033},
-year = {2019},
-doi = {10.1021/acs.jcim.9b00538},
-URL = { https://doi.org/10.1021/acs.jcim.9b00538 },
-}
-```
+## [Application example2: Reaction prediction and visualization](./docs/example_for_reaction_prediction.md)
 
 ## Generative model
 
