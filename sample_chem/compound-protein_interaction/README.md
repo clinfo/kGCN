@@ -1,5 +1,5 @@
 
-# Protein interaction 
+# Predict Compound-Protein interaction 
 
 This is an example of a problem that predicts the assay activities of a protein and a ligand. 
 This example contains three types of graph convolutional neural networks: single task, multi task, multimodal neural networks.

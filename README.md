@@ -216,7 +216,7 @@ In this sample, "multitask" means that multiple labels are allowed for one graph
 This configuration file specifies the program of model as "model_multitask.py", which includes definition of a loss function for multiple labels.
 Please reffer to sample_data/multi_label.txt and a coverting program (make_sample.py) to prepare multi labeled data,
 
-## [Application example1: compound-protein interaction](./sample_chem/protein_interaction/)
+## [Application example1: compound-protein interaction](./sample_chem/compound-protein_interaction/)
 
 ## [Application example2: Reaction prediction and visualization](./docs/example_for_reaction_prediction.md)
 
