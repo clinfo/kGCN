@@ -3,22 +3,13 @@
 ## Installation
 
 ```
-$ cd neural_architecture_search
-$ pip install -e .
+$ pip install -r requirements.txt
 ```
 
-## Test
+## How to run
 
 ```
-$ cd neural_architecture_search
-$ python setup.py test
-```
-
-## Examples
-
-```
-$ cd neural_architecture_search/examples
-$ python mnist.py
+$ python gcn_nas.py
 ```
 
 ## References
