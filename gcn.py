@@ -725,12 +725,6 @@ def main():
                 infer(sess, graph, config)
             elif args.mode == "visualize":
                 visualize(sess, config, args)
-        import tfcg
-        parser = tfcg.from_graph_def(sess.graph_def)
-        logdir = 'logdir'
-        writer = tf.summary.FileWriter(logdir, sess.graph)
-        parser.dump_img("output.png")
-        parser.dump_yml("output.yml")
     if args.save_config is not None:
         print(f"[SAVE] {args.save_config}")
         os.makedirs(os.path.dirname(args.save_config), exist_ok=True)
