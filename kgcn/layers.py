@@ -415,4 +415,71 @@ class GINAggregate(Layer):
     def compute_output_shape(self, input_shape):
         return input_shape
 
+class GAT(Layer):
+    """Graph attentional layer: https://arxiv.org/abs/1710.10903
+        Note: this layer does not include weight parameter W
+              for the flexible design of neural networks.
+        For example , the following pseudo code is an implementation of 
+        the graph attention network in the thesis,
+        ```python
+        h=GraphDense(input)
+        out=GAT(h)
+        ```
+
+    """
+    def __init__(self, adj_channel_num, initializer='glorot_uniform',input_dim=None, **kwargs):
+        self.adj_channel_num = adj_channel_num
+        self.initializer = initializer
+        self.input_dim = input_dim
+        super(GAT, self).__init__(**kwargs)
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
+        adj_channel_num = self.adj_channel_num
+        self.weight_a = []
+        self.w = []
+        for i in range(adj_channel_num):
+            input_dim = input_shape[2] if self.input_dim is None else self.input_dim
+            weight_a = self.add_weight(name='weight_a'+str(i),
+                                     shape=(int(input_dim)*2,1),
+                                     initializer=self.initializer,
+                                     trainable=True)
+            self.weight_a.append(weight_a)
+        super(GAT, self).build(input_shape)
+
+    def call(self, inputs, adj=None):
+        adjs = adj
+        adj_channel_num = self.adj_channel_num
+        batch_size = inputs.shape[0]
+        max_node_num = inputs.shape[1]
+        # graph conv. without bspmm
+        o = [[None for _ in range(adj_channel_num)] for _ in range(batch_size)]
+        for batch_idx in range(batch_size):
+            for adj_ch in range(adj_channel_num):
+                adj = adjs[batch_idx][adj_ch]
+                fw = inputs[batch_idx, :, :]
+                x=fw
+                idx=adj.indices
+                a1=tf.gather(x,idx[:,1])
+                a2=tf.gather(x,idx[:,0])
+                # ii: node_num x #edges
+                ii=tf.transpose(tf.one_hot(idx[:,0],max_node_num))
+                ##
+                aa=tf.concat([a1,a2],axis=1)
+                layer=tf.matmul(aa,self.weight_a[adj_ch])
+                layer=tf.nn.leaky_relu(layer)
+                e=tf.exp(layer)
+                denom=tf.matmul(ii,e)
+                denom_e=tf.gather(denom,idx[:,1])
+                alpha=e/(denom_e+1.0e-10)
+                ##
+                r=tf.matmul(ii,alpha*a1)
+                o[batch_idx][adj_ch] = tf.nn.sigmoid(r)
+            o[batch_idx] = tf.add_n(o[batch_idx])
+        output = tf.stack(o)
+        output.set_shape(inputs.shape)
+        return output
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
