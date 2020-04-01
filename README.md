@@ -1,5 +1,5 @@
 
-# kGCN: Graph Convolutional Network tools for life science
+# kGCN: a graph-based deep learning framework for life science
 <div align="center">
   <img src="https://user-images.githubusercontent.com/1664861/64188778-f9601b00-cead-11e9-8922-da7167fbf9a2.png" height="320px">
 </div>
