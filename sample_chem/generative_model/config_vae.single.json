@@ -1,0 +1,23 @@
+{
+    "model.py": "example_model.model_vae",
+    "dataset": "sample_chem/generative_model/dataset.single.jbl",
+    "save_info_test": "./sample_chem/generative_model/result/vae_test.single.json",
+    "save_info_train": "./sample_chem/generative_model/result/vae_train.single.json",
+    "save_info_valid": "./sample_chem/generative_model/result/vae_valid.single.json",
+    "load_model": "./sample_chem/generative_model/model.single/model.last.ckpt",
+    "validation_data_rate": 0.1,
+    "epoch": 10,
+    "order":1,
+    "embedding_dim":100,
+    "batch_size": 30,
+    "save_interval": 100,
+    "learning_rate": 0.01,
+    "with_node_embedding": false,
+    "with_feature": true,
+    "save_model_path": "sample_chem/generative_model/model.single",
+    "save_model": "sample_chem/generative_model/model.single/model.last.ckpt",
+    "patience": 0,
+    "split_adj_flag": false,
+    "reconstruction_test": "sample_chem/generative_model/recons.single.test.jbl",
+    "generation_test": "sample_chem/generative_model/gen.single.test.jbl"
+}
