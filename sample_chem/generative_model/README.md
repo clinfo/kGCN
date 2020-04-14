@@ -66,7 +66,7 @@ sh ./run.multi.sh
 
 また、外部のデータセットに対して、
 ```
-gcn_gen.py recons --config <設定ファイル>
+kgcn-gen recons --config <設定ファイル>
 ```
 のように実行した場合も、再構築データセットファイルが生成される
 
