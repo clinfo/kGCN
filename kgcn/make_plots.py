@@ -13,8 +13,8 @@ from sklearn.preprocessing import OneHotEncoder
 
 
 def make_cost_acc_plot(train_cost_list, valid_cost_list, train_acc_list, valid_acc_list, result_dir, metric_name="acc",
-                       metric_show_name="Accuracy"):
-    loss_path = os.path.join(result_dir, "loss.png")
+                       metric_show_name="Accuracy",prefix=""):
+    loss_path = os.path.join(result_dir, prefix+"loss.png")
     plt.plot(train_cost_list, 'k-', label='Train Set Cost')
     plt.plot(valid_cost_list, 'r-', label='Validation Set Cost')
     plt.title("Loss per Epochs")
@@ -25,7 +25,7 @@ def make_cost_acc_plot(train_cost_list, valid_cost_list, train_acc_list, valid_a
     print(f"[SAVE] Cost figure in [ {loss_path} ] ")
     plt.clf()
 
-    metric_path = os.path.join(result_dir, f"{metric_name}.png")
+    metric_path = os.path.join(result_dir, prefix+f"{metric_name}.png")
     plt.plot(train_acc_list, 'k-', label=f'Train Set {metric_show_name}')
     plt.plot(valid_acc_list, 'r-', label=f'Validation Set {metric_show_name}')
     plt.title(f'Train and Validation {metric_show_name}')
@@ -65,15 +65,15 @@ def regularize_multitask_score(score):
     return None
 
 
-def make_multitask_auc_plot(true_label, pred_score, result_dir, plot_each_class=True):
+def make_multitask_auc_plot(true_label, pred_score, result_dir, plot_each_class=True,prefix=""):
     true_label = regularize_multitask_label(true_label)
     pred_score = regularize_multitask_score(pred_score)
     num_task = true_label.shape[1]
     for i in range(num_task):
-        make_auc_plot(true_label[:, i, :], pred_score[:, i, :], result_dir, plot_each_class, postfix=str(i))
+        make_auc_plot(true_label[:, i, :], pred_score[:, i, :], result_dir, plot_each_class, postfix=str(i),prefix="")
 
 
-def make_auc_plot(true_label, pred_score, result_dir, plot_each_class=True, postfix=None):
+def make_auc_plot(true_label, pred_score, result_dir, plot_each_class=True, postfix=None,prefix=""):
     print(true_label.shape, pred_score.shape)
     n_classes = len(true_label[0])
     # Compute ROC curve and ROC area for each class
@@ -121,13 +121,13 @@ def make_auc_plot(true_label, pred_score, result_dir, plot_each_class=True, post
     plt.ylabel('True Positive Rate')
     plt.title('ROC_curve')
     plt.legend(loc="lower right", fontsize=10)
-    filename = os.path.join(result_dir, "auc.png") if postfix is None else os.path.join(result_dir, f"auc{postfix}.png")
+    filename = os.path.join(result_dir, prefix+"auc.png") if postfix is None else os.path.join(result_dir, prefix+f"auc{postfix}.png")
     plt.savefig(filename)
     plt.clf()
     print(f"[SAVE] ROC/AUC in [ {filename} ] ")
 
 
-def make_r2_plot(true_label, pred_score, result_dir, postfix=None):
+def make_r2_plot(true_label, pred_score, result_dir, postfix=None,prefix=""):
     plt.figure()
     r2 = sklearn.metrics.r2_score(true_label, pred_score)
     mse = sklearn.metrics.mean_squared_error(true_label, pred_score)
@@ -146,7 +146,7 @@ def make_r2_plot(true_label, pred_score, result_dir, postfix=None):
     plt.scatter(x, y,  color='black')
     plt.plot(x, yp, color='blue', linewidth=3)
 
-    filename = os.path.join(result_dir, "r2.png") if postfix is None else os.path.join(result_dir, f"r2{postfix}.png")
+    filename = os.path.join(result_dir, prefix+"r2.png") if postfix is None else os.path.join(result_dir, prefix+f"r2{postfix}.png")
     plt.savefig(filename)
     plt.clf()
     print(f"[SAVE] R2 plot in [ {filename} ] ")
@@ -158,16 +158,16 @@ def plot_cost(config, data, model, prefix=""):
     training_acc = [el["training_accuracy"] for el in model.training_metrics_list]
     validation_acc = [el["validation_accuracy"] for el in model.validation_metrics_list]
     make_cost_acc_plot(model.training_cost_list, model.validation_cost_list, training_acc, validation_acc,
-                       result_path+prefix)
+                       result_path,prefix=prefix)
 
 
 def plot_auc(config, labels, pred_data, prefix=""):
     result_path = config["plot_path"]
     os.makedirs(result_path, exist_ok=True)
     if config["plot_multitask"]:
-        make_multitask_auc_plot(labels, pred_data, result_path+prefix)
+        make_multitask_auc_plot(labels, pred_data, result_path,prefix=prefix)
     else:
-        make_auc_plot(labels, pred_data, result_path+prefix)
+        make_auc_plot(labels, pred_data, result_path,prefix=prefix)
 
 
 def plot_r2(config, labels, pred_data, prefix=""):
@@ -176,4 +176,4 @@ def plot_r2(config, labels, pred_data, prefix=""):
     if config["plot_multitask"]:
         print("not supported")
     else:
-        make_r2_plot(labels, pred_data, result_path+prefix)
+        make_r2_plot(labels, pred_data, result_path,prefix=prefix)

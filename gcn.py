@@ -472,17 +472,17 @@ def train_cv(sess, graph, config):
         if config["make_plot"]:
             if config["task"] == "regression":
                 make_cost_acc_plot(fold_data.training_cost, fold_data.validation_cost,
-                                   fold_data.training_mse, fold_data.validation_mse, result_path+prefix)
+                                   fold_data.training_mse, fold_data.validation_mse, result_path,prefix=prefix)
                 pred_score = np.array(fold_data.prediction_data)
                 plot_r2(config, fold_data.test_labels, pred_score, prefix=prefix)
             elif config["task"] == "regression_gmfe":
                 make_cost_acc_plot(fold_data.training_cost, fold_data.validation_cost,
-                                   fold_data.training_mse, fold_data.validation_mse, result_path+prefix)
+                                   fold_data.training_mse, fold_data.validation_mse, result_path,prefix=prefix)
                 pred_score = np.array(fold_data.prediction_data)
                 plot_r2(config, fold_data.test_labels, pred_score, prefix=prefix)
             else:
                 make_cost_acc_plot(fold_data.training_cost, fold_data.validation_cost,
-                                   fold_data.training_acc, fold_data.validation_acc, result_path+prefix)
+                                   fold_data.training_acc, fold_data.validation_acc, result_path,prefix=prefix)
                 pred_score = np.array(fold_data.prediction_data)
                 plot_auc(config, fold_data.test_labels, pred_score, prefix=prefix)
 
