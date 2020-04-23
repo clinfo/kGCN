@@ -17,7 +17,7 @@
     "make_plot": true,
     "validation_data_rate": 0.2,
     "epoch": 100,
-    "batch_size": 1,
+    "batch_size": 50,
     "save_interval": 50,
     "learning_rate": 0.001,
     "with_feature": true,

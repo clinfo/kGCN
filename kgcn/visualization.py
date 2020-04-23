@@ -64,17 +64,25 @@ class CompoundVisualizer(object):
             self.perturbation_target = [self.perturbation_target]
 
         self.ig_modal_target = self.perturbation_target if self.ig_modal_target == "all" else [self.ig_modal_target]
-
         self.logger.info(f"target modal = {self.ig_modal_target}")
         self.logger.info(f"scaling modal = {self.perturbation_target}")
-
         self._set_ig_modal_data(sess)
+
         # construct computational graph for grad
         if grads is None:
             ig_placeholders = self._get_placeholders(self.ig_modal_target, self.placeholders)
             self.grads = tf.gradients(self.prediction, ig_placeholders)
         else:
             self.grads = grads
+        new_grads=[]
+        new_ig_modal_target=[]
+        for i,g in enumerate(self.grads):
+            if g is not None:
+                new_grads.append(g)
+                new_ig_modal_target.append(self.ig_modal_target[i])
+        self.validated_grads=new_grads
+        self.ig_modal_target=new_ig_modal_target
+
 
     def _set_ig_modal_target(self):
         all_ig_modal_target = []
@@ -190,7 +198,7 @@ class CompoundVisualizer(object):
             for k in range(divide_number):
                 scaling_coef = (k + 1) / float(divide_number)
                 feed_dict = self._construct_feed(scaling_coef)
-                out_grads = sess.run(self.grads, feed_dict=feed_dict)
+                out_grads = sess.run(self.validated_grads, feed_dict=feed_dict)
                 for idx, modal_name in enumerate(IGs):
                     _target_data = self.ig_modal_target_data[modal_name]
                     if modal_name is 'adjs':
@@ -201,7 +209,7 @@ class CompoundVisualizer(object):
                         IGs[modal_name] += out_grads[idx][0] * _target_data / float(divide_number)
         elif method == "grad_prod":  # Gradient+
             feed_dict = self._construct_feed(1.0)
-            out_grads = sess.run(self.grads, feed_dict=feed_dict)
+            out_grads = sess.run(self.validated_grads, feed_dict=feed_dict)
             for idx, modal_name in enumerate(IGs):
                 _target_data = self.ig_modal_target_data[modal_name]
                 if modal_name is 'adjs':
@@ -212,7 +220,7 @@ class CompoundVisualizer(object):
                     IGs[modal_name] += out_grads[idx][0] * _target_data
         elif method == "grad":  # Gradient
             feed_dict = self._construct_feed(1.0)
-            out_grads = sess.run(self.grads, feed_dict=feed_dict)
+            out_grads = sess.run(self.validated_grads, feed_dict=feed_dict)
             for idx, modal_name in enumerate(IGs):
                 _target_data = self.ig_modal_target_data[modal_name]
                 if modal_name is 'adjs':
@@ -224,7 +232,7 @@ class CompoundVisualizer(object):
         elif method == "smooth_grad":  # Smooth grad
             for k in range(divide_number):
                 feed_dict = self._construct_feed(1.0, enabled_noise=True)
-                out_grads = sess.run(self.grads, feed_dict=feed_dict)
+                out_grads = sess.run(self.validated_grads, feed_dict=feed_dict)
                 for idx, modal_name in enumerate(IGs):
                     _target_data = self.ig_modal_target_data[modal_name]
                     if modal_name is 'adjs':
@@ -237,7 +245,7 @@ class CompoundVisualizer(object):
             for k in range(divide_number):
                 scaling_coef = (k + 1) / float(divide_number)
                 feed_dict = self._construct_feed(scaling_coef, enabled_noise=True)
-                out_grads = sess.run(self.grads, feed_dict=feed_dict)
+                out_grads = sess.run(self.validated_grads, feed_dict=feed_dict)
                 for idx, modal_name in enumerate(IGs):
                     _target_data = self.ig_modal_target_data[modal_name]
                     if modal_name is 'adjs':

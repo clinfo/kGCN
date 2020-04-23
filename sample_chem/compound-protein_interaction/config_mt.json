@@ -1,5 +1,5 @@
 {
-    "model.py": "multitask",
+    "model.py": "multitask:MultitaskNetwork",
     "save_result_test": "result_mt/test.csv",
     "save_result_valid": "result_mt/valid.csv",
     "save_result_train": "result_mt/train.csv",
