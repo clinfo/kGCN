@@ -381,11 +381,14 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
     if sequences is not None:
         info.sequence_max_length = sequences.shape[1]
         info.sequence_symbol_num = data["sequence_symbol_num"]
-    elif sequences_vec is not None:
-        info.sequence_max_length = sequences_vec.shape[1]
     else:
         info.sequence_max_length = 0
         info.sequence_symbol_num = 0
+    if sequences_vec is not None:
+        info.sequence_max_length = sequences_vec.shape[1]
+        info.sequences_vec_dim = sequences_vec.shape[2]
+    else:
+        info.sequences_vec_dim = 0
 
     info.graph_num = len(adjs) if adjs is not None else 0
     info.adj_channel_num = adj_channel_num

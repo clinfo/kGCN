@@ -730,8 +730,8 @@ def main():
                 max_len_seq = args.max_len_seq if args.max_len_seq is not None else max(map(len, seq_list))
             print(f"max_len_seq: {max_len_seq}")
             seq_domain_name=set()
-            for i, obj in enumerate(seq_domain_list):
-                for key,el in obj.items():
+            for i, doms in enumerate(seq_domain_list):
+                for key,el in doms.items():
                     seq_domain_name.add(key)
             seq_domain_name=sorted(list(seq_domain_name))
             print(seq_domain_name)
