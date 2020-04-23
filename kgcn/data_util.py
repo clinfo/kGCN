@@ -163,6 +163,7 @@ def shuffle_data(data):
     data.mask_node_label = data.mask_node_label[idx] if data.mask_node_label is not None else None
     data.label_list = data.label_list[idx] if data.label_list is not None else None
     data.sequences = data.sequences[idx] if data.sequences is not None else None
+    data.sequences_vec = data.sequences_vec[idx] if data.sequences_vec is not None else None
     data.sequences_len = data.sequences_len[idx] if data.sequences_len is not None else None
     data.enabled_node_nums = data.enabled_node_nums[idx] if data.enabled_node_nums is not None else None
     if data.vector_modal is not None:
@@ -320,6 +321,7 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
     label_list = data["label_list"] if "label_list" in data else None
     # Setting sequence data (multimodal)
     sequences = data["sequence"] if "sequence" in data else None
+    sequences_vec = data["sequence_vec"] if "sequence_vec" in data else None
     sequences_len = np.array(data["sequence_length"], np.int32) if "sequence" in data else None
     sequence_symbol = np.array(data["sequence_symbol"]) if "sequence_symbol" in data else None
     # setting multi-modal data
@@ -346,6 +348,7 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
     all_data.label_list = label_list
     all_data.num = Num
     all_data.sequences = sequences
+    all_data.sequences_vec = sequences_vec
     all_data.sequences_len = sequences_len
     all_data.sequence_symbol = sequence_symbol
     all_data.vector_modal = vector_modal
@@ -378,6 +381,8 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
     if sequences is not None:
         info.sequence_max_length = sequences.shape[1]
         info.sequence_symbol_num = data["sequence_symbol_num"]
+    elif sequences_vec is not None:
+        info.sequence_max_length = sequences_vec.shape[1]
     else:
         info.sequence_max_length = 0
         info.sequence_symbol_num = 0

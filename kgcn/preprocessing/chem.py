@@ -182,7 +182,7 @@ def generate_inactive_data(label_data, label_mask):
 
 
 def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq,
-                             seq_symbol, profeat):
+                             seq_symbol, seq_domain, profeat):
     if not args.no_pseudo_negative:
         enabled_mol_index, enabled_task_index = np.where(label_mask == 1)
         active_count = np.where(label_data[enabled_mol_index, enabled_task_index] == 1)[0].shape[0]
@@ -234,9 +234,12 @@ def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_
     ll = label_data[x[0], x[1]]
     dragon_data = dragon_data[x[0]] if dragon_data is not None else None
     mol_obj_list = np.array(mol_obj_list)[x[0]] if mol_obj_list is not None else None
+    # x[1]: index list for tasks
     if seq is not None:
         seq = seq[x[1]]
         seq_symbol = seq_symbol[x[1]]
+    if seq_domain is not None:
+        seq_domain=seq_domain[x[1]]
     profeat = profeat[x[1]] if profeat is not None else None
     max_label = np.max(ll)
     print(f"[INFO] maximum label {max_label}")
@@ -254,7 +257,7 @@ def generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_
             new_label_data[i, int(l)] = 1
         new_mask_label = np.ones_like(new_label_data)
 
-    return mol_obj_list, new_label_data, new_mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol,\
+    return mol_obj_list, new_label_data, new_mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, seq_domain, \
         profeat
 
 
@@ -266,6 +269,7 @@ class AssayData:
         self.dragon_data = None
         self.seq = None
         self.seq_symbol = None
+        self.seq_domain = None
         self.profeat = None
 
     def _build_df_assay(self, args, assay_path):
@@ -322,6 +326,14 @@ class AssayData:
             seq = list(map(float, seq))
         self.seq = seq
         self.seq_symbol = seq_symbol
+        # interpro
+        pro_filename = os.path.join(assay_path, "interpro.txt")
+        if os.path.exists(seq_filename):
+            seq_domain = {}
+            for line in open(pro_filename):
+                arr=line.strip().split("\t")
+                seq_domain[arr[0]]=(int(arr[1]),int(arr[2]))
+            self.seq_domain = seq_domain
 
     def _build_profeat(self, assay_path, dict_profeat):
         b = os.path.basename(assay_path)
@@ -347,6 +359,7 @@ def concat_assay(assay_list):
     dict_dragon_data = None
     seq, seq_symbol = None, None
     dict_profeat = None
+    seq_domain, seq_domain_set = None, None
 
     for assay_data in assay_list:
         if assay_data.dict_assay is not None:
@@ -366,11 +379,17 @@ def concat_assay(assay_list):
             seq[assay_data.path] = assay_data.seq
             seq_symbol[assay_data.path] = assay_data.seq_symbol
 
+        if assay_data.seq_domain is not None:
+            seq_domain = seq_domain if seq_domain is not None else {}
+            seq_domain_set = seq_domain_set if seq_domain_set is not None else set()
+            seq_domain[assay_data.path] = assay_data.seq_domain
+            seq_domain_set=seq_domain_set.union(set(assay_data.seq_domain.keys()))
+
         if assay_data.profeat is not None:
             dict_profeat = dict_profeat if dict_profeat is not None else {}
             dict_profeat[assay_data.path] = assay_data.profeat
     
-    return dict_all_assay, dict_all_id_mol, dict_dragon_data, seq, seq_symbol, dict_profeat
+    return dict_all_assay, dict_all_id_mol, dict_dragon_data, seq, seq_symbol, seq_domain, seq_domain_set, dict_profeat
 
 
 def summarize_assay(args, df_all_assay):
@@ -397,7 +416,7 @@ def build_all_assay_data(args):
     for assay_filename in glob.iglob(os.path.join(args.assay_dir, '**/assay.csv'), recursive=True):
         assay_list.append(AssayData().build_from_dir(args, assay_filename, dict_profeat=dict_profeat))
 
-    dict_all_assay, dict_all_id_mol, dict_dragon_data, seq, seq_symbol, dict_profeat = concat_assay(assay_list)
+    dict_all_assay, dict_all_id_mol, dict_dragon_data, seq, seq_symbol, seq_domain, seq_domain_set, dict_profeat = concat_assay(assay_list)
     #
     assay_ids = np.unique([assay_id for assay_id, mol_id in dict_all_assay.keys()])
     mol_ids = np.unique([mol_id for assay_id, mol_id in dict_all_assay.keys()])
@@ -446,6 +465,8 @@ def build_all_assay_data(args):
     if seq:
         seq = np.array([seq[mi] for mi in task_name_list])
         seq_symbol = np.array([seq_symbol[mi] for mi in task_name_list])
+    if seq_domain:
+        seq_domain = np.array([seq_domain[mi] for mi in task_name_list])
     profeat_list = None
     if dict_profeat:
         profeat_list = np.array([dict_profeat[mi] for mi in task_name_list])
@@ -454,7 +475,7 @@ def build_all_assay_data(args):
     mask_label[~np.isnan(label_data)] = 1
     label_data[np.isnan(label_data)] = 0
     label_data[label_data < 0] = 0
-    return mol_list, label_data, mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat_list
+    return mol_list, label_data, mask_label, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, seq_domain, profeat_list
 
 
 def build_vector_modal(args):
@@ -466,6 +487,7 @@ def build_vector_modal(args):
 
 def extract_mol_info(args):
     dragon_data, task_name_list, seq, seq_symbol, profeat, publication_years = [], [], [], [], [], []
+    seq_domain = None
     if args.smarts is not None:
         _, label_data, label_mask = read_label_file(args.label, args.no_header, args.input_sparse_label)  # label name, label, valid/invalid mask of label
         with open(args.smarts, "r") as f:
@@ -493,14 +515,14 @@ def extract_mol_info(args):
         _, label_data, label_mask = read_label_file(args.label, args.no_header, args.input_sparse_label)  # label name, label, valid/invalid mask of label
 
     elif args.assay_dir is not None and args.multimodal:
-        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
+        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, seq_domain, profeat = \
             build_all_assay_data(args)
-        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
+        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, seq_domain, profeat = \
             generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list,
-                                     mol_id_list, seq, seq_symbol, profeat)
+                                     mol_id_list, seq, seq_symbol, seq_domain, profeat)
         
     elif args.assay_dir is not None:
-        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, profeat = \
+        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, seq_domain, profeat = \
             build_all_assay_data(args)
         generate_inactive_data(label_data, label_mask)
 
@@ -511,7 +533,7 @@ def extract_mol_info(args):
         print("[ERROR] --smarts, --sdf_dir, or --assay_dir is required")
         sys.exit(1)
 
-    return mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol, profeat,\
+    return mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol, seq_domain, profeat,\
         publication_years
 
 
@@ -531,8 +553,10 @@ def main():
     mol_name_list = []
     seq_symbol_list = None
     dragon_data_list = None
-    seq_list = None
     seq = None
+    seq_list = None
+    seq_domain = None
+    seq_domain_list = None
     dragon_data = None
     profeat = None
     mol_list = []
@@ -545,10 +569,10 @@ def main():
         args.sdf_label_active = "high"
         args.sdf_label_inactive = "low"
     if args.assay_dir is not None:
-        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol, profeat, publication_years =\
+        mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol, seq_domain, profeat, publication_years =\
             extract_mol_info(args)
     else:
-        mol_obj_list, label_data, label_mask, _, task_name_list, _, _, _, publication_years = extract_mol_info(args)
+        mol_obj_list, label_data, label_mask, _, task_name_list, _, _, _, _, _, publication_years = extract_mol_info(args)
 
     if args.vector_modal is not None:
         dragon_data = build_vector_modal(args)
@@ -640,6 +664,10 @@ def main():
                 seq_list, seq_symbol_list = (seq_list, seq_symbol_list) if seq_list is not None else ([], [])
                 seq_list.append(seq[index])
                 seq_symbol_list.append(seq[index])
+            if seq_domain is not None:
+                seq_domain_list = seq_domain_list if seq_domain_list is not None else []
+                seq_domain_list.append(seq_domain[index])
+
     if args.csv_reaxys:
         save_tfrecords(args.output, train_list, eval_list, test_list, prefix_idx)
     if args.tfrecords:
@@ -697,7 +725,23 @@ def main():
             obj["sequence_symbol"] = seq_symbol_list
             obj["sequence_length"] = list(map(len, seq_list))
             obj["sequence_symbol_num"] = int(np.max(seq_mat)+1)
-
+        if seq_domain is not None:
+            if max_len_seq is None:
+                max_len_seq = args.max_len_seq if args.max_len_seq is not None else max(map(len, seq_list))
+            print(f"max_len_seq: {max_len_seq}")
+            seq_domain_name=set()
+            for i, obj in enumerate(seq_domain_list):
+                for key,el in obj.items():
+                    seq_domain_name.add(key)
+            seq_domain_name=sorted(list(seq_domain_name))
+            print(seq_domain_name)
+            seq_domain_mat = np.zeros((len(seq_domain_list), max_len_seq, len(seq_domain_name)), np.float32)
+            for i, obj in enumerate(seq_domain_list):
+                for key,el in obj.items():
+                    j=seq_domain_name.index(key)
+                    seq_domain_mat[i, el[0]-1:el[1],j] = 1
+            obj["sequence_vec_name"] = seq_domain_name
+            obj["sequence_vec"] = seq_domain_mat
     print(f"[SAVE] {args.output}")
     joblib.dump(obj, args.output, compress=3)
 

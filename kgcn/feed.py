@@ -96,6 +96,7 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
     mask_node_label=data.mask_node_label
     label_list=data.label_list
     sequences=data.sequences
+    sequences_vec=data.sequences_vec
     sequences_len=data.sequences_len
     vector_modal=data.vector_modal
     enabled_node_nums=data.enabled_node_nums
@@ -173,6 +174,10 @@ def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
         elif key=="sequences" and sequences is not None:
             seqs=np.zeros((batch_size,sequences.shape[1]),np.int32)
             seqs[:len(batch_idx),:]=sequences[batch_idx,:]
+            feed_dict[pl]=seqs
+        elif key=="sequences_vec" and sequences_vec is not None:
+            seqs=np.zeros((batch_size,sequences_vec.shape[1],sequences_vec.shape[2]),np.float32)
+            seqs[:len(batch_idx),:]=sequences_vec[batch_idx,:,:]
             feed_dict[pl]=seqs
         elif key=="sequences_len" and sequences_len is not None:
             seqs_len=np.zeros((batch_size,2),np.int32)
