@@ -68,6 +68,10 @@ def get_parser():
         help='help'
     )
     parser.add_argument(
+        '--assay_domain_name_clone', default=None, type=str,
+        help='help'
+    )
+    parser.add_argument(
         '--output_sparse_label', action='store_true', default=False,
         help='help'
     )
@@ -729,11 +733,17 @@ def main():
             if max_len_seq is None:
                 max_len_seq = args.max_len_seq if args.max_len_seq is not None else max(map(len, seq_list))
             print(f"max_len_seq: {max_len_seq}")
-            seq_domain_name=set()
-            for i, doms in enumerate(seq_domain_list):
-                for key,el in doms.items():
-                    seq_domain_name.add(key)
-            seq_domain_name=sorted(list(seq_domain_name))
+
+            if args.assay_domain_name_clone is None:
+                seq_domain_name=set()
+                for i, doms in enumerate(seq_domain_list):
+                    for key,el in doms.items():
+                        seq_domain_name.add(key)
+                seq_domain_name=sorted(list(seq_domain_name))
+            else:
+                print("[LOAD]",args.assay_domain_name_clone)
+                obj=joblib.load(args.assay_domain_name_clone)
+                seq_domain_name=obj["sequence_vec_name"]
             print(seq_domain_name)
             seq_domain_mat = np.zeros((len(seq_domain_list), max_len_seq, len(seq_domain_name)), np.float32)
             for i, doms in enumerate(seq_domain_list):
