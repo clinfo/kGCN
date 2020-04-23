@@ -736,8 +736,8 @@ def main():
             seq_domain_name=sorted(list(seq_domain_name))
             print(seq_domain_name)
             seq_domain_mat = np.zeros((len(seq_domain_list), max_len_seq, len(seq_domain_name)), np.float32)
-            for i, obj in enumerate(seq_domain_list):
-                for key,el in obj.items():
+            for i, doms in enumerate(seq_domain_list):
+                for key,el in doms.items():
                     j=seq_domain_name.index(key)
                     seq_domain_mat[i, el[0]-1:el[1],j] = 1
             obj["sequence_vec_name"] = seq_domain_name
