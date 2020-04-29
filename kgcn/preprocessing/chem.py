@@ -576,7 +576,7 @@ def main():
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, seq, seq_symbol, seq_domain, profeat, publication_years =\
             extract_mol_info(args)
     else:
-        mol_obj_list, label_data, label_mask, _, task_name_list, _, _, _, _, _, publication_years = extract_mol_info(args)
+        mol_obj_list, label_data, label_mask, _, task_name_list, _, _, _, _, publication_years = extract_mol_info(args)
 
     if args.vector_modal is not None:
         dragon_data = build_vector_modal(args)
