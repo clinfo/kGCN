@@ -336,7 +336,11 @@ class AssayData:
             seq_domain = {}
             for line in open(pro_filename):
                 arr=line.strip().split("\t")
-                seq_domain[arr[0]]=(int(arr[1]),int(arr[2]))
+                e=(int(arr[1]),int(arr[2]))
+                k=arr[0]
+                if k not in seq_domain:
+                    seq_domain[k]=[]
+                seq_domain[k].append(e)
             self.seq_domain = seq_domain
 
     def _build_profeat(self, assay_path, dict_profeat):
@@ -745,13 +749,19 @@ def main():
                 obj=joblib.load(args.assay_domain_name_clone)
                 seq_domain_name=obj["sequence_vec_name"]
             print(seq_domain_name)
-            seq_domain_mat = np.zeros((len(seq_domain_list), max_len_seq, len(seq_domain_name)), np.float32)
+            #seq_domain_mat = np.zeros((len(seq_domain_list), max_len_seq, len(seq_domain_name)), np.float32)
+            seq_vec_range=[]
             for i, doms in enumerate(seq_domain_list):
-                for key,el in doms.items():
+                seq_r={}
+                for key,vec in doms.items():
                     j=seq_domain_name.index(key)
-                    seq_domain_mat[i, el[0]-1:el[1],j] = 1
+                    seq_r[j]=vec
+                    #for el in vec:
+                    #    seq_domain_mat[i, el[0]-1:el[1],j] = 1
+                seq_vec_range.append(seq_r)
+            obj["sequence_vec_range"] = np.array(seq_vec_range)
             obj["sequence_vec_name"] = seq_domain_name
-            obj["sequence_vec"] = seq_domain_mat
+            #obj["sequence_vec"] = seq_domain_mat
     print(f"[SAVE] {args.output}")
     joblib.dump(obj, args.output, compress=3)
 
