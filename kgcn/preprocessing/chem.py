@@ -746,8 +746,8 @@ def main():
                 seq_domain_name=sorted(list(seq_domain_name))
             else:
                 print("[LOAD]",args.assay_domain_name_clone)
-                obj=joblib.load(args.assay_domain_name_clone)
-                seq_domain_name=obj["sequence_vec_name"]
+                loaded_obj=joblib.load(args.assay_domain_name_clone)
+                seq_domain_name=loaded_obj["sequence_vec_name"]
             print(seq_domain_name)
             #seq_domain_mat = np.zeros((len(seq_domain_list), max_len_seq, len(seq_domain_name)), np.float32)
             seq_vec_range=[]
