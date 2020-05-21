@@ -51,7 +51,8 @@ class NumPyArangeEncoder(json.JSONEncoder):
 
 def save_prediction(filename, prediction_data):
     print(f"[SAVE] {filename}")
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    if os.path.dirname(filename)!="":
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     pred = np.array(prediction_data)
     with open(filename, "w") as fp:
@@ -548,8 +549,8 @@ def infer(sess, graph, config):
             plot_auc(config, all_data.labels, np.array(prediction_data))
          
     if "save_edge_result_test" in config and config["save_edge_result_test"] is not None:
-        output_left_pred = model.left_pred(all_data)
-        print(output_left_pred.shape)
+        #output_left_pred = model.left_pred(all_data)
+        #print(output_left_pred.shape)
         ##
         output_data = model.output(all_data)
         pred_score = np.array(prediction_data)
