@@ -291,7 +291,8 @@ def train(sess, graph, config):
             result["validation_accuracy"] = valid_metrics
             result["train_time"] = train_time
             result["infer_time"] = infer_time
-            result["valid_metrics"] = compute_metrics(config, info, prediction_data, valid_data.labels)
+            if config["task"]!="link_prediction":
+                result["valid_metrics"] = compute_metrics(config, info, prediction_data, valid_data.labels)
             ##
             save_path = config["save_info_valid"]
             os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -313,6 +314,8 @@ def train(sess, graph, config):
         if config["task"] == "regression" or config["task"] == "regression_gmfe":
             # plot_cost(config, valid_data, model)
             plot_r2(config, valid_data.labels, np.array(prediction_data))
+        elif config["task"]=="link_prediction":
+            plot_cost(config, valid_data, model)
         else:
             plot_cost(config, valid_data, model)
             plot_auc(config, valid_data.labels, np.array(prediction_data))
@@ -480,6 +483,9 @@ def train_cv(sess, graph, config):
                                    fold_data.training_mse, fold_data.validation_mse, result_path,prefix=prefix)
                 pred_score = np.array(fold_data.prediction_data)
                 plot_r2(config, fold_data.test_labels, pred_score, prefix=prefix)
+            elif config["task"] == "link_prediction":
+                make_cost_acc_plot(fold_data.training_cost, fold_data.validation_cost,
+                                   fold_data.training_acc, fold_data.validation_acc, result_path,prefix=prefix)
             else:
                 make_cost_acc_plot(fold_data.training_cost, fold_data.validation_cost,
                                    fold_data.training_acc, fold_data.validation_acc, result_path,prefix=prefix)
@@ -491,6 +497,8 @@ def infer(sess, graph, config):
     dataset_filename = config["dataset"]
     if "dataset_test" in config:
         dataset_filename = config["dataset_test"]
+    if "test_label_list" in config:
+        config["label_list"]=config["test_label_list"]
     all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True)
 
     model = CoreModel(sess, config, info)
@@ -516,7 +524,8 @@ def infer(sess, graph, config):
         result["test_cost"] = test_cost
         result["test_accuracy"] = test_metrics
         result["infer_time"] = infer_time
-        result["test_metrics"] = compute_metrics(config, info, prediction_data, all_data.labels)
+        if config["task"]!="link_prediction":
+            result["test_metrics"] = compute_metrics(config, info, prediction_data, all_data.labels)
         save_path = config["save_info_test"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         print(f"[SAVE] {save_path}")
@@ -527,17 +536,35 @@ def infer(sess, graph, config):
         filename = config["save_result_test"]
         save_prediction(filename, prediction_data)
     if config["make_plot"]:
-        plot_auc(config, all_data.labels, np.array(prediction_data))
+        if config["task"] == "regression":
+            pred_score = np.array(prediction_data)
+            plot_r2(config, all_data.labels, pred_score)
+        elif config["task"] == "regression_gmfe":
+            pred_score = np.array(prediction_data)
+            plot_r2(config, all_data.labels, pred_score)
+        elif config["task"] == "link_prediction":
+            pass
+        else:
+            plot_auc(config, all_data.labels, np.array(prediction_data))
+         
     if "save_edge_result_test" in config and config["save_edge_result_test"] is not None:
+        output_left_pred = model.left_pred(all_data)
+        print(output_left_pred.shape)
+        ##
         output_data = model.output(all_data)
         pred_score = np.array(prediction_data)
         true_label = np.array(all_data.label_list)
         score_list = []
         print(true_label.shape)
         for pair in true_label[0]:
-            i1, _, j1, i2, _, j2 = pair
-            s1 = pred_score[0, i1, j1]
-            s2 = pred_score[0, i2, j2]
+            if len(prediction_data[0].shape)==2:
+                i1, _, j1, i2, _, j2 = pair
+                s1 = pred_score[0, i1, j1]
+                s2 = pred_score[0, i2, j2]
+            elif len(prediction_data[0].shape)==3:
+                i1, r1, j1, i2, r2, j2 = pair
+                s1 = pred_score[0, r1, i1, j1]
+                s2 = pred_score[0, r2, i2, j2]
             score_list.append([s1, s2])
         fold = {}
         fold["output"] = output_data[0]
@@ -557,7 +584,7 @@ def infer(sess, graph, config):
         obj["labels"] = all_data.labels
 
         os.makedirs(os.path.dirname(config["prediction_data"]), exist_ok=True)
-        joblib.dump(obj, config["prediction_data"])
+        joblib.dump(obj, config["prediction_data"], compress=True)
 
 
 def restore_ckpt(sess, ckpt):

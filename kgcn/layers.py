@@ -300,6 +300,61 @@ class GraphDecoderDistMult(Layer):
     def compute_output_shape(self, input_shape):
         return input_shape[0], input_shape[1], input_shape[1]
 
+class DistMult(Layer):
+    def __init__(self, initializer='glorot_uniform', adj_channel_num=1, **kwargs):
+        self.initializer = initializer
+        self.adj_channel_num = adj_channel_num
+        super(DistMult, self).__init__(**kwargs)
+
+    def build(self, input_shape):  # input: batch_size x node_num x #inputs
+        self.w = []
+        self.w.append(self.add_weight(name='kernel',
+                                      shape=(self.adj_channel_num,int(input_shape[2]),),
+                                      initializer=self.initializer,
+                                      trainable=True))
+        super(DistMult, self).build(input_shape)
+    # batch_size x dim
+    def compute_score(self, layer1, layer2, channel,**kwargs):
+        ww=self.w[0]
+        ww_channel=tf.gather(ww,channel,axis=0)
+        score=tf.reduce_sum(layer1*layer2*ww_channel,axis=1)
+        return score
+    
+    def compute_left_prediction(self, layer, right_layer, channel,**kwargs):
+        ww=self.w[0]
+        ww_channel=tf.gather(ww,channel,axis=0)
+        #ww_channel/right_layer: batch x dim
+        #layer: node_num x dim
+        layer_a=right_layer*ww_channel
+        layer_b=tf.transpose(layer,[1,0])
+        score=tf.matmul(layer_a,layer_b)
+        #score: batch x node_num
+        return score
+ 
+    def compute_right_prediction(self, left_layer, layer, channel,**kwargs):
+        ww=self.w[0]
+        ww_channel=tf.gather(ww,channel,axis=0)
+        #ww_channel/right_layer: batch x dim
+        #layer: batch x node_num x dim
+        temp=tf.expand_dims(left_layer*ww_channel,2)
+        score=tf.matmul(layer,temp)
+        #score: batch x node_num
+        score=tf.squeeze(score,[2])
+        return score
+
+    def call(self, inputs, **kwargs):
+        layer = inputs
+        layer_t = tf.transpose(layer, [0, 2, 1])
+        adjs=[]
+        for i in range(self.adj_channel_num):
+            adj = tf.matmul(self.w[0][i]*layer, layer_t)
+            adjs.append(adj)
+        return tf.transpose(tf.stack(adjs),[1,0,2,3])
+    def compute_output_shape(self, input_shape):
+        return input_shape[0], adj_channel_num, input_shape[1], input_shape[1]
+
+
+
 
 class BatchGraphConv(Layer):
     def __init__(self, output_dim, adj_channel_num=1, initializer='glorot_uniform', input_dim=None, **kwargs):

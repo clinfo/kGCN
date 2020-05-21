@@ -23,6 +23,7 @@ setuptools.setup(
         'console_scripts': [
             'kgcn = kgcn.gcn:main',
             'kgcn-chem = kgcn.preprocessing.chem:main',
+            'kgcn-kg = kgcn.preprocessing.kg:main',
             'kgcn-cv-splitter = kgcn.cv_splitter:main',
             'kgcn-opt = kgcn.opt:main',
             'kgcn-gen = kgcn.gen:main',

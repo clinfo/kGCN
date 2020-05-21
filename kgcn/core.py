@@ -472,4 +472,28 @@ class CoreModel:
                 out_data.extend(out[:len(batch_idx)])
         return out_data
 
+    def left_pred(self,data):
+        sess=self.sess
+        config=self.config
+        info=self.info
+        batch_size=config["batch_size"]
+        # start
+        data_idx=list(range(data.num))
+        itr_num=int(np.ceil(data.num/batch_size))
+
+        local_init_op = tf.local_variables_initializer()
+        sess.run(local_init_op)
+        out_data=None
+        for itr in range(itr_num):
+            offset_b=itr*batch_size
+            batch_idx=data_idx[offset_b:offset_b+batch_size]
+            feed_dict=self.construct_feed(batch_idx,self.placeholders,data,batch_size=batch_size,is_train=False,info=info,config=config)
+            out=sess.run(self.nn.left_pred, feed_dict=feed_dict)
+            # To be consistent with validation data size.
+            if out_data is None:
+                out_data=out
+            else:# list or ndarray
+                out_data.extend(out[:len(batch_idx)])
+        return out_data
+
 
