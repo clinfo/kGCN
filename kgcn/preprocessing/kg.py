@@ -232,6 +232,8 @@ def main():
             "label_list":np.array([label_list]),
             "test_label_list":np.array([test_label_list]),
             "max_node_num":len(node_mapping)}
+        out_path=os.path.join(args.output,"fold"+str(fold_i))
+        os.makedirs(out_path,exist_ok=True)
         filename=os.path.join(args.output,"fold"+str(fold_i),
                 "triplets.jbl")
         print("[SAVE]",filename)
