@@ -3,6 +3,7 @@ import importlib
 import json
 import math
 import os
+import pickle
 import sys
 import time
 from typing import Iterable, List
@@ -268,8 +269,83 @@ def split_dataset(dataset: tf.data.Dataset, split: Iterable[int], buffer_shuffle
 
 
 def infer(config):
-    print("Under the construction")
-    pass
+    with tf.io.gfile.GFile(
+        tf.io.gfile.glob(os.path.join(os.path.dirname(config['test_dataset']), "tasks.txt"))[0], "r"
+    ) as text_file:
+        task_names = text_file.readlines()
+    task_num = len(task_names)
+    config['task_names'] = task_names
+    config['task_num'] = task_num
+
+    sys.path.append(os.getcwd())
+
+    feature_spec = {
+        "adj_column": tf.io.VarLenFeature(tf.int64),
+        "adj_degrees": tf.io.VarLenFeature(tf.int64),
+        "adj_elem_len": tf.io.FixedLenFeature([1], tf.int64),
+        "adj_row": tf.io.VarLenFeature(tf.int64),
+        "adj_values": tf.io.VarLenFeature(tf.float32),
+        "feature_column": tf.io.VarLenFeature(tf.int64),
+        "feature_elem_len": tf.io.FixedLenFeature([1], tf.int64),
+        "feature_row": tf.io.VarLenFeature(tf.int64),
+        "feature_values": tf.io.VarLenFeature(tf.float32),
+        "label": tf.io.FixedLenFeature([task_num], tf.int64),
+        "mask_label": tf.io.FixedLenFeature([task_num], tf.int64),
+        "size": tf.io.FixedLenFeature([2], tf.int64),
+    }
+    input_parser = lambda example_proto: make_parse_fn(example_proto, feature_spec)
+
+    valid_dataset = config["test_dataset"]
+
+    config["model_dir"] = config["job_dir"]
+
+    valid_input_fn, valid_info = make_input_fn(
+        valid_dataset, input_parser, True, 0, 1, config['batch_size'], None, None
+    )
+    config['input_dim'] = valid_info['input_dim']
+
+    steps_per_epoch_eval = math.ceil(valid_info['num_elements'] / config['batch_size'])
+    tf.logging.info(f"example num: {valid_info['num_elements']}, steps per epoch: {steps_per_epoch_eval}")
+
+    config['steps_per_epoch'] = steps_per_epoch_eval
+    model = importlib.import_module(config["model.py"]).build(config)
+
+    tf.io.gfile.makedirs(model.eval_dir())
+    feature_spec_predict = feature_spec.copy()
+    feature_spec_predict.pop("label")
+    feature_spec_predict.pop("mask_label")
+
+    checkpoint_path = tf.io.gfile.glob(
+        os.path.join(model.model_dir, "export/best_exporter/*/variables")
+    )[0]
+    checkpoint_path = checkpoint_path + "/variables"
+    metafile = tf.io.gfile.glob(os.path.join(model.model_dir, "*.meta"))[-1]
+    tf.io.gfile.copy(metafile, checkpoint_path + ".meta", overwrite=True)
+
+    save_path = os.path.join(model.model_dir, "test")
+    tf.io.gfile.mkdir(save_path)
+
+    # evaluation
+    test_result = model.evaluate(
+        input_fn=valid_input_fn,
+        steps=steps_per_epoch_eval,
+        checkpoint_path=checkpoint_path,
+    )
+    eval_save_path = os.path.join(save_path, "test.json")
+    print(f"[SAVE] {eval_save_path}")
+    test_result = {k: np.float(v) for k, v in test_result.items()}
+    with tf.io.gfile.GFile(eval_save_path, "w") as f:
+        json.dump(test_result, f)
+
+    # prediction
+    prediction_result = model.predict(
+        input_fn=valid_input_fn,
+        checkpoint_path=checkpoint_path,
+    )
+    pred_save_path = os.path.join(save_path, "test_prediction.pkl")
+    print(f"[SAVE] {pred_save_path}")
+    with tf.io.gfile.GFile(pred_save_path, "wb") as f:
+        pickle.dump(list(prediction_result), f)
 
 
 def main():
