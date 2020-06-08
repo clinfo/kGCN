@@ -147,6 +147,8 @@ def train(config):
     config['task_names'] = task_names
     config['task_num'] = task_num
 
+    sys.path.append(os.getcwd())
+
     feature_spec = {
         "adj_column": tf.io.VarLenFeature(tf.int64),
         "adj_degrees": tf.io.VarLenFeature(tf.int64),
