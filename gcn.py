@@ -300,6 +300,30 @@ def train(sess, graph, config):
             print(f"[SAVE] {save_path}")
             with open(save_path, "w") as fp:
                 json.dump(result, fp, indent=4, cls=NumPyArangeEncoder)
+    ##
+    if config["save_info_train"] is not None:
+        fold_data = dotdict({})
+        fold_data.valid_acc = valid_metrics[metric_name]
+        if config["task"] == "regression":
+            fold_data.training_mse = [el["training_mse"] for el in model.training_metrics_list]
+            fold_data.validation_mse = [el["validation_mse"] for el in model.validation_metrics_list]
+        elif config["task"] == "regression_gmfe":
+            fold_data.training_mse = [el["training_gmfe"] for el in model.training_metrics_list]
+            fold_data.validation_mse = [el["validation_gmfe"] for el in model.validation_metrics_list]
+        else:
+            fold_data.training_acc = [el["training_accuracy"] for el in model.training_metrics_list]
+            fold_data.validation_acc = [el["validation_accuracy"] for el in model.validation_metrics_list]
+        fold_data.training_cost = model.training_cost_list
+        fold_data.validation_cost = model.validation_cost_list
+        fold_data.train_time = train_time
+        fold_data.infer_time = infer_time
+        save_path = config["save_info_train"]
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        print(f"[SAVE] {save_path}")
+        with open(save_path, "w") as fp:
+            json.dump(fold_data, fp, indent=4, cls=NumPyArangeEncoder)
+    ##
+
 
     if config["export_model"]:
         try:
@@ -320,7 +344,6 @@ def train(sess, graph, config):
         else:
             plot_cost(config, valid_data, model)
             plot_auc(config, valid_data.labels, np.array(prediction_data))
-
 
 def train_cv(sess, graph, config):
     all_data, info = load_data(config, filename=config["dataset"], prohibit_shuffle=True)  # shuffle is done by KFold

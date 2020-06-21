@@ -239,6 +239,7 @@ class CoreModel:
         profiler_start=False
         best_score=None
         best_result=None
+        validation_result_list=[]
         os.makedirs(config["save_model_path"], exist_ok=True)
         for epoch in range(config["epoch"]):
             np.random.shuffle(train_idx)
@@ -296,6 +297,7 @@ class CoreModel:
             else:
                 validation_cost =0
                 validation_metrics=[]
+
             # evaluation and recording costs and accuracies
             training_metrics=self.evaluation(training_metrics,train_data.num,key_prefix="training_")
             self.training_cost_list.append(training_cost)
@@ -323,9 +325,15 @@ class CoreModel:
             validation_result.update(validation_metrics)
             if training_metrics is not None:
                 validation_result.update(training_metrics)
+            validation_result_list.append(validation_result)
 
+            # Eaerly stopping
             if early_stopping.evaluate_validation(validation_cost,validation_result):
                 break
+            if np.isnan(validation_cost):
+                break
+            
+            # Saving best model
             if best_score is None or best_score > validation_cost:
                 best_score = validation_cost
                 best_result=validation_result
@@ -335,6 +343,7 @@ class CoreModel:
                     save_path = os.path.join(config["save_model_path"], "model.best.ckpt")
                 print("[SAVE] ",save_path)
                 saver.save(sess,save_path)
+        # Saving best model
         if best_score is not None:
                 if k_fold_num is not None:
                     path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.best.ckpt")
@@ -342,6 +351,7 @@ class CoreModel:
                     path = os.path.join(config["save_model_path"], "model.best.ckpt")
                 print("[RESTORE] ",path)
                 saver.restore(sess,path)
+
         # saving last model
         if k_fold_num is not None:
             save_path = os.path.join(config["save_model_path"], f"model.{k_fold_num:03d}.last.ckpt")
@@ -354,6 +364,7 @@ class CoreModel:
             print("[SAVE] ",save_path)
             saver.save(sess,save_path)
 
+        return validation_result_list
 
     def pred_and_eval(self,data, local_init=True):
         sess=self.sess
