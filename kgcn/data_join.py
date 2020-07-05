@@ -44,14 +44,26 @@ def main():
     for dataset_name in args.input:
         print("[LOAD]",dataset_name)
         obj=joblib.load(dataset_name)
-        print("input keys:",obj.keys())
         data_num=kgcn.data_util.get_data_num_jbl_obj(obj)
-        print("#data:",data_num)
-        obj_list.append(obj)
+        obj_list.append({"obj":obj,"data_num":data_num,"name":dataset_name})
     ###
-    data=kgcn.data_util.join_jbl_obj(obj_list[0],obj_list[1])
-    for k,v in data.items():
-        print(k,len(v))
+    n=obj_list[0]["data_num"]
+    name=obj_list[0]["name"]
+    data=obj_list[0]["obj"]
+    names=name
+    for o in obj_list[1:]:
+        n   +=o["data_num"]
+        name=o["name"]
+        obj =o["obj"]
+        names+="+"+name
+        print("[JOIN]",names," : ","#data=",n)
+        data=kgcn.data_util.join_jbl_obj(data,obj)
+    #for k,v in data.items():
+    #    print(k,v.shape)
+    #    #print(k,len(v))
+    filename=args.output
+    print("[SAVE]",filename)
+    joblib.dump(data, filename)
     """
     for train_idx, test_idx in splitter:
         ## setting dataset

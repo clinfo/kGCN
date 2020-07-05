@@ -5,6 +5,7 @@ from operator import itemgetter
 import tensorflow as tf
 import numpy as np
 from scipy.sparse import coo_matrix
+import scipy
 
 
 class dotdict(dict):
@@ -240,7 +241,7 @@ def split_jbl_obj(obj, train_idx, test_idx, label_list_flag=False, index_list_fl
                 dataset_train[key] = obj[key]
     return dataset_train, dataset_test
 
-def join_jbl_obj(obj1, obj2, label_list_flag=False, index_list_flag=False):
+def join_jbl_obj(obj1, obj2, label_list_flag=False, index_list_flag=False,verbose=True):
     dataset = {}
     if label_list_flag:  # node/edge prediction
         for key, val in obj1.items():
@@ -251,7 +252,13 @@ def join_jbl_obj(obj1, obj2, label_list_flag=False, index_list_flag=False):
                 dataset[key] = np.concatenate((o1,o2),axis=0)
             else:
                 # print(key,": direct copy")
+                #print(key,": direct copy")
                 o1 = obj1[key]
+                o2 = obj2[key]
+                if verbose:
+                    print("over write:",key)
+                    print("[selected]>>",o1)
+                    print("[        ]>>",o2)
                 dataset[key] = o1
     elif index_list_flag:  # generative model
         for key, val in obj1.items():
@@ -265,12 +272,19 @@ def join_jbl_obj(obj1, obj2, label_list_flag=False, index_list_flag=False):
                 o1 = obj1[key]
                 dataset[key] = o1
     else:
-        for key, val in obj.items():
+        for key, val in obj1.items():
+            #print(obj1[key].shape)
+            #print(obj2[key].shape)
             if key not in direct_copy_keys and key != "mol_info":
                 # print(key,": split")
-                o1 = obj1[key] if key in sparse_data_keys else np.array(obj1[key])
-                o2 = obj2[key] if key in sparse_data_keys else np.array(obj2[key])
-                dataset[key] = np.concatenate((o1,o2),axis=0)
+                if key in sparse_data_keys:
+                    o1 = obj1[key]
+                    o2 = obj2[key]
+                    dataset[key] = scipy.sparse.vstack((o1,o2))
+                else:
+                    o1=np.array(obj1[key])
+                    o2=np.array(obj2[key])
+                    dataset[key] = np.concatenate((o1,o2),axis=0)
             elif key == "mol_info":
                 o1=obj1[key]
                 o2=obj2[key]
@@ -282,6 +296,11 @@ def join_jbl_obj(obj1, obj2, label_list_flag=False, index_list_flag=False):
             else:
                 # print(key,": direct copy")
                 o1 = obj1[key]
+                o2 = obj2[key]
+                if verbose:
+                    print("over write:",key)
+                    print("[selected]>>",o1)
+                    print("[        ]>>",o2)
                 dataset[key] = o1
     return dataset
 
