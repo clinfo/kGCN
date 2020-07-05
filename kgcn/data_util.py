@@ -250,9 +250,23 @@ def join_jbl_obj(obj1, obj2, label_list_flag=False, index_list_flag=False,verbos
                 o1 = np.array(obj1[key])
                 o2 = np.array(obj2[key])
                 dataset[key] = np.concatenate((o1,o2),axis=0)
+            elif key == "max_node_num":
+                o1 = obj1[key]
+                o2 = obj2[key]
+                if o1>=o2:
+                    dataset[key] = o1
+                    if verbose:
+                        print("over write:",key)
+                        print("[selected]>>",o1)
+                        print("[        ]>>",o2)
+                else:
+                    dataset[key] = o2
+                    if verbose:
+                        print("over write:",key)
+                        print("[        ]>>",o1)
+                        print("[selected]>>",o2)
             else:
                 # print(key,": direct copy")
-                #print(key,": direct copy")
                 o1 = obj1[key]
                 o2 = obj2[key]
                 if verbose:
@@ -267,6 +281,21 @@ def join_jbl_obj(obj1, obj2, label_list_flag=False, index_list_flag=False,verbos
                 o1 = np.array(obj1[key])
                 o2 = np.array(obj2[key])
                 dataset[key] = np.concatenate((o1,o2),axis=0)
+            elif key == "max_node_num":
+                o1 = obj1[key]
+                o2 = obj2[key]
+                if o1>=o2:
+                    dataset[key] = o1
+                    if verbose:
+                        print("over write:",key)
+                        print("[selected]>>",o1)
+                        print("[        ]>>",o2)
+                else:
+                    dataset[key] = o2
+                    if verbose:
+                        print("over write:",key)
+                        print("[        ]>>",o1)
+                        print("[selected]>>",o2)
             else:
                 # print(key,": direct copy")
                 o1 = obj1[key]
@@ -293,6 +322,21 @@ def join_jbl_obj(obj1, obj2, label_list_flag=False, index_list_flag=False,verbos
                 name_list = list(o1['name_list'])
                 name_list.extend(list(o2['name_list']))
                 dataset[key] = {'obj_list': obj_list, 'name_list': name_list}
+            elif key == "max_node_num":
+                o1 = obj1[key]
+                o2 = obj2[key]
+                if o1>=o2:
+                    dataset[key] = o1
+                    if verbose:
+                        print("over write:",key)
+                        print("[selected]>>",o1)
+                        print("[        ]>>",o2)
+                else:
+                    dataset[key] = o2
+                    if verbose:
+                        print("over write:",key)
+                        print("[        ]>>",o1)
+                        print("[selected]>>",o2)
             else:
                 # print(key,": direct copy")
                 o1 = obj1[key]
