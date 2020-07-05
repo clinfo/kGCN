@@ -240,6 +240,52 @@ def split_jbl_obj(obj, train_idx, test_idx, label_list_flag=False, index_list_fl
                 dataset_train[key] = obj[key]
     return dataset_train, dataset_test
 
+def join_jbl_obj(obj1, obj2, label_list_flag=False, index_list_flag=False):
+    dataset = {}
+    if label_list_flag:  # node/edge prediction
+        for key, val in obj1.items():
+            if key in label_list_keys:
+                # print(key,": split")
+                o1 = np.array(obj1[key])
+                o2 = np.array(obj2[key])
+                dataset[key] = np.concatenate((o1,o2),axis=0)
+            else:
+                # print(key,": direct copy")
+                o1 = obj1[key]
+                dataset[key] = o1
+    elif index_list_flag:  # generative model
+        for key, val in obj1.items():
+            if key in index_list_keys:
+                # print(key,": split")
+                o1 = np.array(obj1[key])
+                o2 = np.array(obj2[key])
+                dataset[key] = np.concatenate((o1,o2),axis=0)
+            else:
+                # print(key,": direct copy")
+                o1 = obj1[key]
+                dataset[key] = o1
+    else:
+        for key, val in obj.items():
+            if key not in direct_copy_keys and key != "mol_info":
+                # print(key,": split")
+                o1 = obj1[key] if key in sparse_data_keys else np.array(obj1[key])
+                o2 = obj2[key] if key in sparse_data_keys else np.array(obj2[key])
+                dataset[key] = np.concatenate((o1,o2),axis=0)
+            elif key == "mol_info":
+                o1=obj1[key]
+                o2=obj2[key]
+                obj_list = list(o1['obj_list'])
+                obj_list.extend(list(o2['obj_list']))
+                name_list = list(o1['name_list'])
+                name_list.extend(list(o2['name_list']))
+                dataset[key] = {'obj_list': obj_list, 'name_list': name_list}
+            else:
+                # print(key,": direct copy")
+                o1 = obj1[key]
+                dataset[key] = o1
+    return dataset
+
+
 
 def load_and_split_data(config, filename="data.jbl", valid_data_rate=0.2):
     all_data, info = load_data(config, filename)

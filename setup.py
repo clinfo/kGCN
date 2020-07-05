@@ -25,6 +25,7 @@ setuptools.setup(
             'kgcn-chem = kgcn.preprocessing.chem:main',
             'kgcn-kg = kgcn.preprocessing.kg:main',
             'kgcn-cv-splitter = kgcn.cv_splitter:main',
+            'kgcn-join = kgcn.data_join:main',
             'kgcn-opt = kgcn.opt:main',
             'kgcn-gen = kgcn.gen:main',
             'kgcn-sparse = kgcn.task_sparse_gcn:main'
