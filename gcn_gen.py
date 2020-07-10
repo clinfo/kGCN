@@ -4,20 +4,12 @@ import joblib
 import time
 import json
 import argparse
-import importlib
 import os
 
-## gcn project
-#import model
-import kgcn.layers
-from scipy.sparse import coo_matrix
-
-from kgcn.gcn import dotdict,NumPyArangeEncoder
-from kgcn.data_util import align_size,dense_to_sparse,high_order_adj,split_adj,normalize_adj,DataLoadError
-from kgcn.gcn import get_default_config, save_prediction, load_model_py
-
-from kgcn.data_util import load_and_split_data, load_data, split_data
-from kgcn.core import CoreModel,EarlyStopping
+from kgcn.gcn import NumPyArangeEncoder
+from kgcn.gcn import get_default_config, load_model_py
+from kgcn.data_util import load_and_split_data, load_data
+from kgcn.core import CoreModel
 from kgcn.feed_index import construct_feed
 
 def print_ckpt(sess,ckpt):
@@ -75,8 +67,6 @@ def get_norm(data):
     return np.mean(ws)
 
 def train(sess,config):
-    batch_size=config["batch_size"]
-    learning_rate=config["learning_rate"]
     if config["validation_dataset"] is None:
         all_data, train_data,valid_data,info = load_and_split_data(config, filename=config["dataset"],
                                                                    valid_data_rate=config["validation_data_rate"])
@@ -156,7 +146,6 @@ def train(sess,config):
         joblib.dump(training_prediction_data, filename)
 
 def reconstruct(sess,config):
-    batch_size=config["batch_size"]
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
         dataset_filename=config["dataset_test"]
@@ -199,7 +188,6 @@ def reconstruct(sess,config):
         joblib.dump(recons_data, filename)
 
 def generate(sess,config):
-    batch_size=config["batch_size"]
     dataset_filename=config["dataset"]
     if "dataset_test" in config:
         dataset_filename=config["dataset_test"]
@@ -223,9 +211,6 @@ def generate(sess,config):
     restore_ckpt(sess,config["load_model"])
 
     start_t = time.time()
-    generated_data=None
-    #for i in range(3):
-    #print(i)
     cost,acc,pred_data=model.pred_and_eval(all_data)
     generated_data=pred_data
 
