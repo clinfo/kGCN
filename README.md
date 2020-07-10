@@ -97,15 +97,18 @@ Once you execute this command, cross-validation is performed by running a series
 
 ### [Visualization file](./docs/visualization.md)
 
-## Reference
+## Cite
 ```
 @article{Kojima2020,
   author = "Ryosuke Kojima and Shoichi Ishida and Masateru Ohta and Hiroaki Iwata and Teruki Honma and Yasushi Okuno",
-  title = "{kGCN: A Graph-Based Deep Learning Framework for Chemical Structures}",
+  title = "{kGCN: a graph-based deep learning framework for chemical structures}",
   year = "2020",
-  month = "2",
-  url = "https://chemrxiv.org/articles/kGCN_A_Graph-Based_Deep_Learning_Framework_for_Chemical_Structures/11859684",
-  doi = "10.26434/chemrxiv.11859684.v1"
+  month = "5",
+  journal = "Journal of Cheminformatics",
+  volume = "12",
+  number = "1",
+  url = "https://jcheminf.biomedcentral.com/articles/10.1186/s13321-020-00435-6",
+  doi = "10.1186/s13321-020-00435-6"
 }
 ```
 ## Directory structure
