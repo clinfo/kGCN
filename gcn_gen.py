@@ -39,7 +39,7 @@ def restore_ckpt(sess, ckpt):
     except:
         print("======LOAD ERROR======")
         print_variables()
-        print_ckpt(sess,ckpt)
+        print_ckpt(sess, ckpt)
         raise Exception
     return saver
 
@@ -88,8 +88,8 @@ def train(sess, config):
     info.graph_index_list = graph_index_list
     info.pos_weight = get_pos_weight(train_data)
     info.norm = get_norm(train_data)
-    print("pos_weight=", info.pos_weight)
-    print("norm=", info.pos_weight)
+    print(f"pos_weight={info.pos_weight}")
+    print(f"norm={info.norm}")
 
     model = CoreModel(sess, config, info, construct_feed_callback=construct_feed)
     load_model_py(model, config["model.py"])
@@ -102,17 +102,17 @@ def train(sess, config):
     start_t = time.time()
     model.fit(train_data, valid_data)
     train_time = time.time() - start_t
-    print("traing time:{0}".format(train_time) + "[sec]")
+    print(f"training time:{train_time}[sec]")
     # Validation
     start_t = time.time()
     validation_cost, validation_accuracy, validation_prediction_data = model.pred_and_eval(valid_data)
     training_cost, training_accuracy, training_prediction_data = model.pred_and_eval(train_data)
     infer_time = time.time() - start_t
-    print("final cost(training  ) =",training_cost)
-    print("accuracy  (training  ) =",training_accuracy["accuracy"])
-    print("final cost(validation) =",validation_cost)
-    print("accuracy  (validation) =",validation_accuracy["accuracy"])
-    print("infer time:{0}".format(infer_time) + "[sec]")
+    print(f"final cost(training  ) = {training_cost}\n"
+          f"accuracy  (training  ) = {training_accuracy['accuracy']}\n"
+          f"final cost(validation) = {validation_cost}\n"
+          f"accuracy  (validation) = {validation_accuracy['accuracy']}\n"
+          f"infer time:{infer_time}[sec]\n")
     # Saving
     if config["save_info_valid"] is not None:
         result = {}
@@ -121,10 +121,10 @@ def train(sess, config):
         result["train_time"] = train_time
         result["infer_time"] = infer_time
         save_path = config["save_info_valid"]
-        os.makedirs(os.path.dirname(save_path),exist_ok=True)
-        print("[SAVE] ", save_path)
-        fp = open(save_path, "w")
-        json.dump(result, fp, indent=4)
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        print(f"[SAVE] {save_path}")
+        with open(save_path, "w") as fp:
+            json.dump(result, fp, indent=4)
 
     if config["save_info_train"] is not None:
         result = {}
@@ -133,20 +133,20 @@ def train(sess, config):
         result["train_time"] = train_time
         save_path = config["save_info_train"]
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        print("[SAVE] ", save_path)
-        fp = open(save_path, "w")
-        json.dump(result, fp, indent=4, cls=NumPyArangeEncoder)
+        print(f"[SAVE] {save_path}")
+        with open(save_path, "w") as fp:
+            json.dump(result, fp, indent=4, cls=NumPyArangeEncoder)
 
     if "reconstruction_valid" in config:
         filename = config["reconstruction_valid"]
         print(os.path.dirname(filename))
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        print("[SAVE]", filename)
+        print(f"[SAVE] {filename}")
         joblib.dump(validation_prediction_data, filename)
     if "reconstruction_train" in config:
         filename = config["reconstruction_train"]
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        print("[SAVE]", filename)
+        print(f"[SAVE] {filename}")
         joblib.dump(training_prediction_data, filename)
 
 
@@ -162,8 +162,8 @@ def reconstruct(sess, config):
     info.graph_index_list = graph_index_list
     info.pos_weight = get_pos_weight(all_data)
     info.norm = get_norm(all_data)
-    print("pos_weight=", info.pos_weight)
-    print("norm=", info.pos_weight)
+    print(f"pos_weight={info.pos_weight}")
+    print(f"norm={info.norm}")
 
     model = CoreModel(sess, config, info, construct_feed_callback=construct_feed)
     load_model_py(model, config["model.py"], is_train=False)
@@ -188,7 +188,7 @@ def reconstruct(sess, config):
     if "reconstruction_test" in config:
         filename = config["reconstruction_test"]
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-        print("[SAVE]", filename)
+        print(f"[SAVE] {filename}")
         joblib.dump(recons_data, filename)
 
 
@@ -204,8 +204,8 @@ def generate(sess, config):
     info.graph_index_list = graph_index_list
     info.pos_weight = get_pos_weight(all_data)
     info.norm = get_norm(all_data)
-    print("pos_weight=", info.pos_weight)
-    print("norm=", info.pos_weight)
+    print(f"pos_weight={info.pos_weight}")
+    print(f"norm={info.norm}")
 
     model = CoreModel(sess, config, info, construct_feed_callback=construct_feed)
     load_model_py(model, config["model.py"], is_train=False)
@@ -223,7 +223,7 @@ def generate(sess, config):
         dirname = os.path.dirname(filename)
         if dirname != "":
             os.makedirs(dirname, exist_ok=True)
-        print("[SAVE]", filename)
+        print(f"[SAVE] {filename}")
         joblib.dump(generated_data, filename)
 
 
@@ -289,11 +289,11 @@ def main():
             if args.mode == "train":
                 train(sess, config)
             elif args.mode == "reconstruct":
-                reconstruct(sess,config)
+                reconstruct(sess, config)
             elif args.mode == "generate":
-                generate(sess,config)
+                generate(sess, config)
     if args.save_config is not None:
-        print("[SAVE] ",args.save_config)
+        print(f"[SAVE] {args.save_config}")
         fp = open(args.save_config, "w")
         json.dump(config, fp, indent=4)
 
