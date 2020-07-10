@@ -77,11 +77,19 @@ def get_norm(data):
 def train(sess,config):
     batch_size=config["batch_size"]
     learning_rate=config["learning_rate"]
-
-    all_data, train_data,valid_data,info = load_and_split_data(config,filename=config["dataset"],valid_data_rate=config["validation_data_rate"])
+    if config["validation_dataset"] is None:
+        all_data, train_data,valid_data,info = load_and_split_data(config, filename=config["dataset"],
+                                                                   valid_data_rate=config["validation_data_rate"])
+    else:
+        print("[INFO] training")
+        train_data, info = load_data(config, filename=config["dataset"])
+        print("[INFO] validation")
+        valid_data, valid_info = load_data(config, filename=config["validation_dataset"])
+        info["graph_node_num"] = max(info["graph_node_num"], valid_info["graph_node_num"])
+        info["graph_num"] = info["graph_num"] + valid_info["graph_num"]
     # train model
     graph_index_list=[]
-    for i in range(all_data.num):
+    for i in range(info["graph_num"]):
         graph_index_list.append([i,i])
     info.graph_index_list=graph_index_list
     info.pos_weight=get_pos_weight(train_data)
