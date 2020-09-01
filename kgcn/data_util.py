@@ -609,7 +609,7 @@ def split_data(all_data, valid_data_rate=0.2, indices_for_train_data=None, indic
 
     valid_data = dotdict({})
     train_data = dotdict({})
-    keys_for_split = all_data.keys()-{"num"}
+    keys_for_split = all_data.keys()-{"sequence_symbol","num"}
 
     # Need to make sure members of the dict are np.array instead of list?
     for k in keys_for_split:

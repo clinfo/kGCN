@@ -63,7 +63,7 @@ def main():
     #    #print(k,len(v))
     filename=args.output
     print("[SAVE]",filename)
-    joblib.dump(data, filename)
+    joblib.dump(data, filename, compress=True)
     """
     for train_idx, test_idx in splitter:
         ## setting dataset

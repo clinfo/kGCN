@@ -112,10 +112,10 @@ def main():
         test_filename=cv+"/"+name+".test_"+str(i)+".jbl"
         if not args.without_train:
             print("[SAVE]",train_filename)
-            joblib.dump(data_train, train_filename)
+            joblib.dump(data_train, train_filename, compress=True)
         if not args.without_test:
             print("[SAVE]",test_filename)
-            joblib.dump(data_test, test_filename)
+            joblib.dump(data_test, test_filename, compress=True)
         if not args.without_config:
             #
             config_fold=copy.deepcopy(config)
