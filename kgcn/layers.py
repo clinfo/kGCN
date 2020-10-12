@@ -106,7 +106,9 @@ class GraphConv(Layer):
                     adj = adjs[batch_idx][adj_ch]
                     fb = inputs[batch_idx, :, :]
                     fw = tf.matmul(fb, self.w[adj_ch])+self.bias[adj_ch]
-                    el = tf.sparse_tensor_dense_matmul(adj, fw)
+                    #el = tf.sparse_tensor_dense_matmul(adj, fw)
+                    el = tf.sparse.sparse_dense_matmul(adj, fw)                    
+                    #
                     o[batch_idx][adj_ch] = el
                 o[batch_idx] = tf.add_n(o[batch_idx])
         return tf.stack(o)
