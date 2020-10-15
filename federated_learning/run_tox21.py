@@ -1,63 +1,59 @@
 #!/usr/bin/env python
+from collections import OrderedDict
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers, optimizers
+from tensorflow.keras import optimizers
 import tensorflow_federated as tff
 
 import kgcn.layers as layers
+from kgcn.data_util import load_and_split_data
 
-import datasets.tox21 as tox21
-
-
-class GCNModel(tf.keras.Model):
-    def __init__(self):
-        super(GCNModel, self).__init__()
-        self.gcn = layers.GraphConv(64, 1)
-        
-    def call(self, inputs, adjs):
-        x = self.gcn(inputs, adjs)
-        return x
-
-np.random.seed(0)
 
 def client_data(source, n):
     return source.create_tf_dataset_for_client(source.client_ids[n]).repeat(10).batch(20)
 
-def build_model(adj_shape, features_shape, ):
-    features = tf.keras.Input(shape=(12))
-    adj = tf.keras.Input(shape=(12))
-    
+def build_model():
+    input_features = tf.keras.Input(shape=(132, 81), name='features')
+    input_adjs = tf.keras.Input(shape=(1, 132, 132), name='adjs', sparse=False)
+    input_mask_label = tf.keras.Input(shape=(12), name="mask_label")
+    h = layers.GraphConvFL(64, 1)(input_features, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GraphConvFL(64, 1)(h, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GraphGather()(h)
+    logits = tf.keras.layers.Dense(2, tf.nn.softmax, input_shape=[64])(h)
 
-# Wrap a Keras model for use with TFF.
-def model_fn(adj_shape=(150, 150), feature_shape=(150, 100)):
-    adj = tf.keras.Input(shape=[adj_shape,], sparse=True)
-    features = tf.placeholder(tf.int32, shape=(150, 100), name="node"),    
-    #features = tf.keras.Input(shape=feature_shape)
-    model = GCNModel()
-    model(adj, features)
-    
-    # model = tf.keras.models.Sequential([
-    #     tf.keras.layers.Dense(10, tf.nn.softmax, input_shape=(784,),
-    #                           kernel_initializer='zeros')
-    # ])
-    # return tff.learning.from_keras_model(
-    #     model,
-    #     dummy_batch=sample_batch,
-    #     loss=tf.keras.losses.SparseCategoricalCrossentropy(),
-    #     metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+    return keras.Model(inputs=[input_features, input_adjs, input_mask_label], outputs=logits)
     
 
 if __name__ == '__main__':
     N_CLIENTS = 2
-    # tox21_train, tox21_test = tox21.load_data(n_groups=N_CLIENTS+3)
-    # train_data = [client_data(tox21_train, n) for n in range(N_CLIENTS)]
+    config = {"normalize_adj_flag": True, "with_feature": True, "split_adj_flag": False, "shuffle_data": False, "dataset": "dataset.jbl", "validation_data_rate": 0.2}
+    _, train_data, valid_data, info = load_and_split_data(config, filename=config["dataset"],
+                                                              valid_data_rate=config["validation_data_rate"])
+    adjs = tf.sparse.concat(0, [tf.sparse.SparseTensor(train_data['adjs'][i][0][0], train_data['adjs'][i][0][1], train_data['adjs'][i][0][2]) for i in range(train_data.num)])
+    adjs = tf.sparse.reshape(adjs, [train_data.num, 1, -1, adjs.shape[-1]])
+    adjs = tf.sparse.to_dense(adjs)
+    train_dataset = tff.simulation.FromTensorSlicesClientData({'bob': (OrderedDict({"features": train_data['features'], "adjs": adjs, "mask_label": train_data["mask_label"]}), np.ones(len(adjs)))})#train_data.labels[:, 0])})
 
-    model_fn()
-    # trainer = tff.learning.build_federated_averaging_process(
-    #     model_fn,
-    #     client_optimizer_fn=lambda: tf.keras.optimizers.SGD(0.1))
-    # state = trainer.initialize()
-    # for _ in range(5):
-    #     state, metrics = trainer.next(state, train_data)
-    #     print (metrics.loss)
+    def client_data(n):
+        return train_dataset.create_tf_dataset_for_client(n).repeat(10).batch(20)
+
+    train_data = [client_data(n) for n in ['bob']]
+    def model_fn():
+        model = build_model()
+        return tff.learning.from_keras_model(
+            model,
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+            input_spec=train_data[0].element_spec)
+            #metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
+
+    trainer = tff.learning.build_federated_averaging_process(
+        model_fn,
+        client_optimizer_fn=lambda: tf.keras.optimizers.SGD(0.1))
+    state = trainer.initialize()
+    for _ in ['bob']:
+        state, metrics = trainer.next(state, train_data)
+        print(metrics)
+        #print (metrics.loss)
