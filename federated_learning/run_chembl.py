@@ -52,7 +52,8 @@ if __name__ == '__main__':
                                NUM_CLIENTS)
 
       # # Pick a subset of client devices to participate in training.
-      train_data = [client_data(chembl_train, n) for n in range(NUM_CLIENTS)]
+      train_data = [client_data(chembl_train, n) for n in range(NUM_CLIENTS-1)]
+      test_data = [client_data(chembl_train, NUM_CLIENTS-1),]
       
       # Wrap a Keras model for use with TFF.
       def model_fn():
@@ -68,11 +69,14 @@ if __name__ == '__main__':
       trainer = tff.learning.build_federated_averaging_process(
             model_fn,
             client_optimizer_fn=lambda: tf.keras.optimizers.SGD(0.01),
-            server_optimizer_fn=lambda: tf.keras.optimizers.SGD(learning_rate=0.1))
+            server_optimizer_fn=lambda: tf.keras.optimizers.SGD(learning_rate=0.02))
       
       state = trainer.initialize()
+      evaluation = tff.learning.build_federated_evaluation(model_fn)
       
-      for _ in range(20):
+      for epoch in range(20):
             ## FIXME
             state, metrics = trainer.next(state, train_data)
-            print(metrics)
+            print(f'{epoch:03d} metrics===>\n', metrics)
+            test_metrics = evaluation(state.model, test_data)
+            print(f'{epoch:03d} test_metrics\n', test_metrics)
