@@ -46,9 +46,8 @@ class ChemblDataset(ClientData):
         counter = 0
         for data, _id in zip(self._data.itertuples(), np.random.choice(self._client_ids, len(self._data))):
             self.data[_id].append(self._create_element(data))
-            if counter > 10:
-                break
             counter += 1
+        
         g = tf.Graph()
         with g.as_default():
             tf_dataset = self._create_dataset(self._client_ids[0])

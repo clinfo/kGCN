@@ -31,32 +31,35 @@ def build_model(max_n_atoms, max_n_types, protein_max_seqlen, length_one_letter_
     # concat
     h = tf.keras.layers.Concatenate()([h, h_seq])
     logits = tf.keras.layers.Dense(1, activation='sigmoid')(h)
-    
     return tf.keras.Model(inputs=[input_adjs, input_features, input_protein_seq], outputs=logits)
 
 
-def client_data(source, n):
-    return source.create_tf_dataset_for_client(source.client_ids[n]).repeat(10).batch(1)
+def client_data(source, n, batch_size):
+    return source.create_tf_dataset_for_client(source.client_ids[n]).repeat(10).batch(batch_size)
 
 
 if __name__ == '__main__':
     MAX_N_ATOMS = 150
-    MAX_N_TYPES = 100
+    MAX_N_TYPES = 120
     PROTEIN_MAX_SEQLEN = 750
-    NUM_CLIENTS = 4
+    NUM_CLIENTS = 5
+    NUM_SUBSET = 15
+    BATCH_SIZE = 16
     LENGTH_ONE_LETTER_AA = len('XACDEFGHIKLMNPQRSTVWY')
     #Load simulation data.
     chembl_train = load_data(MAX_N_ATOMS, MAX_N_TYPES, PROTEIN_MAX_SEQLEN,
-                     NUM_CLIENTS)
+                             NUM_SUBSET)
 
     # # Pick a subset of client devices to participate in training.
-    train_data = [client_data(chembl_train, n) for n in range(NUM_CLIENTS-1)]
-    test_data = [client_data(chembl_train, NUM_CLIENTS-1),]
+    train_data = [client_data(chembl_train, n, BATCH_SIZE) for n in range(NUM_CLIENTS-1)]
+    test_data = [client_data(chembl_train, NUM_CLIENTS-1, BATCH_SIZE),]
     
-     # Wrap a Keras model for use with TFF.
+    example_element = list(train_data[0])
+
+    # Wrap a Keras model for use with TFF.
     def model_fn():
         model = build_model(MAX_N_ATOMS, MAX_N_TYPES, PROTEIN_MAX_SEQLEN,
-                      LENGTH_ONE_LETTER_AA)
+                            LENGTH_ONE_LETTER_AA)
         return tff.learning.from_keras_model(
             model,
             loss=tf.keras.losses.BinaryCrossentropy(),
