@@ -43,8 +43,12 @@ class ChemblDataset(ClientData):
         self._feature_shape = (max_n_atoms, max_n_types)
         # # assign _client_id to data.
         self.data = {_id: [] for _id in self._client_ids}
+        counter = 0
         for data, _id in zip(self._data.itertuples(), np.random.choice(self._client_ids, len(self._data))):
             self.data[_id].append(self._create_element(data))
+            if counter > 10:
+                break
+            counter += 1
         g = tf.Graph()
         with g.as_default():
             tf_dataset = self._create_dataset(self._client_ids[0])
@@ -60,10 +64,10 @@ class ChemblDataset(ClientData):
         adjs = pad_bottom_right_matrix(rdmolops.GetAdjacencyMatrix(mol), self.max_n_atoms)
         res = self.salt_remover.StripMol(mol, dontRemoveEverything=True)
         protein_seq = self._create_one_hot_protein_seq(data[5])
-        return {'label': label,
-                'adjs': adjs,
-                'features': features,
-                'protein_seq': protein_seq}
+        return ({'adjs': adjs,
+                 'features': features,
+                 'protein_seq': protein_seq}, label)
+
 
     def _create_one_hot_protein_seq(self, protein_seq: str):
         one_letter_aa = 'XACDEFGHIKLMNPQRSTVWY'
@@ -82,15 +86,17 @@ class ChemblDataset(ClientData):
         return mol_features
 
     def _create_dataset(self, client_id):
-        _data = collections.OrderedDict({key: [] for key in sorted(self.data[client_id][0].keys())})
+        # https://stackoverflow.com/questions/52582275/tf-data-with-multiple-inputs-outputs-in-keras
+        _data = collections.OrderedDict({key: [] for key in sorted(['adjs', 'features', 'protein_seq'])})
+        _labels = []
         for idx, mol in enumerate(self.data[client_id]):
-            _data['label'].append(mol['label'])
-            _data['adjs'].append(mol['adjs'])
-            _data['features'].append(mol['features'])
-            _data['protein_seq'].append(mol['protein_seq'])
+            _data['adjs'].append(mol[0]['adjs'])
+            _data['features'].append(mol[0]['features'])
+            _data['protein_seq'].append(mol[0]['protein_seq'])
+            _labels.append(mol[1])
         _data = collections.OrderedDict((name, np.array(ds))
                                         for name, ds in sorted(_data.items()))
-        return tf.data.Dataset.from_tensors(_data)
+        return tf.data.Dataset.from_tensor_slices((_data, np.array(_labels)))
 
     @property
     def adj_shape(self):
