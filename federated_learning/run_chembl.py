@@ -32,9 +32,10 @@ def build_model(max_n_atoms, max_n_types, protein_max_seqlen, length_one_letter_
 
       # concat
       h = tf.keras.layers.Concatenate()([h, h_seq])
+      logits = tf.keras.layers.Dense(1, activation='sigmoid')(h)
       
-      logits = tf.keras.layers.Dense(1, tf.nn.softmax, input_shape=[64])(h)
       return tf.keras.Model(inputs=[input_adjs, input_features, input_protein_seq], outputs=logits)
+
 
 def client_data(source, n):
       return source.create_tf_dataset_for_client(source.client_ids[n]).repeat(10).batch(1)
@@ -60,12 +61,15 @@ if __name__ == '__main__':
             return tff.learning.from_keras_model(
                   model,
                   loss=tf.keras.losses.BinaryCrossentropy(),
+                  metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()],
                   input_spec=train_data[0].element_spec)
       
       # Simulate a few rounds of training with the selected client devices.
       trainer = tff.learning.build_federated_averaging_process(
             model_fn,
-            client_optimizer_fn=lambda: tf.keras.optimizers.SGD(0.1))
+            client_optimizer_fn=lambda: tf.keras.optimizers.SGD(0.01),
+            server_optimizer_fn=lambda: tf.keras.optimizers.SGD(learning_rate=0.1))
+      
       state = trainer.initialize()
       
       for _ in range(20):
