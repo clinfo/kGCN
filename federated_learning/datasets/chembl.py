@@ -68,7 +68,6 @@ class ChemblDataset(ClientData):
                  'features': features,
                  'protein_seq': protein_seq}, label)
 
-
     def _create_one_hot_protein_seq(self, protein_seq: str):
         one_letter_aa = 'XACDEFGHIKLMNPQRSTVWY'
         vec = []
@@ -90,7 +89,8 @@ class ChemblDataset(ClientData):
         _data = collections.OrderedDict({key: [] for key in sorted(['adjs', 'features', 'protein_seq'])})
         _labels = []
         for idx, mol in enumerate(self.data[client_id]):
-            _data['adjs'].append(mol[0]['adjs'])
+            adjs = np.expand_dims(mol[0]['adjs'], axis=0) # for adj channel
+            _data['adjs'].append(adjs)
             _data['features'].append(mol[0]['features'])
             _data['protein_seq'].append(mol[0]['protein_seq'])
             _labels.append(mol[1])
