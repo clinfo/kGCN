@@ -15,8 +15,9 @@ from .utils import download as _download
 from .utils import extract_zipfile, create_ids, one_hot, pad_bottom_right_matrix, pad_bottom_matrix
 
 
-def load_data(max_n_atoms, max_n_types, protein_max_seqlen, n_groups):
-    train_dataset = ChemblDataset(max_n_atoms, max_n_types, protein_max_seqlen, n_groups=n_groups)
+def load_data(max_n_atoms, max_n_types, protein_max_seqlen, n_groups, subset_ratios: list=None):
+    train_dataset = ChemblDataset(max_n_atoms, max_n_types, protein_max_seqlen,
+                                  n_groups=n_groups, subset_ratios=subset_ratios)
     return train_dataset
 
 
@@ -26,7 +27,7 @@ class ChemblDataset(ClientData):
              'csvfilename': 'dataset_benchmark.tsv'}
     def __init__(self, 
                  max_n_atoms=150, max_n_types=100, protein_max_seqlen=750, n_groups=2,
-                 savedir='./data', smiles_canonical=True):
+                 subset_ratios=None, savedir='./data', smiles_canonical=True):
         self.savedir = savedir
         self.filename = savedir + '/' + self._urls['filename'].replace('.zip', '')
         _download(self._urls['url'], self._urls['filename'], savedir)
@@ -35,6 +36,10 @@ class ChemblDataset(ClientData):
         self.max_n_types = max_n_types
         self.protein_max_seqlen = protein_max_seqlen
         self.n_groups = n_groups
+        if subset_ratios is None:
+            self.subset_ratios = [1./ self.n_groups for _ in range(self.n_groups)]
+        else:
+            self.subset_ratios = subset_ratios
         self.smiles_canonical = smiles_canonical
         self._data = self._read_tsv(self.savedir + '/' + self._urls['csvfilename'], skiprows=0)
         self.salt_remover = SaltRemover.SaltRemover()
@@ -44,7 +49,8 @@ class ChemblDataset(ClientData):
         # # assign _client_id to data.
         self.data = {_id: [] for _id in self._client_ids}
         counter = 0
-        for data, _id in zip(self._data.itertuples(), np.random.choice(self._client_ids, len(self._data))):
+        for data, _id in zip(self._data.itertuples(),
+                             np.random.choice(self._client_ids, len(self._data), p=self.subset_ratios)):
             self.data[_id].append(self._create_element(data))
             counter += 1
         
