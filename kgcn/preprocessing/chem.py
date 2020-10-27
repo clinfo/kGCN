@@ -1,5 +1,6 @@
 import argparse
 import glob
+import gzip
 import os
 import random
 import sys
@@ -13,6 +14,7 @@ from sklearn.utils import class_weight
 import joblib
 from mendeleev import element
 from scipy.sparse import csr_matrix, vstack
+import wget
 
 from kgcn.data_util import dense_to_sparse
 from kgcn.preprocessing.utils import read_profeat, read_label_file, parse_csv, create_adjancy_matrix, \
@@ -114,6 +116,10 @@ def get_parser():
     parser.add_argument(
         '--csv_reaxys', default=None, type=str,
         help='path to a csv containing reaxys data.'
+    )
+    parser.add_argument(
+        '--tox21', action='store_true', default=False,
+        help='flag to choose tox21 dataset.'
     )
     parser.add_argument(
         '--multimodal', action='store_true', default=False,
@@ -536,6 +542,21 @@ def extract_mol_info(args):
 
     elif args.csv_reaxys is not None:
         mol_obj_list, label_data, label_mask, publication_years = parse_csv(args.csv_reaxys)
+
+    elif args.tox21:
+        wget.download("https://deepchemdata.s3-us-west-1.amazonaws.com/datasets/tox21.csv.gz")
+        with gzip.open("tox21.csv.gz", "rb") as f:
+            tox21_df = pd.read_csv(f)
+        mol_obj_list = []
+        for index, row in tox21_df.iterrows():
+            mol_obj_list.append(Chem.MolFromSmiles(row['smiles']))
+            label = (row[:12].values == 1).astype(np.float32).tolist()
+            mask_label = np.invert(np.isnan(row[:12].values.astype(np.float32))).astype(np.float32)
+        label_data = np.array(tox21_df.iloc[:, :12], dtype=np.float32) 
+        label_mask = label_data == label_data
+        task_name_list = list(tox21_df.columns)
+        task_name_list.remove('smiles')
+        task_name_list.remove('mol_id')
 
     else:
         print("[ERROR] --smarts, --sdf_dir, or --assay_dir is required")
