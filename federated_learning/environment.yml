@@ -1,4 +1,4 @@
-name: kgcn_federated
+name: ono-tf2
 channels:
   - rdkit
 dependencies:
@@ -11,3 +11,4 @@ dependencies:
     - wget==3.2
     - pandas==1.1.3
     - tensorflow_federated
+    - click

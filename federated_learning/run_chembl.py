@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import click
+import logging
 import numpy as np
 import tensorflow as tf
 import tensorflow_federated as tff
@@ -9,6 +10,14 @@ import tensorflow_federated as tff
 import kgcn.layers as layers
 
 from datasets.chembl import load_data
+
+
+def get_logger(level='DEBUG'):
+    FORMAT = '%(asctime)-15s - %(pathname)s - %(funcName)s - L%(lineno)3d ::: %(message)s'
+    logging.basicConfig(format=FORMAT)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(level)
+    return logger
 
 
 def build_model(max_n_atoms, max_n_types, protein_max_seqlen, length_one_letter_aa):
@@ -47,17 +56,27 @@ def client_data(source, n, batch_size, epochs):
 @click.option('--lr', default=0.2, help='learning rate for the central model.')
 @click.option('--clientlr', default=0.001, help='learning rate for client models.')
 def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr):
+    logger = get_logger()
+    logger.debug(f'rounds = {rounds}')
+    logger.debug(f'clients = {clients}')
+    logger.debug(f'subsets = {subsets}')
+    logger.debug(f'epochs = {epochs}')
+    logger.debug(f'batchsize = {batchsize}')
+    logger.debug(f'lr = {lr}')
+    logger.debug(f'clientlr = {clientlr}')
+
     MAX_N_ATOMS = 150
     MAX_N_TYPES = 120
     PROTEIN_MAX_SEQLEN = 750
     LENGTH_ONE_LETTER_AA = len('XACDEFGHIKLMNPQRSTVWY')
+
     #subset_ratios = [8/10, 1/10, 1/10]
     #Load simulation data.
     chembl_train = load_data(MAX_N_ATOMS, MAX_N_TYPES, PROTEIN_MAX_SEQLEN,
                              subsets)
 
     # # Pick a subset of client devices to participate in training.
-    all_data = [client_data(chembl_train, n, batchsize, epochs) for n in range(4)]
+    all_data = [client_data(chembl_train, n, batchsize, epochs) for n in range(subsets)]
     
     example_element = list(all_data[0])
     # Wrap a Keras model for use with TFF.
@@ -83,14 +102,26 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr):
         test_data = [all_data[k],]
         val_data = [all_data[k+1],]
         train_data = [d for idx, d in enumerate(all_data) if not idx in [k, k+1]]
-        print(f'{k} round ->')
+        logger.debug(f'{k} round ->')
         for round_num in range(rounds):
             state, metrics = trainer.next(state, train_data)
-            print(f'{round_num:03d} metrics===>\n', metrics)
+            train_acc = metrics['train']["binary_accuracy"]
+            train_loss = metrics['train']["loss"]
+            train_auc = metrics['train']["auc"]
+            logger.debug(f'{round_num:03d} train ===> loss:{train_loss:7.5f}, '
+                         f'acc:{train_acc:7.5f}, {train_auc:7.5f},')
             val_metrics = evaluation(state.model, val_data)
-            print(f'{round_num:03d} val_metrics\n', val_metrics)
+            val_acc = val_metrics["binary_accuracy"]
+            val_loss = val_metrics["loss"]
+            val_auc = val_metrics["auc"]
+            logger.debug(f'{round_num:03d} val ===> loss:{val_loss:7.5f}, '
+                         f'acc:{val_acc:7.5f}, {val_auc:7.5f},')
         test_metrics = evaluation(state.model, test_data)
-        print(f'{round_num:03d} test_metrics\n', test_metrics)
+        test_acc = test_metrics["binary_accuracy"]
+        test_loss = test_metrics["loss"]
+        test_auc = test_metrics["auc"]
+        logger.debug(f'{round_num:03d} {k:02d}th test ===> loss:{test_loss:7.5f}, '
+                     f'acc:{test_acc:7.5f}, {test_auc:7.5f},')
 
     
 if __name__ == '__main__':
