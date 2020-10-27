@@ -5,7 +5,7 @@ from __future__ import print_function
 import os
 
 import tensorflow as tf
-from tensorflow.python.keras.layers import Layer, Dense
+from tensorflow.python.keras.layers import Layer, Dense, Conv1D
 
 enabled_batched = False
 enabled_bspmm = False
@@ -23,6 +23,21 @@ def load_bspmm(args):
         enabled_bspmm = True
     elif args.bconv and os.path.exists(external_path+"bconv.so"):
         enabled_bconv = True
+
+
+class GraphConvFL(Layer):
+      def __init__(self, output_dim, adj_channel_num, initializer='glorot_uniform', **kwargs):
+            self.output_dim = output_dim
+            self.adj_channel_num = adj_channel_num
+            self.initializer = initializer
+            self.conv1ds = [Conv1D(output_dim, 1) for _ in range(adj_channel_num)]
+            super(GraphConvFL, self).__init__(**kwargs)
+
+      def call(self, h, adj):
+            ahws = []
+            for channel in range(self.adj_channel_num):
+                  ahws.append(tf.matmul(adj[:, channel], self.conv1ds[channel](h)))
+            return tf.reduce_sum(tf.stack(ahws, 1), 1)
 
 
 class GraphConv(Layer):
