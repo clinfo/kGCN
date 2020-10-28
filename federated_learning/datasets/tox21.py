@@ -10,22 +10,22 @@ from rdkit.Chem import SaltRemover
 import numpy as np
 import tensorflow as tf
 import tensorflow_federated as tff
-from tensorflow_federated.python.simulation import hdf5_client_data, ClientData
-
+from tensorflow_federated.python.simulation import ClientData
 
 from .utils import download as _download
 from .utils import extract_zipfile, create_ids, one_hot, pad_bottom_right_matrix, pad_bottom_matrix
 
         
-def load_data(savedir='./data', n_groups=2):
+def load_data(target, max_n_atoms, max_n_types, n_groups, subset_ratios: list=None):
     """loads the federated tox21 dataset.
     """
-    train_dataset = Tox21Dataset('train', n_groups=n_groups)
-    # Tox21Dataset('val').to_csv('tox21_val.csv')
-    val_dataset = Tox21Dataset('val')
-    #train_dataset.to_csv('tox21_train.csv')
-    #test_dataset = Tox21Dataset('test')
-    return train_dataset, val_dataset
+    if target == 'train':
+        dataset = Tox21Dataset('train', max_n_atoms, max_n_types, n_groups, subset_ratios)
+    elif target == 'val':
+        dataset = Tox21Dataset('val', max_n_atoms, max_n_types, n_groups=1)
+    else:
+        raise Exception('train or val are allowed in target option')
+    return dataset
 
 class Tox21Dataset(ClientData):
     edge_types = {rdkit.Chem.rdchem.BondType.SINGLE: 0,
@@ -54,8 +54,8 @@ class Tox21Dataset(ClientData):
                     'NR-ER-LBD', 'NR-PPAR-gamma', 'SR-ARE', 'SR-ATAD5',
                     'SR-HSE', 'SR-MMP', 'SR-p53']
     
-    def __init__(self, target='train', savedir='./data',
-                 none_label=None, max_n_atoms=150, max_n_types=100, n_groups=2):
+    def __init__(self, target='train', max_n_atoms=150, max_n_types=100, n_groups=2,
+                 subset_ratios=None, none_label=None,   savedir='./data'):
         self.target = target
         self.savedir = savedir
         self.filename = savedir + '/' + self._urls[self.target]['filename'].replace('.zip', '')
@@ -70,9 +70,14 @@ class Tox21Dataset(ClientData):
         self._client_ids = sorted(create_ids(n_groups, 'TOXG'))
         self._adj_shape = (max_n_atoms, max_n_atoms)
         self._feature_shape = (max_n_atoms, max_n_types)
+        if subset_ratios is None:
+            self.subset_ratios = [1./ self.n_groups for _ in range(self.n_groups)]
+        else:
+            self.subset_ratios = subset_ratios
+        
         # assign _client_id to data.
         self.data = {_id: [] for _id in self._client_ids}
-        for data, _id in zip(self.mols, np.random.choice(self._client_ids, len(self.mols))):
+        for data, _id in zip(self.mols, np.random.choice(self._client_ids, len(self.mols), p=self.subset_ratios)):
             self.data[_id].append(self._create_element(self.mols[data]))
 
         # Get the types and shapes from the first client. We do it once during
@@ -87,12 +92,11 @@ class Tox21Dataset(ClientData):
         label = np.array(self._get_label(mol), dtype=np.float)
         mask_label = np.invert(np.isnan(label))
         features = pad_bottom_matrix(self._create_mol_feature(mol), self.max_n_atoms)
-        dense_adj = pad_bottom_right_matrix(rdmolops.GetAdjacencyMatrix(mol), self.max_n_atoms)
+        adjs = pad_bottom_right_matrix(rdmolops.GetAdjacencyMatrix(mol), self.max_n_atoms)
         res = self.salt_remover.StripMol(mol, dontRemoveEverything=True)
-        return {'label': label,
-                'mask_label': mask_label,
-                'features': features,
-                'dense_adj': dense_adj}
+        return ({'adjs': adjs,
+                 'features': features,
+                 'mask_label': mask_label}, label)
 
     def _create_mol_feature(self, mol):
         mol_features = np.array([m.GetAtomicNum() for m in mol.GetAtoms()])
@@ -100,16 +104,17 @@ class Tox21Dataset(ClientData):
         return mol_features
 
     def _create_dataset(self, client_id):
-        _data = collections.OrderedDict({key: [] for key in sorted(self.data[client_id][0].keys())})
+        _data = collections.OrderedDict({key: [] for key in sorted(['adjs', 'features', 'mask_label'])})
+        _labels = []
         for idx, mol in enumerate(self.data[client_id]):
-            _data['label'].append(mol['label'])
-            _data['mask_label'].append(mol['mask_label'])
-            _data['features'].append(mol['features'])
-            _data['dense_adj'].append(mol['dense_adj'])
-            # FIXME: store sparse matrix to reduce memory usage.
+            adjs = np.expand_dims(mol[0]['adjs'], axis=0) # for adj channel            
+            _data['adjs'].append(adjs)                                        
+            _data['features'].append(mol[0]['features'])
+            _data['mask_label'].append(mol[0]['mask_label'])
+            _labels.append(mol[1])            
         _data = collections.OrderedDict((name, np.array(ds))
                                         for name, ds in sorted(_data.items()))
-        return tf.data.Dataset.from_tensors(_data)
+        return tf.data.Dataset.from_tensor_slices((_data, np.array(_labels)))
 
     @property
     def adj_shape(self):

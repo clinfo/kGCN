@@ -1,22 +1,31 @@
 #!/usr/bin/env python
+import logging
 from collections import OrderedDict
+
+import click
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import optimizers
 import tensorflow_federated as tff
-
 import kgcn.layers as layers
-from kgcn.data_util import load_and_split_data
+
+from datasets.tox21 import load_data
 
 
-def client_data(source, n):
-    return source.create_tf_dataset_for_client(n).repeat(3).batch(50)
+def get_logger(level='DEBUG'):
+    FORMAT = '%(asctime)-15s - %(pathname)s - %(funcName)s - L%(lineno)3d ::: %(message)s'
+    logging.basicConfig(format=FORMAT)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(level)
+    return logger
 
+def client_data(source, n, batch_size, epochs):
+    return source.create_tf_dataset_for_client(source.client_ids[n]).repeat(epochs).batch(batch_size)
 
-def build_model():
-    input_features = tf.keras.Input(shape=(132, 81), name="features")
-    input_adjs = tf.keras.Input(shape=(1, 132, 132), name="adjs", sparse=False)
+def build_model(max_n_atoms, max_n_types):
+    input_features = tf.keras.Input(shape=(max_n_atoms, max_n_types), name="features")
+    input_adjs = tf.keras.Input(shape=(1, max_n_atoms, max_n_atoms), name="adjs", sparse=False)
     input_mask_label = tf.keras.Input(shape=(12), name="mask_label")
     h = layers.GraphConvFL(64, 1)(input_features, input_adjs)
     h = tf.keras.layers.ReLU()(h)
@@ -63,106 +72,43 @@ class AUCMultitask(keras.metrics.AUC):
         super(AUCMultitask, self).update_state(y_true_masked, logits_masked)
 
 
-if __name__ == "__main__":
-    config = {
-        "normalize_adj_flag": True,
-        "with_feature": True,
-        "split_adj_flag": False,
-        "shuffle_data": False,
-        "dataset": "dataset.jbl",
-        "validation_data_rate": 0.2,
-    }
-    _, train_data, valid_data, info = load_and_split_data(
-        config,
-        filename=config["dataset"],
-        valid_data_rate=config["validation_data_rate"],
-    )
-    adjs = tf.sparse.concat(
-        0,
-        [
-            tf.sparse.SparseTensor(
-                train_data["adjs"][i][0][0],
-                train_data["adjs"][i][0][1],
-                train_data["adjs"][i][0][2],
-            )
-            for i in range(train_data.num)
-        ],
-    )
-    adjs = tf.sparse.reshape(adjs, [train_data.num, 1, -1, adjs.shape[-1]])
-    adjs = tf.sparse.to_dense(adjs)
-    labels = train_data["labels"]
-    labels[np.isnan(labels)] = 0
-    train_dataset = tff.simulation.FromTensorSlicesClientData(
-        {
-            "bob": (
-                OrderedDict(
-                    {
-                        "features": train_data["features"][:1000],
-                        "adjs": adjs[:1000],
-                        "mask_label": train_data["mask_label"][:1000],
-                    }
-                ),
-                labels[:1000],
-            ),
-            "alice": (
-                OrderedDict(
-                    {
-                        "features": train_data["features"][1000:],
-                        "adjs": adjs[1000:],
-                        "mask_label": train_data["mask_label"][1000:],
-                    }
-                ),
-                labels[1000:],
-            ),
-        }
-    )
-    adjs_valid = tf.sparse.concat(
-        0,
-        [
-            tf.sparse.SparseTensor(
-                valid_data["adjs"][i][0][0],
-                valid_data["adjs"][i][0][1],
-                valid_data["adjs"][i][0][2],
-            )
-            for i in range(valid_data.num)
-        ],
-    )
-    adjs_valid = tf.sparse.reshape(
-        adjs_valid, [valid_data.num, 1, -1, adjs_valid.shape[-1]]
-    )
-    adjs_valid = tf.sparse.to_dense(adjs_valid)
-    valid_labels = valid_data["labels"]
-    valid_labels[np.isnan(valid_labels)] = 0
-    valid_dataset = tff.simulation.FromTensorSlicesClientData(
-        {
-            "valid": (
-                OrderedDict(
-                    {
-                        "features": valid_data["features"],
-                        "adjs": adjs_valid,
-                        "mask_label": valid_data["mask_label"],
-                    }
-                ),
-                valid_labels,
-            )
-        }
-    )
+@click.command()
+@click.option('--rounds', default=20, help='the number of updates of the centeral model')
+@click.option('--clients', default=2, help='the number of clients')
+@click.option('--subsets', default=7, help='the number of subsets')
+@click.option('--epochs', default=10, help='the number of training epochs in client traning.')
+@click.option('--batchsize', default=32, help='the number of batch size.')
+@click.option('--lr', default=0.2, help='learning rate for the central model.')
+@click.option('--clientlr', default=0.001, help='learning rate for client models.')
+def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr):
+    logger = get_logger()
+    logger.debug(f'rounds = {rounds}')
+    logger.debug(f'clients = {clients}')
+    logger.debug(f'subsets = {subsets}')
+    logger.debug(f'epochs = {epochs}')
+    logger.debug(f'batchsize = {batchsize}')
+    logger.debug(f'lr = {lr}')
+    logger.debug(f'clientlr = {clientlr}')
+    MAX_N_ATOMS = 150
+    MAX_N_TYPES = 120
+    tox21_train = load_data('train', MAX_N_ATOMS, MAX_N_TYPES, subsets)
+    tox21_test = load_data('val', MAX_N_ATOMS, MAX_N_TYPES, subsets)
 
-    train_data = [client_data(train_dataset, name) for name in ["bob", "alice"]]
-
-    valid_data = [client_data(valid_dataset, "valid")]
-
+    # # Pick a subset of client devices to participate in training.
+    all_data = [client_data(tox21_train, n, batchsize, epochs) for n in range(subsets)]
+    test_data = [client_data(tox21_test, 0, batchsize, epochs),]
+    
     def model_fn():
-        model = build_model()
+        model = build_model(MAX_N_ATOMS, MAX_N_TYPES)
         return tff.learning.from_keras_model(
             model,
             loss=MultitaskBinaryCrossentropyWithMask(),
-            input_spec=train_data[0].element_spec,
+            input_spec=all_data[0].element_spec,
             metrics=[
                 AUCMultitask(name="auc_task" + str(i), task_number=i) for i in range(12)
             ],
         )
-
+    
     trainer = tff.learning.build_federated_averaging_process(
         model_fn,
         client_optimizer_fn=lambda: tf.keras.optimizers.Adam(0.001),
@@ -170,9 +116,18 @@ if __name__ == "__main__":
     )
     state = trainer.initialize()
     evaluation = tff.learning.build_federated_evaluation(model_fn)
-    for epoch in range(30):
-        for _ in ["bob", "alice"]:
+    for k in range(clients):
+        val_data = [all_data[k],]
+        train_data = [d for idx, d in enumerate(all_data) if idx != k]
+        logger.debug(f'{k} round ->')
+        for round_num in range(rounds):
             state, metrics = trainer.next(state, train_data)
-            print(f"{epoch:03d} metrics===>\n", metrics)
-            test_metrics = evaluation(state.model, valid_data)
-            print(f"{epoch:03d} test_metrics\n", test_metrics)
+            print(metrics)
+            # train_loss = metrics['train']["loss"]
+            # train_auc = metrics['train']["auc_task"]
+            # logger.debug(f'{round_num:03d} train ===> loss:{train_loss:7.5f}, '
+            #              #f'acc:{train_acc:7.5f}, 
+            #              f'{train_auc:7.5f},')
+        
+if __name__ == "__main__":
+    main()
