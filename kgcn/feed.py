@@ -82,8 +82,8 @@ def get_preference_label_list_feed(config,info,label_list,label_itr,batch_size):
                 temp_labels[b,:,3]=temp_labels[b,:,0]
     return temp_labels
 
-def add_perturbation(x,scaling,enabled_noise,noise_scale=0.1):
-    return x*scaling+np.random.normal(scale=noise_scale,size=x.shape)
+def add_perturbation(x, scaling, enabled_noise, noise_scale=0.1):
+    return x * scaling + np.random.normal(scale=noise_scale, size=x.shape) if enabled_noise else x * scaling
 
 def construct_feed(batch_idx,placeholders,data,batch_size=None,dropout_rate=0.0,
         is_train=False, info=None, scaling=1.0, config=None, label_itr=None,perturbation_target=[], enabled_noise=False,**kwargs):
