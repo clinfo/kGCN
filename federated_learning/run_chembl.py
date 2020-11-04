@@ -34,11 +34,18 @@ def build_model(max_n_atoms, max_n_types, protein_max_seqlen, length_one_letter_
     
     # for protein sequence
     h_seq = tf.keras.layers.Embedding(length_one_letter_aa, 128, input_length=protein_max_seqlen)(input_protein_seq)
-    h_seq = tf.keras.layers.GlobalAveragePooling1D()(h_seq)
+    stride = 4
+    #h_seq = tf.keras.layers.GlobalAvePool1D()(h_seq)
     h_seq = tf.keras.layers.Dense(64, activation='relu')(h_seq)
+    h_seq = tf.keras.layers.GlobalAveragePooling1D()(h_seq)
+    #h_seq = tf.keras.layers.Conv1D(64, stride, padding="same", activation="relu")(h_seq)
+    # h_seq = tf.keras.layers.MaxPool1D(stride)(h_seq) 
 
+    # h_seq = tf.keras.layers.LSTM(32, return_sequences=False, go_backwards=True)(h_seq)
+    #
     # concat
     h = tf.keras.layers.Concatenate()([h, h_seq])
+    #h = tf.keras.layers.Dense(52, activation='relu')(h)
     logits = tf.keras.layers.Dense(1, activation='sigmoid')(h)
     return tf.keras.Model(inputs=[input_adjs, input_features, input_protein_seq], outputs=logits)
 
@@ -98,11 +105,15 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr):
     state = trainer.initialize()
     evaluation = tff.learning.build_federated_evaluation(model_fn)
 
+    all_test_acc = []
+    all_test_loss = []
+    all_test_auc = []
     for k in range(clients):
         test_data = [all_data[k],]
         val_data = [all_data[k+1],]
         train_data = [d for idx, d in enumerate(all_data) if not idx in [k, k+1]]
         logger.debug(f'{k} round ->')
+        
         for round_num in range(rounds):
             state, metrics = trainer.next(state, train_data)
             train_acc = metrics['train']["binary_accuracy"]
@@ -120,8 +131,15 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr):
         test_acc = test_metrics["binary_accuracy"]
         test_loss = test_metrics["loss"]
         test_auc = test_metrics["auc"]
+        all_test_acc.append(test_acc)
+        all_test_loss.append(test_loss)
+        all_test_auc.append(test_auc)
         logger.debug(f'{round_num:03d} {k:02d}th test ===> loss:{test_loss:7.5f}, '
                      f'acc:{test_acc:7.5f}, {test_auc:7.5f},')
+    logger.debug(f'{clients} >>>> all_test_acc = {all_test_acc}')
+    logger.debug(f'{clients} >>>> all_test_loss = {all_test_loss}')
+    logger.debug(f'{clients} >>>> all_test_auc = {all_test_auc}')
+
 
     
 if __name__ == '__main__':
