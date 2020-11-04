@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-import click
 import logging
+
+import click
 import numpy as np
 import tensorflow as tf
 import tensorflow_federated as tff
 from tensorflow.keras import optimizers
 import tensorflow_federated as tff
-
 import kgcn.layers as layers
 
 from datasets.chembl import load_data
@@ -85,7 +85,6 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr):
     # # Pick a subset of client devices to participate in training.
     all_data = [client_data(chembl_train, n, batchsize, epochs) for n in range(subsets)]
     
-    example_element = list(all_data[0])
     # Wrap a Keras model for use with TFF.
     def model_fn():
         model = build_model(MAX_N_ATOMS, MAX_N_TYPES, PROTEIN_MAX_SEQLEN,
