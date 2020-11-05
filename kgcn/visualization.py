@@ -489,13 +489,6 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
         for idx in range(out_prediction.shape[1]):
             _out_prediction = out_prediction[0, idx, :]
             true_label = np.argmax(all_data.labels[compound_id]) if not multitask else all_data.labels[compound_id, idx]
-            # convert a assay string according to a prediction score
-            if len(_out_prediction) > 2:  # softmax output
-                assay_str = f"class{np.argmax(_out_prediction)}"
-            elif len(_out_prediction) == 2:  # softmax output
-                assay_str = "active" if _out_prediction[1] > 0.5 else "inactive"
-            else:
-                assay_str = "active" if _out_prediction > 0.5 else "inactive"
             _prediction = prediction[:, idx, :] if len(prediction.shape) == 3 else prediction  # multitask = 3
 
             if ig_label_target == "max":
@@ -526,6 +519,13 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
                 target_index = int(ig_label_target)
                 target_prediction = _prediction[:, target_index]
                 target_score = _out_prediction[target_index]
+            # convert a assay string according to a prediction score
+            if len(_out_prediction) > 2:  # softmax output
+                assay_str = f"class{target_index}"
+            elif len(_out_prediction) == 2:  # softmax output
+                assay_str = "active" if _out_prediction[1] > 0.5 else "inactive"
+            else:
+                assay_str = "active" if _out_prediction > 0.5 else "inactive"
 
             try:
                 mol_name = Chem.MolToSmiles(mol_obj_list[compound_id])
