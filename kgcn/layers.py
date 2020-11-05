@@ -40,6 +40,24 @@ class GraphConvFL(Layer):
         return tf.reduce_sum(tf.stack(ahws, 1), 1)
 
 
+class GINFL(Layer):
+    def __init__(self, output_dim, adj_channel_num, eps: float = 0., 
+                 train_eps: bool = False, initializer='glorot_uniform', **kwargs):
+        self.output_dim = output_dim
+        self.adj_channel_num = adj_channel_num
+        self.initializer = initializer
+        self.linear = [Dense(output_dim) for _ in range(adj_channel_num)]
+        self.eps = eps
+        self.train_eps = train_eps # not supported yet.
+        super(GINFL, self).__init__(**kwargs)
+
+    def call(self, h, adj):
+        ahws = []
+        for channel in range(self.adj_channel_num):
+            ahws.append(self.linear[channel]((1 + self.eps) * h + tf.matmul(adj[:, channel], h)))
+        return tf.reduce_sum(tf.stack(ahws, 1), 1)
+
+
 class GraphConv(Layer):
     def __init__(self, output_dim, adj_channel_num, initializer='glorot_uniform', **kwargs):
         self.output_dim = output_dim
