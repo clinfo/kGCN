@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import functools
 import logging
 from collections import OrderedDict
 
@@ -23,13 +24,30 @@ def get_logger(level='DEBUG'):
 def client_data(source, n, batch_size, epochs):
     return source.create_tf_dataset_for_client(source.client_ids[n]).repeat(epochs).batch(batch_size)
 
-def build_model(max_n_atoms, max_n_types):
+
+def build_model_gcn(max_n_atoms, max_n_types):
     input_features = tf.keras.Input(shape=(max_n_atoms, max_n_types), name="features")
     input_adjs = tf.keras.Input(shape=(1, max_n_atoms, max_n_atoms), name="adjs", sparse=False)
     input_mask_label = tf.keras.Input(shape=(12), name="mask_label")
     h = layers.GraphConvFL(64, 1)(input_features, input_adjs)
     h = tf.keras.layers.ReLU()(h)
     h = layers.GraphConvFL(64, 1)(h, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GraphGather()(h)
+    logits = tf.keras.layers.Dense(12, tf.nn.sigmoid, input_shape=[64])(h)
+    return keras.Model(
+        inputs=[input_features, input_adjs, input_mask_label],
+        outputs=tf.stack([logits, input_mask_label]),
+    )
+
+
+def build_model_gin(max_n_atoms, max_n_types):
+    input_features = tf.keras.Input(shape=(max_n_atoms, max_n_types), name="features")
+    input_adjs = tf.keras.Input(shape=(1, max_n_atoms, max_n_atoms), name="adjs", sparse=False)
+    input_mask_label = tf.keras.Input(shape=(12), name="mask_label")
+    h = layers.GINFL(64, 1)(input_features, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GINFL(64, 1)(h, input_adjs)
     h = tf.keras.layers.ReLU()(h)
     h = layers.GraphGather()(h)
     logits = tf.keras.layers.Dense(12, tf.nn.sigmoid, input_shape=[64])(h)
@@ -73,14 +91,17 @@ class AUCMultitask(keras.metrics.AUC):
 
 
 @click.command()
-@click.option('--rounds', default=20, help='the number of updates of the centeral model')
+@click.option('--rounds', default=10, help='the number of updates of the centeral model')
 @click.option('--clients', default=2, help='the number of clients')
 @click.option('--subsets', default=7, help='the number of subsets')
 @click.option('--epochs', default=10, help='the number of training epochs in client traning.')
 @click.option('--batchsize', default=32, help='the number of batch size.')
 @click.option('--lr', default=0.2, help='learning rate for the central model.')
 @click.option('--clientlr', default=0.001, help='learning rate for client models.')
-def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr):
+@click.option('--model', default='gcn', help='support gcn or gin.')
+@click.option('--ratio', default=None, help='set ratio of the biggest dataset in total datasize.' + \
+              ' Other datasets are equally divided. (0, 1)')
+def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio):
     logger = get_logger()
     logger.debug(f'rounds = {rounds}')
     logger.debug(f'clients = {clients}')
@@ -89,17 +110,30 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr):
     logger.debug(f'batchsize = {batchsize}')
     logger.debug(f'lr = {lr}')
     logger.debug(f'clientlr = {clientlr}')
+    logger.debug(f'model = {model}')
+    logger.debug(f'ratio = {ratio}')
+    if not model in ['gcn', 'gin']:
+        raise Exception(f'not supported model. {model}')
     MAX_N_ATOMS = 150
     MAX_N_TYPES = 120
-    tox21_train = load_data('train', MAX_N_ATOMS, MAX_N_TYPES, subsets)
-    tox21_test = load_data('val', MAX_N_ATOMS, MAX_N_TYPES, subsets)
+    if not ratio is None:
+        ratio = float(ratio)
+        remains_ratio = [(1 - ratio) / (subsets - 1) for _ in range(subsets - 1)]
+        ratios = [ratio, ] + remains_ratio
+    else:
+        ratios = None
+    tox21_train = load_data('train', MAX_N_ATOMS, MAX_N_TYPES, subsets, ratios)
+    #tox21_test = load_data('val', MAX_N_ATOMS, MAX_N_TYPES, subsets)
 
     # # Pick a subset of client devices to participate in training.
     all_data = [client_data(tox21_train, n, batchsize, epochs) for n in range(subsets)]
-    test_data = [client_data(tox21_test, 0, batchsize, epochs),]
-    
-    def model_fn():
-        model = build_model(MAX_N_ATOMS, MAX_N_TYPES)
+    #test_data = [client_data(tox21_test, 0, batchsize, epochs),]
+
+    def _model_fn(model):
+        if model == "gcn":
+            model = build_model_gcn(MAX_N_ATOMS, MAX_N_TYPES)
+        elif model == "gin":
+            model = build_model_gin(MAX_N_ATOMS, MAX_N_TYPES)
         return tff.learning.from_keras_model(
             model,
             loss=MultitaskBinaryCrossentropyWithMask(),
@@ -108,26 +142,50 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr):
                 AUCMultitask(name="auc_task" + str(i), task_number=i) for i in range(12)
             ],
         )
-    
+    model_fn = functools.partial(_model_fn, model=model)    
     trainer = tff.learning.build_federated_averaging_process(
         model_fn,
         client_optimizer_fn=lambda: tf.keras.optimizers.Adam(0.001),
         server_optimizer_fn=lambda: tf.keras.optimizers.SGD(1),
     )
-    state = trainer.initialize()
     evaluation = tff.learning.build_federated_evaluation(model_fn)
-    for k in range(clients):
-        val_data = [all_data[k],]
-        train_data = [d for idx, d in enumerate(all_data) if idx != k]
+    all_test_loss = []
+    all_test_auc = []
+    for k in range(subsets):
+        state = trainer.initialize()
+        test_data_idx = k
+        val_data_idx = k - 1 if k == (subsets - 1) else k + 1
+        test_data = [all_data[test_data_idx],]
+        val_data = [all_data[val_data_idx],]
+        train_data = [d for idx, d in enumerate(all_data) if not idx in [test_data_idx, val_data_idx]]
         logger.debug(f'{k} round ->')
+
         for round_num in range(rounds):
+            train_aucs = []
+            val_aucs = []
             state, metrics = trainer.next(state, train_data)
-            print(metrics)
-            # train_loss = metrics['train']["loss"]
-            # train_auc = metrics['train']["auc_task"]
-            # logger.debug(f'{round_num:03d} train ===> loss:{train_loss:7.5f}, '
-            #              #f'acc:{train_acc:7.5f}, 
-            #              f'{train_auc:7.5f},')
+            train_loss = metrics['train']["loss"]
+            for i in range(12):
+                train_aucs.append(metrics['train'][f"auc_task{i}"])
+            logger.debug(f' train, round, loss, acus ===> {round_num:03d}, {train_loss:7.5f}, '
+                         f', {train_aucs}')
+            val_metrics = evaluation(state.model, val_data)
+            val_loss = val_metrics["loss"]
+            for i in range(12):
+                val_aucs.append(val_metrics[f"auc_task{i}"])
+            logger.debug(f'val, round, loss, auc ===> {round_num:03d}, {val_loss:7.5f}, '
+                         f' {val_aucs},')
+        test_metrics = evaluation(state.model, test_data)
+        test_loss = test_metrics["loss"]
+        test_aucs = []
+        for i in range(12):
+            test_aucs.append(val_metrics[f"auc_task{i}"])
+        logger.debug(f'test, round, loss, auc ===> {k}, {round_num:03d}, {test_loss:7.5f}, '
+                     f' {test_aucs},')
+        all_test_loss.append(test_loss)
+        all_test_auc.append(test_aucs)
+    logger.debug(f'{clients} >>>> all_test_loss = {all_test_loss}')
+    logger.debug(f'{clients} >>>> all_test_auc = {all_test_auc}')
         
 if __name__ == "__main__":
     main()
