@@ -136,7 +136,7 @@ class AUCMultitask(keras.metrics.AUC):
               type=click.Choice(['NR-AR', 'NR-AR-LBD', 'NR-AhR', 'NR-Aromatase', 'NR-ER',
                                  'NR-ER-LBD', 'NR-PPAR-gamma', 'SR-ARE', 'SR-ATAD5',
                                  'SR-HSE', 'SR-MMP', 'SR-p53']), 
-              default=None, help='set ratio of the biggest dataset in total datasize.')
+              default=None, help='set single task target. if not set, multitask is running.')
 def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio, task):
     logger = get_logger()
     logger.debug(f'rounds = {rounds}')
