@@ -99,10 +99,16 @@ class AUCMultitask(keras.metrics.AUC):
 @click.option('--batchsize', default=32, help='the number of batch size.')
 @click.option('--lr', default=0.2, help='learning rate for the central model.')
 @click.option('--clientlr', default=0.001, help='learning rate for client models.')
-@click.option('--model', default='gcn', help='support gcn or gin.')
+@click.option('--model', default='gcn', type=click.choice(['gcn', 'gin']),
+              help='support gcn or gin.')
 @click.option('--ratio', default=None, help='set ratio of the biggest dataset in total datasize.' + \
               ' Other datasets are equally divided. (0, 1)')
-def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio):
+@click.option('--task',  default=None, 
+              type=click.choice(['NR-AR', 'NR-AR-LBD', 'NR-AhR', 'NR-Aromatase', 'NR-ER',
+                                 'NR-ER-LBD', 'NR-PPAR-gamma', 'SR-ARE', 'SR-ATAD5',
+                                 'SR-HSE', 'SR-MMP', 'SR-p53']), 
+              default=None, help='set ratio of the biggest dataset in total datasize.')
+def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio, task):
     logger = get_logger()
     logger.debug(f'rounds = {rounds}')
     logger.debug(f'clients = {clients}')
@@ -113,6 +119,7 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
     logger.debug(f'clientlr = {clientlr}')
     logger.debug(f'model = {model}')
     logger.debug(f'ratio = {ratio}')
+    logger.debug(f'task = {task}')
     if not model in ['gcn', 'gin']:
         raise Exception(f'not supported model. {model}')
     MAX_N_ATOMS = 150
@@ -125,7 +132,7 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
         ratios = [ratio, ] + remains_ratio
     else:
         ratios = None
-    tox21_train = load_data('train', MAX_N_ATOMS, MAX_N_TYPES, subsets, ratios)
+    tox21_train = load_data('train', MAX_N_ATOMS, MAX_N_TYPES, subsets, ratios, task)
     #tox21_test = load_data('val', MAX_N_ATOMS, MAX_N_TYPES, subsets)
 
     # # Pick a subset of client devices to participate in training.

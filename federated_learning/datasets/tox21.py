@@ -16,7 +16,7 @@ from .utils import download as _download
 from .utils import extract_zipfile, create_ids, one_hot, pad_bottom_right_matrix, pad_bottom_matrix
 
         
-def load_data(target, max_n_atoms, max_n_types, n_groups, subset_ratios: list=None):
+def load_data(target, max_n_atoms, max_n_types, n_groups, subset_ratios: list=None, task: str=None):
     """loads the federated tox21 dataset.
     """
     if target == 'train':
@@ -48,14 +48,14 @@ class Tox21Dataset(ClientData):
         }
     }
     _columns = ['NR-AR', 'NR-AR-LBD', 'NR-AhR', 'NR-Aromatase', 'NR-ER',
-                    'NR-ER-LBD', 'NR-PPAR-gamma', 'SR-ARE', 'SR-ATAD5',
-                    'SR-HSE', 'SR-MMP', 'SR-p53', 'mol_id', 'smiles']
+                'NR-ER-LBD', 'NR-PPAR-gamma', 'SR-ARE', 'SR-ATAD5',
+                'SR-HSE', 'SR-MMP', 'SR-p53', 'mol_id', 'smiles']
     _label_names = ['NR-AR', 'NR-AR-LBD', 'NR-AhR', 'NR-Aromatase', 'NR-ER',
                     'NR-ER-LBD', 'NR-PPAR-gamma', 'SR-ARE', 'SR-ATAD5',
                     'SR-HSE', 'SR-MMP', 'SR-p53']
     
     def __init__(self, target='train', max_n_atoms=150, max_n_types=100, n_groups=2,
-                 subset_ratios=None, none_label=None,   savedir='./data'):
+                 subset_ratios=None, none_label=None, savedir='./data', task=None):
         self.target = target
         self.savedir = savedir
         self.filename = savedir + '/' + self._urls[self.target]['filename'].replace('.zip', '')
@@ -65,6 +65,7 @@ class Tox21Dataset(ClientData):
         self.max_n_atoms = max_n_atoms
         self.max_n_types = max_n_types
         self.n_groups = n_groups
+        self.task = task
         self.mols = self._get_valid_mols()
         self.salt_remover = SaltRemover.SaltRemover()
         self._client_ids = sorted(create_ids(n_groups, 'TOXG'))
