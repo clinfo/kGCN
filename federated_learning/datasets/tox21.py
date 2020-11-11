@@ -20,12 +20,13 @@ def load_data(target, max_n_atoms, max_n_types, n_groups, subset_ratios: list=No
     """loads the federated tox21 dataset.
     """
     if target == 'train':
-        dataset = Tox21Dataset('train', max_n_atoms, max_n_types, n_groups, subset_ratios)
+        dataset = Tox21Dataset('train', max_n_atoms, max_n_types, n_groups, subset_ratios, task=task)
     elif target == 'val':
-        dataset = Tox21Dataset('val', max_n_atoms, max_n_types, n_groups=1)
+        dataset = Tox21Dataset('val', max_n_atoms, max_n_types, n_groups=1, task=task)
     else:
         raise Exception('train or val are allowed in target option')
     return dataset
+
 
 class Tox21Dataset(ClientData):
     edge_types = {rdkit.Chem.rdchem.BondType.SINGLE: 0,
@@ -66,7 +67,11 @@ class Tox21Dataset(ClientData):
         self.max_n_types = max_n_types
         self.n_groups = n_groups
         self.task = task
-        self.mols = self._get_valid_mols()
+        if not task is None:
+            self.mols = self._get_single_valid_mols(task)
+        else:
+            self.mols = self._get_valid_mols()
+        self._len = len(self.mols)
         self.salt_remover = SaltRemover.SaltRemover()
         self._client_ids = sorted(create_ids(n_groups, 'TOXG'))
         self._adj_shape = (max_n_atoms, max_n_atoms)
@@ -90,14 +95,19 @@ class Tox21Dataset(ClientData):
             self._element_type_structure = tf_dataset.element_spec
 
     def _create_element(self, mol):
-        label = np.array(self._get_label(mol), dtype=np.float)
-        mask_label = np.invert(np.isnan(label))
         features = pad_bottom_matrix(self._create_mol_feature(mol), self.max_n_atoms)
         adjs = pad_bottom_right_matrix(rdmolops.GetAdjacencyMatrix(mol), self.max_n_atoms)
         res = self.salt_remover.StripMol(mol, dontRemoveEverything=True)
-        return ({'adjs': adjs,
-                 'features': features,
-                 'mask_label': mask_label}, label)
+        if not self.task is None:
+            label = np.array(self._get_single_label(mol), dtype=np.float)
+            return ({'adjs': adjs,
+                     'features': features}, label)
+        else:
+            mask_label = np.invert(np.isnan(label))
+            label = np.array(self._get_label(mol), dtype=np.float)            
+            return ({'adjs': adjs,
+                     'features': features,
+                     'mask_label': mask_label}, label)
 
     def _create_mol_feature(self, mol):
         mol_features = np.array([m.GetAtomicNum() for m in mol.GetAtoms()])
@@ -105,17 +115,29 @@ class Tox21Dataset(ClientData):
         return mol_features
 
     def _create_dataset(self, client_id):
-        _data = collections.OrderedDict({key: [] for key in sorted(['adjs', 'features', 'mask_label'])})
-        _labels = []
-        for idx, mol in enumerate(self.data[client_id]):
-            adjs = np.expand_dims(mol[0]['adjs'], axis=0) # for adj channel            
-            _data['adjs'].append(adjs)                                        
-            _data['features'].append(mol[0]['features'])
-            _data['mask_label'].append(mol[0]['mask_label'])
-            _labels.append(mol[1])            
-        _data = collections.OrderedDict((name, np.array(ds))
-                                        for name, ds in sorted(_data.items()))
-        return tf.data.Dataset.from_tensor_slices((_data, np.array(_labels)))
+        if not self.task is None:
+            _data = collections.OrderedDict({key: [] for key in sorted(['adjs', 'features'])})
+            _labels = []
+            for idx, mol in enumerate(self.data[client_id]):
+                adjs = np.expand_dims(mol[0]['adjs'], axis=0) # for adj channel            
+                _data['adjs'].append(adjs)                                        
+                _data['features'].append(mol[0]['features'])
+                _labels.append(mol[1])
+            _data = collections.OrderedDict((name, np.array(ds))
+                                            for name, ds in sorted(_data.items()))
+            return tf.data.Dataset.from_tensor_slices((_data, np.array(_labels)))
+        else:
+            _data = collections.OrderedDict({key: [] for key in sorted(['adjs', 'features', 'mask_label'])})
+            _labels = []
+            for idx, mol in enumerate(self.data[client_id]):
+                adjs = np.expand_dims(mol[0]['adjs'], axis=0) # for adj channel            
+                _data['adjs'].append(adjs)                                        
+                _data['features'].append(mol[0]['features'])
+                _data['mask_label'].append(mol[0]['mask_label'])
+                _labels.append(mol[1])            
+            _data = collections.OrderedDict((name, np.array(ds))
+                                            for name, ds in sorted(_data.items()))
+            return tf.data.Dataset.from_tensor_slices((_data, np.array(_labels)))
 
     @property
     def adj_shape(self):
@@ -172,6 +194,30 @@ class Tox21Dataset(ClientData):
                     if prop in self._label_names:
                         mols[key].SetProp(prop, mol.GetProp(prop))
         return mols
+
+    def _get_single_valid_mols(self, task):
+        tmpmols = Chem.SDMolSupplier(self.filename, strictParsing=False)
+        mols = {}
+        for mol in tmpmols:
+            if mol is None:
+                continue
+            try:
+                rdmolops.GetAdjacencyMatrix(mol)
+            except Exception as e:
+                continue
+            edge_index, _ = self.get_mol_edge_index(mol, self.edge_types)
+            if edge_index.size == 0:
+                continue
+            if mol.HasProp('DSSTox_CID'):
+                key = 'TOX' + mol.GetProp('DSSTox_CID')
+            else:
+                key = mol.GetProp('_Name')
+            if task in [n for n in mol.GetPropNames()]:
+                mols[key] = mol
+        return mols
+    
+    def _get_single_label(self, mol: Chem):
+        return int(mol.GetProp(self.task))
     
     def _get_label(self, mol: Chem):
         labels = []
@@ -202,11 +248,34 @@ class Tox21Dataset(ClientData):
         for idx, m in enumerate(self.mols):
             mol = self.mols[m]
             res = self.salt_remover.StripMol(mol, dontRemoveEverything=True)
-            data.append([*self._get_label(res),
-                         'TOX' + res.GetProp('DSSTox_CID'),
-                         Chem.MolToSmiles(res)])
+            if self.task is not None:
+                data.append([self._get_single_label(res),
+                             'TOX' + res.GetProp('DSSTox_CID'),
+                             Chem.MolToSmiles(res)])
+            else:
+                data.append([*self._get_label(res),
+                             'TOX' + res.GetProp('DSSTox_CID'),
+                             Chem.MolToSmiles(res)])
         df = pd.DataFrame(data, columns=self._columns, dtype=int)
         df.to_csv(filename, index=False)
 
     def __len__(self):
         return self._len
+
+if __name__ == '__main__':
+    task = 'NR-AR'
+    MAX_N_ATOMS = 150
+    MAX_N_TYPES = 150
+    subsets = 10
+    ratios=None
+    tox21_train = load_data('train', MAX_N_ATOMS, MAX_N_TYPES, subsets, ratios, task=task)
+    print(len(tox21_train))
+    
+    
+    task = 'SR-MMP'
+    MAX_N_ATOMS = 150
+    MAX_N_TYPES = 150
+    subsets = 10
+    ratios=None
+    tox21_train = load_data('train', MAX_N_ATOMS, MAX_N_TYPES, subsets, ratios, task=task)
+    
