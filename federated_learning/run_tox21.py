@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import ast
 import functools
 import logging
 from collections import OrderedDict
@@ -116,6 +117,8 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
         raise Exception(f'not supported model. {model}')
     MAX_N_ATOMS = 150
     MAX_N_TYPES = 120
+    if isinstance(ratio, str):
+        ratio = ast.literal_eval(ratio)
     if not ratio is None:
         ratio = float(ratio)
         remains_ratio = [(1 - ratio) / (subsets - 1) for _ in range(subsets - 1)]
