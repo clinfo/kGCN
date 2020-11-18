@@ -98,13 +98,13 @@ class Tox21Dataset(ClientData):
         features = pad_bottom_matrix(self._create_mol_feature(mol), self.max_n_atoms)
         adjs = pad_bottom_right_matrix(rdmolops.GetAdjacencyMatrix(mol), self.max_n_atoms)
         res = self.salt_remover.StripMol(mol, dontRemoveEverything=True)
-        label = np.array(self._get_single_label(mol), dtype=np.float)
         if not self.task is None:
+            label = np.array(self._get_single_label(mol), dtype=np.float)            
             return ({'adjs': adjs,
                      'features': features}, label)
         else:
+            label = np.array(self._get_label(mol), dtype=np.float)                        
             mask_label = np.invert(np.isnan(label))
-            label = np.array(self._get_label(mol), dtype=np.float)            
             return ({'adjs': adjs,
                      'features': features,
                      'mask_label': mask_label}, label)
