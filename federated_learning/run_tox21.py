@@ -162,11 +162,8 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
     else:
         ratios = None
     tox21_train = load_data('train', MAX_N_ATOMS, MAX_N_TYPES, subsets, ratios, task)
-    #tox21_test = load_data('val', MAX_N_ATOMS, MAX_N_TYPES, subsets)
     logger.debug(f'datasize: len(tox21_train) -> {len(tox21_train)}')
-    # # Pick a subset of client devices to participate in training.
     all_data = [client_data(tox21_train, n, batchsize, epochs) for n in range(subsets)]
-    #test_data = [client_data(tox21_test, 0, batchsize, epochs),]
 
     def _model_fn(model, task):
         if not task is None:
@@ -196,8 +193,8 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
     model_fn = functools.partial(_model_fn, model=model, task=task)    
     trainer = tff.learning.build_federated_averaging_process(
         model_fn,
-        client_optimizer_fn=lambda: tf.keras.optimizers.Adam(0.001),
-        server_optimizer_fn=lambda: tf.keras.optimizers.SGD(1),
+        client_optimizer_fn=lambda: tf.keras.optimizers.Adam(lr),
+        server_optimizer_fn=lambda: tf.keras.optimizers.Adam(clientlr),
     )
     evaluation = tff.learning.build_federated_evaluation(model_fn)
     all_test_loss = []
