@@ -240,6 +240,9 @@ class Tox21Dataset(ClientData):
         edge_attr = one_hot(bond_idx, num_classes)
         return edge_index, edge_attr
 
+    def get_labels(self):
+        return self._label_names
+
     def read_csv(self, filename):
         pass
 
