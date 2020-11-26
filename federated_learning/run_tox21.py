@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import ast
+import datetime
 import functools
 import logging
 from collections import OrderedDict
@@ -15,6 +16,11 @@ import kgcn.layers as layers
 from datasets.tox21 import load_data
 
 
+current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+logdir = 'logs/gradient_tape/' + current_time + '/tox21'
+writer = tf.summary.create_file_writer(logdir)
+
+
 def get_logger(level='DEBUG'):
     FORMAT = '%(asctime)-15s - %(pathname)s - %(funcName)s - L%(lineno)3d ::: %(message)s'
     logging.basicConfig(format=FORMAT)
@@ -24,7 +30,6 @@ def get_logger(level='DEBUG'):
 
 def client_data(source, n, batch_size, epochs):
     return source.create_tf_dataset_for_client(source.client_ids[n]).repeat(epochs).batch(batch_size)
-
 
 def build_model_gcn(max_n_atoms, max_n_types):
     input_features = tf.keras.Input(shape=(max_n_atoms, max_n_types), name="features")
@@ -123,7 +128,6 @@ class AUCMultitask(keras.metrics.AUC):
 @click.command()
 @click.option('--rounds', default=10, help='the number of updates of the centeral model')
 @click.option('--clients', default=2, help='the number of clients')
-@click.option('--subsets', default=7, help='the number of subsets')
 @click.option('--epochs', default=10, help='the number of training epochs in client traning.')
 @click.option('--batchsize', default=32, help='the number of batch size.')
 @click.option('--lr', default=0.2, help='learning rate for the central model.')
@@ -137,8 +141,9 @@ class AUCMultitask(keras.metrics.AUC):
                                  'NR-ER-LBD', 'NR-PPAR-gamma', 'SR-ARE', 'SR-ATAD5',
                                  'SR-HSE', 'SR-MMP', 'SR-p53']), 
               default=None, help='set single task target. if not set, multitask is running.')
-def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio, task):
+def main(rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, task):
     logger = get_logger()
+    subsets = clients + 2
     logger.debug(f'rounds = {rounds}')
     logger.debug(f'clients = {clients}')
     logger.debug(f'subsets = {subsets}')
@@ -162,6 +167,7 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
     else:
         ratios = None
     tox21_train = load_data('train', MAX_N_ATOMS, MAX_N_TYPES, subsets, ratios, task)
+    tox21_labels = tox21_train.get_labels()
     logger.debug(f'datasize: len(tox21_train) -> {len(tox21_train)}')
     all_data = [client_data(tox21_train, n, batchsize, epochs) for n in range(subsets)]
 
@@ -199,6 +205,7 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
     evaluation = tff.learning.build_federated_evaluation(model_fn)
     all_test_loss = []
     all_test_auc = []
+    
     for k in range(subsets):
         state = trainer.initialize()
         test_data_idx = k
@@ -219,7 +226,7 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
                 train_aucs = metrics['train']['auc']
                 val_aucs = val_metrics['auc']
             else:
-                for i in range(12):
+                for i in range(12), tox21_labels:
                     train_aucs.append(metrics['train'][f"auc_task{i}"])
                     val_aucs.append(val_metrics[f"auc_task{i}"])
                     
@@ -227,6 +234,12 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
                          f', {train_aucs}')
             logger.debug(f'val, round, loss, auc ===> {round_num:03d}, {val_loss:7.5f}, '
                          f' {val_aucs},')
+            with writer.as_default():
+                tf.summary.scalar('train_loss', i * 0.1, step=i)
+                tf.summary.scalar('train_auc', i * 0.1, step=i)                
+                tf.summary.scalar('valid_loss', i * 0.1, step=i)
+                tf.summary.scalar('valid_auc', i * 0.1, step=i)                
+            
         test_metrics = evaluation(state.model, test_data)
         test_loss = test_metrics["loss"]
         test_aucs = []

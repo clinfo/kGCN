@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import datetime
 import logging
 import functools
 
@@ -86,8 +87,7 @@ def client_data(source, n, batch_size, epochs):
 
 @click.command()
 @click.option('--rounds', default=10, help='the number of updates of the centeral model')
-@click.option('--clients', default=2, help='the number of clients')
-@click.option('--subsets', default=7, help='the number of subsets')
+@click.option('--clients', default=4, help='the number of clients')
 @click.option('--epochs', default=10, help='the number of training epochs in client traning.')
 @click.option('--batchsize', default=32, help='the number of batch size.')
 @click.option('--lr', default=0.2, help='learning rate for the central model.')
@@ -95,8 +95,9 @@ def client_data(source, n, batch_size, epochs):
 @click.option('--model', default='gcn', help='support gcn or gin.')
 @click.option('--ratio', default=None, help='set ratio of the biggest dataset in total datasize.' + \
               ' Other datasets are equally divided. (0, 1)')
-def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio):
+def main(rounds, clients, epochs, batchsize, lr, clientlr, model, ratio):
     logger = get_logger()
+    subsets = clients + 2
     logger.debug(f'rounds = {rounds}')
     logger.debug(f'clients = {clients}')
     logger.debug(f'subsets = {subsets}')
@@ -153,6 +154,10 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
     all_test_acc = []
     all_test_loss = []
     all_test_auc = []
+    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    logdir = 'logs/chembl/' + current_time
+    writer = tf.summary.create_file_writer(logdir)
+    
     for k in range(subsets):
         state = trainer.initialize()
         test_data_idx = k
@@ -175,10 +180,19 @@ def main(rounds, clients, subsets, epochs, batchsize, lr, clientlr, model, ratio
             val_auc = val_metrics["auc"]
             logger.debug(f'val, round, loss, acc, auc ===> {round_num:03d}, {val_loss:7.5f}, '
                          f'{val_acc:7.5f}, {val_auc:7.5f},')
+            with writer.as_default():
+                tf.summary.scalar(f'train_loss{k}', train_loss, step=round_num)
+                tf.summary.scalar(f'train_auc{k}', train_auc, step=round_num)
+                tf.summary.scalar(f'val_loss{k}', val_loss, step=round_num)
+                tf.summary.scalar(f'val_auc{k}', val_auc, step=round_num)                
+            
         test_metrics = evaluation(state.model, test_data)
         test_acc = test_metrics["binary_accuracy"]
         test_loss = test_metrics["loss"]
         test_auc = test_metrics["auc"]
+        with writer.as_default():        
+            tf.summary.scalar(f'test_loss{k}', test_loss, step=round_num)
+            tf.summary.scalar(f'test_auc{k}', test_auc, step=round_num)
         all_test_acc.append(test_acc)
         all_test_loss.append(test_loss)
         all_test_auc.append(test_auc)
