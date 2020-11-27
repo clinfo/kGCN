@@ -13,7 +13,7 @@ from tensorflow.keras import optimizers
 import tensorflow_federated as tff
 import kgcn.layers as layers
 
-from datasets.tox21 import load_data
+from libs.datasets.tox21 import load_data
 
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -35,9 +35,9 @@ def build_model_gcn(max_n_atoms, max_n_types):
     input_features = tf.keras.Input(shape=(max_n_atoms, max_n_types), name="features")
     input_adjs = tf.keras.Input(shape=(1, max_n_atoms, max_n_atoms), name="adjs", sparse=False)
     input_mask_label = tf.keras.Input(shape=(12), name="mask_label")
-    h = layers.GraphConvFL(64, 1)(input_features, input_adjs)
+    h = layers.GraphConvFL(128, 1)(input_features, input_adjs)
     h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphConvFL(64, 1)(h, input_adjs)
+    h = layers.GraphConvFL(128, 1)(input_features, input_adjs)
     h = tf.keras.layers.ReLU()(h)
     h = layers.GraphGather()(h)
     logits = tf.keras.layers.Dense(12, tf.nn.sigmoid, input_shape=[64])(h)
@@ -199,8 +199,8 @@ def main(rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, task):
     model_fn = functools.partial(_model_fn, model=model, task=task)    
     trainer = tff.learning.build_federated_averaging_process(
         model_fn,
-        client_optimizer_fn=lambda: tf.keras.optimizers.Adam(lr),
-        server_optimizer_fn=lambda: tf.keras.optimizers.Adam(clientlr),
+        client_optimizer_fn=lambda: tf.keras.optimizers.Adam(clientlr),
+        server_optimizer_fn=lambda: tf.keras.optimizers.Adam(lr),
     )
     evaluation = tff.learning.build_federated_evaluation(model_fn)
     all_test_loss = []

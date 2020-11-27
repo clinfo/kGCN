@@ -11,7 +11,7 @@ from tensorflow.keras import optimizers
 import tensorflow_federated as tff
 import kgcn.layers as layers
 
-from datasets.chembl import load_data
+from libs.datasets.chembl import load_data
 
 
 def get_logger(level='DEBUG'):
