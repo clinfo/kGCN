@@ -12,8 +12,8 @@ import tensorflow as tf
 import tensorflow_federated as tff
 from tensorflow_federated.python.simulation import ClientData
 
-from .utils import download as _download
-from .utils import extract_zipfile, create_ids, one_hot, pad_bottom_right_matrix, pad_bottom_matrix
+from ..utils import download as _download
+from ..utils import extract_zipfile, create_ids, one_hot, pad_bottom_right_matrix, pad_bottom_matrix
 
         
 def load_data(target, max_n_atoms, max_n_types, n_groups, subset_ratios: list=None, task: str=None):
