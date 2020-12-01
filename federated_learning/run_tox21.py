@@ -226,7 +226,7 @@ def main(rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, task):
                 train_aucs = metrics['train']['auc']
                 val_aucs = val_metrics['auc']
             else:
-                for i in zip(range(12), tox21_labels):
+                for i, label in enumerate(tox21_labels):
                     train_aucs.append(metrics['train'][f"auc_task{i}"])
                     val_aucs.append(val_metrics[f"auc_task{i}"])
                     
