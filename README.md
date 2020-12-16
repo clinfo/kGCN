@@ -223,6 +223,8 @@ Please reffer to sample_data/multi_label.txt and a coverting program (make_sampl
 
 ## [Application example2: Reaction prediction and visualization](./docs/example_for_reaction_prediction.md)
 
+## [Application example3: Retrosynthetic analysis](https://github.com/clinfo/ReTReK)
+
 ## Generative model
 
 ```bash
