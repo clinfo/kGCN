@@ -41,7 +41,7 @@ def _create_mol_feature(mol, max_n_types):
     return mol_features
 
 
-def _create_element(data_row, max_n_atoms, max_n_types):
+def _create_element(data_row, max_n_atoms, max_n_types, salt_remover):
     """
     creates an element for `tf.Dataset`
 
@@ -49,17 +49,18 @@ def _create_element(data_row, max_n_atoms, max_n_types):
     """
     label = np.array(1 if data_row.Label == "Positive" else 0, dtype=np.int32)
     mol = Chem.MolFromSmiles(data_row.Canonical_SMILES)
+    salt_removed_mol = salt_remover.StripMol(mol, dontRemoveEverything=True)
     features = pad_bottom_matrix(
-        _create_mol_feature(mol, max_n_types), max_n_atoms)
+        _create_mol_feature(salt_removed_mol, max_n_types), max_n_atoms)
     adjs = pad_bottom_right_matrix(
-        rdmolops.GetAdjacencyMatrix(mol), max_n_atoms)
-    # res = self.salt_remover.StripMol(mol, dontRemoveEverything=True)
+        rdmolops.GetAdjacencyMatrix(salt_removed_mol), max_n_atoms)
     return ({'adjs': adjs, 'features': features}, label)
 
 
 def create_dateset(dataset_name, max_n_atoms, max_n_types):
+    salt_remover = SaltRemover.SaltRemover()
     data = _read_dataset_file(dataset_name)
-    elements = [_create_element(data_row, max_n_atoms, max_n_types)
+    elements = [_create_element(data_row, max_n_atoms, max_n_types, salt_remover)
                 for data_row in data.itertuples()]
     inputs = collections.OrderedDict(
         {key: [] for key in sorted(['adjs', 'features'])})
@@ -83,7 +84,7 @@ class ToxicityDataset(tff.simulation.ClientData):
         self.max_n_types = max_n_types
         self.n_groups = n_groups
         self._len = len(self._data)
-        self.salt_remover = SaltRemover.SaltRemover()
+        self._salt_remover = SaltRemover.SaltRemover()
         self._client_ids = sorted(create_ids(n_groups, 'TOX'))
         self._adj_shape = (max_n_atoms, max_n_atoms)
         self._feature_shape = (max_n_atoms, max_n_types)
@@ -97,7 +98,7 @@ class ToxicityDataset(tff.simulation.ClientData):
         self.elements = collections.defaultdict(list)
         for data_row, client_id in zip(self._data.itertuples(), np.random.choice(self._client_ids, self._len, p=self.subset_ratios)):
             self.elements[client_id].append(
-                _create_element(data_row, self.max_n_atoms, self.max_n_types))
+                _create_element(data_row, self.max_n_atoms, self.max_n_types, self._salt_remover))
 
         g = tf.Graph()
         with g.as_default():
