@@ -189,7 +189,11 @@ def normal_learning(rounds, epochs, batchsize, lr, model, dataset_name):
     MAX_N_TYPES = 100
 
     dataset = load_data(False, dataset_name, MAX_N_ATOMS, MAX_N_TYPES)
-    shuffled_dataset = dataset.shuffle(100, reshuffle_each_iteration=False)
+    dataset_length = tf.data.experimental.cardinality(dataset).numpy()
+
+    shuffled_dataset = dataset.shuffle(
+        dataset_length, reshuffle_each_iteration=False)
+
     def recover(x, y): return y
 
     def is_test(x, y):
