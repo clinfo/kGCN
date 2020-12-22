@@ -197,10 +197,10 @@ def normal_learning(rounds, epochs, batchsize, lr, model, dataset_name):
     def recover(x, y): return y
 
     def is_test(x, y):
-        return x % 4 == 0
+        return x % 10 == 0
 
     def is_val(x, y):
-        return x % 4 == 1
+        return x % 10 == 1
 
     def is_train(x, y):
         return not (is_test(x, y) or is_val(x, y))
