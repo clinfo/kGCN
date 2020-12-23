@@ -9,6 +9,14 @@ $ source $HOME/miniconda/bin/activate
 $ conda env create -n tf2 –file environments.yml
 $ conda activate tf2
 ```
+
+## install kgcn/federated_learning repository
+
+```
+$ pip install git+https://github.com/
+```
+
+
 # Sample programs
 
 ## Tox21
