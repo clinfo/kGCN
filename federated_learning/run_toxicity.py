@@ -50,7 +50,12 @@ def build_model_gcn(max_n_atoms, max_n_types):
 
 
 def client_data(source, n, batch_size, epochs):
-    return source.create_tf_dataset_for_client(source.client_ids[n]).repeat(epochs).batch(batch_size)
+    return source.create_tf_dataset_for_client(source.client_ids[n])
+
+
+def repeat_client_dataset(client_dataset, batch_size, epochs):
+    dataset_length = tf.data.experimental.cardinality(client_dataset).numpy()
+    return client_dataset.shuffle(dataset_length, reshuffle_each_iteration=True).repeat(epochs).batch(batch_size)
 
 
 @click.command()
@@ -104,10 +109,10 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
     toxicity_train = load_data(FL_FLAG=True, dataset_name=dataset_name, max_n_atoms=MAX_N_ATOMS,
                                max_n_types=MAX_N_TYPES, n_groups=subsets, subset_ratios=ratios)
     # # Pick a subset of client devices to participate in training.
-    logger.info(toxicity_train.client_ids)
-    logger.info(subsets)
     all_data = [client_data(toxicity_train, n, batchsize, epochs)
                 for n in range(subsets)]
+
+    input_spec = all_data[0].batch(batchsize).element_spec
 
     # Wrap a Keras model for use with TFF.
     def _model_fn(model):
@@ -119,7 +124,7 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
             model,
             loss=tf.keras.losses.BinaryCrossentropy(),
             metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()],
-            input_spec=all_data[0].element_spec)
+            input_spec=input_spec)
 
     model_fn = functools.partial(_model_fn, model=model)
 
@@ -127,7 +132,7 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
     trainer = tff.learning.build_federated_averaging_process(
         model_fn,
         client_optimizer_fn=lambda: tf.keras.optimizers.Adam(clientlr),
-        server_optimizer_fn=lambda: tf.keras.optimizers.Adam(learning_rate=lr))
+    )
 
     evaluation = tff.learning.build_federated_evaluation(model_fn)
 
@@ -135,16 +140,19 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
     all_test_loss = []
     all_test_auc = []
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    logdir = os.path.join('logs', 'toxicity', current_time)
+    logdir = os.path.join('logs', 'toxicity', dataset_name,
+                          'federated', current_time)
     writer = tf.summary.create_file_writer(logdir)
 
     for k in range(subsets):
         state = trainer.initialize()
         test_data_idx = k
         val_data_idx = k - 1 if k == (subsets - 1) else k + 1
-        test_data = [all_data[test_data_idx], ]
-        val_data = [all_data[val_data_idx], ]
-        train_data = [d for idx, d in enumerate(all_data) if not idx in [
+        test_data = [repeat_client_dataset(
+            all_data[test_data_idx], batchsize, 1), ]
+        val_data = [repeat_client_dataset(
+            all_data[val_data_idx], batchsize, 1), ]
+        train_data = [repeat_client_dataset(d, batchsize, epochs) for idx, d in enumerate(all_data) if not idx in [
             test_data_idx, val_data_idx]]
         logger.debug(f'{k} round ->')
 
@@ -153,14 +161,14 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
             train_acc = metrics['train']["binary_accuracy"]
             train_loss = metrics['train']["loss"]
             train_auc = metrics['train']["auc"]
-            logger.debug(f'train, round, loss, acc, auc  ===> {round_num:03d}, {train_loss:7.5f}, '
-                         f'{train_acc:7.5f}, {train_auc:7.5f},')
+            logger.debug(
+                f'train, round, loss, acc, auc  ===> {round_num:03d}, {train_loss:7.5f}, {train_acc:7.5f}, {train_auc:7.5f},')
             val_metrics = evaluation(state.model, val_data)
             val_acc = val_metrics["binary_accuracy"]
             val_loss = val_metrics["loss"]
             val_auc = val_metrics["auc"]
-            logger.debug(f'val, round, loss, acc, auc ===> {round_num:03d}, {val_loss:7.5f}, '
-                         f'{val_acc:7.5f}, {val_auc:7.5f},')
+            logger.debug(
+                f'val, round, loss, acc, auc ===> {round_num:03d}, {val_loss:7.5f}, {val_acc:7.5f}, {val_auc:7.5f},')
             with writer.as_default():
                 tf.summary.scalar(f'train_loss{k}', train_loss, step=round_num)
                 tf.summary.scalar(f'train_auc{k}', train_auc, step=round_num)
@@ -171,14 +179,16 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
         test_acc = test_metrics["binary_accuracy"]
         test_loss = test_metrics["loss"]
         test_auc = test_metrics["auc"]
+        logger.debug(f'test, round, loss, acc, auc  ===> {round_num:03d}, {test_loss:7.5f}, '
+                     f'{test_acc:7.5f}, {test_auc:7.5f},')
+
         with writer.as_default():
             tf.summary.scalar(f'test_loss{k}', test_loss, step=round_num)
             tf.summary.scalar(f'test_auc{k}', test_auc, step=round_num)
         all_test_acc.append(test_acc)
         all_test_loss.append(test_loss)
         all_test_auc.append(test_auc)
-        logger.debug(f'test, round, loss, acc, auc ===> {k}, {round_num:03d}, {test_loss:7.5f}, '
-                     f' {test_acc:7.5f}, {test_auc:7.5f},')
+
     logger.debug(f'{clients} >>>> all_test_acc = {all_test_acc}')
     logger.debug(f'{clients} >>>> all_test_loss = {all_test_loss}')
     logger.debug(f'{clients} >>>> all_test_auc = {all_test_auc}')
@@ -219,7 +229,18 @@ def normal_learning(rounds, epochs, batchsize, lr, model, dataset_name):
                   metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()])
 
     model.summary()
-    model.fit(train.shuffle(100).batch(batchsize), epochs=epochs)
+
+    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    logdir = os.path.join('logs', 'toxicity',
+                          dataset_name, 'normal', current_time)
+    writer = tf.summary.create_file_writer(logdir)
+
+    output_log = tf.keras.callbacks.TensorBoard(
+        log_dir=logdir, histogram_freq=0, write_graph=True)
+
+    model.fit(train.shuffle(dataset_length).batch(batchsize), epochs=epochs,
+              validation_data=test.batch(batchsize), callbacks=[output_log])
+
     model.evaluate(test.batch(1))
 
 
