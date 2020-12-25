@@ -49,18 +49,18 @@ def build_model_gcn(max_n_atoms, max_n_types):
     return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
 
 
-def client_data(source, n, batch_size, epochs):
+def client_data(source, n):
     return source.create_tf_dataset_for_client(source.client_ids[n])
 
 
-def repeat_client_dataset(client_dataset, batch_size, epochs):
+def repeat_dataset(client_dataset, batch_size, epochs):
     dataset_length = tf.data.experimental.cardinality(client_dataset).numpy()
     return client_dataset.shuffle(dataset_length, reshuffle_each_iteration=True).repeat(epochs).batch(batch_size)
 
 
 @click.command()
 @click.option('--federated', is_flag=True)
-@click.option('--rounds', default=10, help='the number of updates of the centeral model')
+@click.option('--rounds', default=10, help='the number of updates of the central model')
 @click.option('--clients', default=2, help='the number of clients')
 @click.option('--epochs', default=10, help='the number of training epochs in client traning.')
 @click.option('--batchsize', default=32, help='the number of batch size.')
@@ -109,9 +109,7 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
     toxicity_train = load_data(FL_FLAG=True, dataset_name=dataset_name, max_n_atoms=MAX_N_ATOMS,
                                max_n_types=MAX_N_TYPES, n_groups=subsets, subset_ratios=ratios)
     # # Pick a subset of client devices to participate in training.
-    all_data = [client_data(toxicity_train, n, batchsize, epochs)
-                for n in range(subsets)]
-
+    all_data = [client_data(toxicity_train, n) for n in range(subsets)]
     input_spec = all_data[0].batch(batchsize).element_spec
 
     # Wrap a Keras model for use with TFF.
@@ -148,11 +146,9 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
         state = trainer.initialize()
         test_data_idx = k
         val_data_idx = k - 1 if k == (subsets - 1) else k + 1
-        test_data = [repeat_client_dataset(
-            all_data[test_data_idx], batchsize, 1), ]
-        val_data = [repeat_client_dataset(
-            all_data[val_data_idx], batchsize, 1), ]
-        train_data = [repeat_client_dataset(d, batchsize, epochs) for idx, d in enumerate(all_data) if not idx in [
+        test_data = [all_data[test_data_idx].batch(batchsize), ]
+        val_data = [all_data[val_data_idx].batch(batchsize), ]
+        train_data = [repeat_dataset(d, batchsize, epochs) for idx, d in enumerate(all_data) if not idx in [
             test_data_idx, val_data_idx]]
         logger.debug(f'{k} round ->')
 
@@ -194,13 +190,12 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
     logger.debug(f'{clients} >>>> all_test_auc = {all_test_auc}')
 
 
-def normal_learning(rounds, epochs, batchsize, lr, model, dataset_name):
-    MAX_N_ATOMS = 250
-    MAX_N_TYPES = 100
-
-    dataset = load_data(False, dataset_name, MAX_N_ATOMS, MAX_N_TYPES)
+def split_train_test_val(dataset):
+    """
+    splits the dataset into train, test, val\n
+    train : test : val = 8 : 1 : 1
+    """
     dataset_length = tf.data.experimental.cardinality(dataset).numpy()
-
     shuffled_dataset = dataset.shuffle(
         dataset_length, reshuffle_each_iteration=False)
 
@@ -218,6 +213,16 @@ def normal_learning(rounds, epochs, batchsize, lr, model, dataset_name):
     train = shuffled_dataset.enumerate().filter(is_train).map(recover)
     test = shuffled_dataset.enumerate().filter(is_test).map(recover)
     val = shuffled_dataset.enumerate().filter(is_val).map(recover)
+    return train, test, val
+
+
+def normal_learning(rounds, epochs, batchsize, lr, model, dataset_name):
+    MAX_N_ATOMS = 250
+    MAX_N_TYPES = 100
+
+    dataset = load_data(False, dataset_name, MAX_N_ATOMS, MAX_N_TYPES)
+    dataset_length = tf.data.experimental.cardinality(dataset).numpy()
+    train, test, val = split_train_test_val(dataset)
 
     if model == 'gcn':
         model = build_model_gcn(MAX_N_ATOMS, MAX_N_TYPES)
