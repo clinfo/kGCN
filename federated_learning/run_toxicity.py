@@ -5,11 +5,13 @@ import functools
 import logging
 import click
 import os
+import collections
 
 import kgcn.layers as layers
 import tensorflow_federated as tff
 import tensorflow as tf
 from libs.datasets.toxicity import load_data
+from spektral.layers import GINConv, DiffPool, GlobalAttentionPool, GATConv, MinCutPool
 
 
 def get_logger(level='DEBUG'):
@@ -25,9 +27,9 @@ def build_model_gin(max_n_atoms, max_n_types):
         shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
     input_features = tf.keras.Input(
         shape=(max_n_atoms, max_n_types), name='features')
-    h = layers.GINFL(64, 1)(input_features, input_adjs)
+    h = layers.GINFL(32, 1)(input_features, input_adjs)
     h = tf.keras.layers.ReLU()(h)
-    h = layers.GINFL(64, 1)(h, input_adjs)
+    h = layers.GINFL(16, 1)(h, input_adjs)
     h = tf.keras.layers.ReLU()(h)
     h = layers.GraphGather()(h)
     logits = tf.keras.layers.Dense(1, activation='sigmoid')(h)
@@ -40,13 +42,20 @@ def build_model_gcn(max_n_atoms, max_n_types):
     input_features = tf.keras.Input(
         shape=(max_n_atoms, max_n_types), name='features')
     # for graph
-    h = layers.GraphConvFL(64, 1)(input_features, input_adjs)
+    h = layers.GraphConvFL(32, 1)(input_features, input_adjs)
     h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphConvFL(64, 1)(h, input_adjs)
+    h = layers.GraphConvFL(16, 1)(h, input_adjs)
     h = tf.keras.layers.ReLU()(h)
     h = layers.GraphGather()(h)
     logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
     return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
+
+
+def build_model(model, max_n_atoms, max_n_types):
+    if model == 'gcn':
+        return build_model_gcn(max_n_atoms, max_n_types)
+    elif model == 'gin':
+        return build_model_gin(max_n_atoms, max_n_types)
 
 
 def client_data(source, n):
@@ -93,11 +102,7 @@ def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, rat
         normal_learning(rounds, epochs, batchsize, lr, model, dataset_name)
 
 
-def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, dataset_name):
-    logger = get_logger()
-    subsets = clients + 2
-    MAX_N_ATOMS = 250
-    MAX_N_TYPES = 100
+def calc_ratios(ratio, subsets):
     if not ratio is None:
         ratio = float(ratio)
         remains_ratio = [(1 - ratio) / (subsets - 1)
@@ -105,89 +110,120 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
         ratios = [ratio, ] + remains_ratio
     else:
         ratios = None
+    return ratios
+
+
+def format_metrics(prefix, metrics, round_num):
+    acc = metrics["binary_accuracy"]
+    loss = metrics["loss"]
+    auc = metrics["auc"]
+    return f'{prefix}, round, loss, acc, auc ===> {round_num:03d}, {loss:7.5f}, {acc:7.5f}, {auc:7.5f}'
+
+
+def write_metrics_to_tensorboard(writer, metrics, metric_names, step):
+    with writer.as_default():
+        for name in metric_names:
+            tf.summary.scalar(name, metrics[name], step=step)
+
+
+def model_summary_as_str(model):
+    lines = []
+    model.summary(print_fn=lines.append)
+    return '    ' + '\n    '.join(lines)
+
+
+# recode hyperparameters. there may be a better way
+def record_experimental_settings(logdir, params, model):
+    with tf.summary.create_file_writer(logdir).as_default():
+        hyperparameters = [tf.convert_to_tensor([k, str(v)]) for k, v in params.items()]
+        tf.summary.text('hyperparameters', tf.stack(hyperparameters), step=0)
+        tf.summary.text('model', model_summary_as_str(model), step=0)
+
+
+def get_log_dir(dataset_name, train_type):
+    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    return os.path.join('logs', 'toxicity', dataset_name, train_type, current_time)
+
+
+# Wrap a Keras model for use with TFF.
+def _model_fn(model, max_n_atoms, max_n_types, input_spec):
+    return tff.learning.from_keras_model(
+        build_model(model, max_n_atoms, max_n_types),
+        loss=tf.keras.losses.BinaryCrossentropy(),
+        metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()],
+        input_spec=input_spec)
+
+
+def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, dataset_name):
+    logger = get_logger()
+    subsets = clients + 2
+    ratios = calc_ratios(ratio, subsets)
     logger.debug(f'ratios = {ratios}')
-    toxicity_train = load_data(FL_FLAG=True, dataset_name=dataset_name, max_n_atoms=MAX_N_ATOMS,
-                               max_n_types=MAX_N_TYPES, n_groups=subsets, subset_ratios=ratios)
-    # # Pick a subset of client devices to participate in training.
+
+    toxicity_train = load_data(
+        FL_FLAG=True, dataset_name=dataset_name, n_groups=subsets, subset_ratios=ratios)
+    MAX_N_ATOMS = toxicity_train.adj_shape[0]
+    MAX_N_TYPES = toxicity_train.feature_shape[1]
+
+    # Pick a subset of client devices to participate in training.
     all_data = [client_data(toxicity_train, n) for n in range(subsets)]
     input_spec = all_data[0].batch(batchsize).element_spec
 
-    # Wrap a Keras model for use with TFF.
-    def _model_fn(model):
-        if model == 'gcn':
-            model = build_model_gcn(MAX_N_ATOMS, MAX_N_TYPES)
-        elif model == 'gin':
-            model = build_model_gin(MAX_N_ATOMS, MAX_N_TYPES)
-        return tff.learning.from_keras_model(
-            model,
-            loss=tf.keras.losses.BinaryCrossentropy(),
-            metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()],
-            input_spec=input_spec)
+    logdir = get_log_dir(dataset_name, 'federated')
+    record_experimental_settings(
+        logdir,
+        {'epochs': epochs, 'batchsize': batchsize, "lr": lr, "clientlr": clientlr},
+        build_model(model, MAX_N_ATOMS, MAX_N_TYPES))
 
-    model_fn = functools.partial(_model_fn, model=model)
+    model_fn = functools.partial(
+        _model_fn, model=model, max_n_atoms=MAX_N_ATOMS, max_n_types=MAX_N_TYPES, input_spec=input_spec)
 
     # Simulate a few rounds of training with the selected client devices.
     trainer = tff.learning.build_federated_averaging_process(
         model_fn,
         client_optimizer_fn=lambda: tf.keras.optimizers.Adam(clientlr),
     )
-
     evaluation = tff.learning.build_federated_evaluation(model_fn)
 
-    all_test_acc = []
-    all_test_loss = []
-    all_test_auc = []
-    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    logdir = os.path.join('logs', 'toxicity', dataset_name,
-                          'federated', current_time)
-    writer = tf.summary.create_file_writer(logdir)
+    all_test_metrics = collections.defaultdict(list)
+    metric_names = ['binary_accuracy', 'loss', 'auc']
 
     for k in range(subsets):
         state = trainer.initialize()
         test_data_idx = k
-        val_data_idx = k - 1 if k == (subsets - 1) else k + 1
+        val_data_idx = (k+1) % subsets
+        train_data_indices = [idx for idx in range(subsets) if not idx in [
+            test_data_idx, val_data_idx]]
         test_data = [all_data[test_data_idx].batch(batchsize), ]
         val_data = [all_data[val_data_idx].batch(batchsize), ]
-        train_data = [repeat_dataset(d, batchsize, epochs) for idx, d in enumerate(all_data) if not idx in [
-            test_data_idx, val_data_idx]]
+        train_data = [repeat_dataset(all_data[idx], batchsize, epochs)
+                      for idx in train_data_indices]
+
+        train_writer = tf.summary.create_file_writer(os.path.join(logdir, f'train_{k}'))
+        val_writer = tf.summary.create_file_writer(os.path.join(logdir, f'val_{k}'))
+        test_writer = tf.summary.create_file_writer(os.path.join(logdir, f'test_{k}'))
         logger.debug(f'{k} round ->')
 
         for round_num in range(rounds):
             state, metrics = trainer.next(state, train_data)
-            train_acc = metrics['train']["binary_accuracy"]
-            train_loss = metrics['train']["loss"]
-            train_auc = metrics['train']["auc"]
-            logger.debug(
-                f'train, round, loss, acc, auc  ===> {round_num:03d}, {train_loss:7.5f}, {train_acc:7.5f}, {train_auc:7.5f},')
+
+            logger.debug(format_metrics('train', metrics['train'], round_num))
+            write_metrics_to_tensorboard(
+                train_writer, metrics['train'], metric_names, round_num)
+
             val_metrics = evaluation(state.model, val_data)
-            val_acc = val_metrics["binary_accuracy"]
-            val_loss = val_metrics["loss"]
-            val_auc = val_metrics["auc"]
-            logger.debug(
-                f'val, round, loss, acc, auc ===> {round_num:03d}, {val_loss:7.5f}, {val_acc:7.5f}, {val_auc:7.5f},')
-            with writer.as_default():
-                tf.summary.scalar(f'train_loss{k}', train_loss, step=round_num)
-                tf.summary.scalar(f'train_auc{k}', train_auc, step=round_num)
-                tf.summary.scalar(f'val_loss{k}', val_loss, step=round_num)
-                tf.summary.scalar(f'val_auc{k}', val_auc, step=round_num)
+            logger.debug(format_metrics('val  ', val_metrics, round_num))
+            write_metrics_to_tensorboard(val_writer, val_metrics, metric_names, round_num)
 
         test_metrics = evaluation(state.model, test_data)
-        test_acc = test_metrics["binary_accuracy"]
-        test_loss = test_metrics["loss"]
-        test_auc = test_metrics["auc"]
-        logger.debug(f'test, round, loss, acc, auc  ===> {round_num:03d}, {test_loss:7.5f}, '
-                     f'{test_acc:7.5f}, {test_auc:7.5f},')
+        logger.debug(format_metrics('test ', test_metrics, round_num))
+        write_metrics_to_tensorboard(test_writer, test_metrics, metric_names, round_num)
+        for metric_name in metric_names:
+            all_test_metrics[metric_name].append(test_metrics[metric_name])
 
-        with writer.as_default():
-            tf.summary.scalar(f'test_loss{k}', test_loss, step=round_num)
-            tf.summary.scalar(f'test_auc{k}', test_auc, step=round_num)
-        all_test_acc.append(test_acc)
-        all_test_loss.append(test_loss)
-        all_test_auc.append(test_auc)
-
-    logger.debug(f'{clients} >>>> all_test_acc = {all_test_acc}')
-    logger.debug(f'{clients} >>>> all_test_loss = {all_test_loss}')
-    logger.debug(f'{clients} >>>> all_test_auc = {all_test_auc}')
+    logger.debug(f"{clients} >>>> all_test_acc = {all_test_metrics['binary_accuracy']}")
+    logger.debug(f"{clients} >>>> all_test_loss = {all_test_metrics['loss']}")
+    logger.debug(f"{clients} >>>> all_test_auc = {all_test_metrics['auc']}")
 
 
 def split_train_test_val(dataset):
@@ -217,36 +253,29 @@ def split_train_test_val(dataset):
 
 
 def normal_learning(rounds, epochs, batchsize, lr, model, dataset_name):
-    MAX_N_ATOMS = 250
-    MAX_N_TYPES = 100
-
-    dataset = load_data(False, dataset_name, MAX_N_ATOMS, MAX_N_TYPES)
+    dataset = load_data(False, dataset_name)
     dataset_length = tf.data.experimental.cardinality(dataset).numpy()
     train, test, val = split_train_test_val(dataset)
+    for element in train.take(1):
+        MAX_N_TYPES = element[0]['features'].shape[1]
+        MAX_N_ATOMS = element[0]['adjs'].shape[1]
 
-    if model == 'gcn':
-        model = build_model_gcn(MAX_N_ATOMS, MAX_N_TYPES)
-    elif model == 'gin':
-        model = build_model_gin(MAX_N_ATOMS, MAX_N_TYPES)
-
+    model = build_model(model, MAX_N_ATOMS, MAX_N_TYPES)
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
                   loss=tf.keras.losses.BinaryCrossentropy(),
                   metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()])
 
-    model.summary()
-
-    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    logdir = os.path.join('logs', 'toxicity',
-                          dataset_name, 'normal', current_time)
-    writer = tf.summary.create_file_writer(logdir)
+    logdir = get_log_dir(dataset_name, 'normal')
+    record_experimental_settings(
+        logdir, {'epochs': epochs, 'batchsize': batchsize, "lr": lr}, model)
 
     output_log = tf.keras.callbacks.TensorBoard(
         log_dir=logdir, histogram_freq=0, write_graph=True)
 
     model.fit(train.shuffle(dataset_length).batch(batchsize), epochs=epochs,
-              validation_data=test.batch(batchsize), callbacks=[output_log])
+              validation_data=val.batch(batchsize), callbacks=[output_log])
 
-    model.evaluate(test.batch(1))
+    model.evaluate(test.batch(1), callbacks=[output_log])
 
 
 if __name__ == "__main__":
