@@ -90,8 +90,12 @@ def get_atom_features(args,feat, bool_id_feat=False, explicit_H=False):
     num_hs=[0, 1, 2, 3, 4]
     i=np.argmax(feat[70:75])
     hs=num_hs[i]
-    
-    return [s,d,iv,fc,re,hy,ar,hs]
+
+    ring=feat[75]
+    i=np.argmax(feat[76:81])
+    ring_size=list(range(3,8))
+    rs=ring_size[i]
+    return [s,d,iv,fc,re,hy,ar,hs,ring,rs]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
