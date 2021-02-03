@@ -11,7 +11,8 @@ import kgcn.layers as layers
 import tensorflow_federated as tff
 import tensorflow as tf
 from libs.datasets.toxicity import load_data
-from spektral.layers import GINConv, DiffPool, GlobalAttentionPool, GATConv, MinCutPool
+from dgl.nn.tensorflow.conv import GINConv
+from dgl.nn.tensorflow.glob import GlobalAttentionPooling
 
 
 def get_logger(level='DEBUG'):
@@ -32,7 +33,8 @@ def build_model_gin(max_n_atoms, max_n_types):
     h = layers.GINFL(16, 1)(h, input_adjs)
     h = tf.keras.layers.ReLU()(h)
     h = layers.GraphGather()(h)
-    logits = tf.keras.layers.Dense(1, activation='sigmoid')(h)
+    logits = tf.keras.layers.Dense(1, activation='sigmoid',
+                                   kernel_regularizer="l2", bias_regularizer="l2")(h)
     return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
 
 
@@ -252,30 +254,52 @@ def split_train_test_val(dataset):
     return train, test, val
 
 
-def normal_learning(rounds, epochs, batchsize, lr, model, dataset_name):
+def kfold_generator(dataset, k):
+    """
+    train : test = (k-1) : 1
+    """
+    dataset_length = tf.data.experimental.cardinality(dataset).numpy()
+    shuffled_dataset = dataset.shuffle(
+        dataset_length, reshuffle_each_iteration=False)
+
+    def recover(x, y): return y
+
+    for test_idx in range(k):
+        def is_test(x, y):
+            return x % k == test_idx
+
+        def is_train(x, y):
+            return not is_test(x, y)
+
+        train = shuffled_dataset.enumerate().filter(is_train).map(recover)
+        test = shuffled_dataset.enumerate().filter(is_test).map(recover)
+        yield train, test
+
+
+# NOTE: k-foldっぽい感じにした
+def normal_learning(rounds, epochs, batchsize, lr, model_type, dataset_name):
     dataset = load_data(False, dataset_name)
     dataset_length = tf.data.experimental.cardinality(dataset).numpy()
-    train, test, val = split_train_test_val(dataset)
-    for element in train.take(1):
-        MAX_N_TYPES = element[0]['features'].shape[1]
-        MAX_N_ATOMS = element[0]['adjs'].shape[1]
-
-    model = build_model(model, MAX_N_ATOMS, MAX_N_TYPES)
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
-                  loss=tf.keras.losses.BinaryCrossentropy(),
-                  metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()])
-
     logdir = get_log_dir(dataset_name, 'normal')
-    record_experimental_settings(
-        logdir, {'epochs': epochs, 'batchsize': batchsize, "lr": lr}, model)
 
-    output_log = tf.keras.callbacks.TensorBoard(
-        log_dir=logdir, histogram_freq=0, write_graph=True)
+    for idx, (train, test) in enumerate(kfold_generator(dataset, 4)):
+        for element in train.take(1):
+            MAX_N_TYPES = element[0]['features'].shape[1]
+            MAX_N_ATOMS = element[0]['adjs'].shape[1]
 
-    model.fit(train.shuffle(dataset_length).batch(batchsize), epochs=epochs,
-              validation_data=val.batch(batchsize), callbacks=[output_log])
+        model = build_model(model_type, MAX_N_ATOMS, MAX_N_TYPES)
+        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
+                      loss=tf.keras.losses.BinaryCrossentropy(),
+                      metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC(name="auc")])
 
-    model.evaluate(test.batch(1), callbacks=[output_log])
+        record_experimental_settings(os.path.join(logdir, f"log_{idx}"),
+                                     {'epochs': epochs, 'batchsize': batchsize, "lr": lr}, model)
+
+        output_log = tf.keras.callbacks.TensorBoard(
+            log_dir=os.path.join(logdir, f"log_{idx}"), histogram_freq=0, write_graph=True)
+
+        history = model.fit(train.shuffle(dataset_length).batch(batchsize), epochs=epochs,
+                            validation_data=test.batch(batchsize), callbacks=[output_log])
 
 
 if __name__ == "__main__":
