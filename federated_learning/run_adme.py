@@ -61,10 +61,10 @@ def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, rat
         federated_learning(task_name, dataset, model, rounds, clients,
                            epochs, batchsize, lr, clientlr, ratio, kfold, logger)
     else:
-        normal_learning(task_name, dataset, epochs, batchsize, clinetlr, model, ratio, kfold, logger)
+        normal_learning(task_name, dataset, epochs, batchsize, clientlr, model, ratio, kfold, logger)
 
         
-def normal_learning(task_name, dataset, epochs, batchsize, lr, model, ratio, kfold):
+def normal_learning(task_name, dataset, epochs, batchsize, lr, model, ratio, kfold, logger):
     MAX_N_ATOMS = 150
     MAX_N_TYPES = 100
     dataset_length = tf.data.experimental.cardinality(dataset).numpy()    

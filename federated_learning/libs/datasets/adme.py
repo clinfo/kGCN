@@ -99,8 +99,9 @@ def _read_dataset_file(datapath, task_name):
         labels.append(label)
     return mols, labels
 
-def create_dataset(datapath, task_name):
-    mols, labels = _read_dataset_file(datapath, task_name, max_n_atoms, max_n_types)
+def create_dataset(datapath, task_name, max_n_atoms, max_n_types):
+    salt_remover = SaltRemover.SaltRemover()
+    mols, labels = _read_dataset_file(datapath, task_name)
     elements = [_create_element(mol, label, max_n_atoms, max_n_types, salt_remover)
                 for mol, label in zip(mols, labels)]
     inputs = collections.OrderedDict(

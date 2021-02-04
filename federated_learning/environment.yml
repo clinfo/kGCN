@@ -9,6 +9,7 @@ dependencies:
   - rdkit=2020.03.3.0
   - pip:
       - tensorflow==2.2
+      - tensorflow_addons
       - joblib==0.17.0
       - wget==3.2
       - tensorflow_federated==0.16.1

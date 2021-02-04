@@ -52,4 +52,12 @@ def pad_bottom_matrix(matrix: np.array, max_dim):
     n_bottom_padding = max_dim - matrix.shape[0]
     return np.pad(matrix, [(0, n_bottom_padding), (0, 0)], 'constant')
 
+def create_mol_feature(mol, max_n_types):
+    """
+    creates a feature vector from atoms in a molecule
 
+    mol: `Chem.rdchem.Mol`
+    """
+    mol_features = np.array([atom.GetAtomicNum() for atom in mol.GetAtoms()])
+    mol_features = one_hot(mol_features, max_n_types).astype(np.int32)
+    return mol_features
