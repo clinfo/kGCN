@@ -6,14 +6,14 @@
 $ wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
 $ bash ~/miniconda.sh -b -p $HOME/miniconda
 $ source $HOME/miniconda/bin/activate
-$ conda env create -n tf2 –file environments.yml
+$ conda env create -n tf2 -f environments.yml
 $ conda activate tf2
 ```
 
-## install kgcn/federated_learning repository
+## install kGCN from `federated_learning` branch of `github.com/clinfo/kGCN` repo
 
 ```
-$ pip install git+https://github.com/
+$ pip install git+https://github.com/clinfo/kGCN.git@federated_learning
 ```
 
 
