@@ -11,8 +11,41 @@ import kgcn.layers as layers
 import tensorflow_federated as tff
 import tensorflow as tf
 from libs.datasets.toxicity import load_data
-from dgl.nn.tensorflow.conv import GINConv
-from dgl.nn.tensorflow.glob import GlobalAttentionPooling
+
+from tensorflow.python.keras.layers import Layer, Dense, Conv1D
+
+
+class GAT(Layer):
+    def __init__(self, in_feats, out_feats, initializer='glorot_uniform', **kwargs):
+        super(GAT, self).__init__(**kwargs)
+        self.initializer = initializer
+        self.in_feats = in_feats
+        self.out_feats = out_feats
+        self.w = self.add_weight(shape=(in_feats, out_feats), initializer=initializer)
+        self.a = self.add_weight(shape=(2*out_feats, 1), initializer=initializer)
+
+    def call(self, h, adj):
+        n_nodes = adj.shape[2]
+        wh = tf.matmul(h, self.w)
+
+        # h_repeat[i, j] = wh[i]となっていて欲しい
+        h_repeat = tf.reshape(tf.repeat(wh, n_nodes, axis=1),
+                              [-1, n_nodes, n_nodes, self.out_feats])
+        # h_merge[i, j] = wh[j]となっていて欲しい
+        h_merge = tf.reshape(tf.concat([wh]*n_nodes, axis=1),
+                             [-1, n_nodes, n_nodes, self.out_feats])
+
+        # h_concat[i, j] = [...wh[i], ...wh[j]]となっていて欲しい
+        h_concat = tf.concat([h_repeat, h_merge], axis=3)
+        e = tf.nn.leaky_relu(tf.matmul(h_concat, self.a))
+        zero_vec = -9e15*tf.ones_like(e)
+
+        adj_reshape = tf.reshape(adj, [-1, n_nodes, n_nodes, 1])
+        attention = tf.where(adj_reshape > 0, e, zero_vec)
+        attention = tf.reshape(attention, [-1, n_nodes, n_nodes])
+        attention = tf.nn.softmax(attention)
+        h_prime = tf.matmul(attention, wh)
+        return h_prime
 
 
 def get_logger(level='DEBUG'):
@@ -228,6 +261,21 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
     logger.debug(f"{clients} >>>> all_test_auc = {all_test_metrics['auc']}")
 
 
+def build_model_gat(max_n_atoms, max_n_types):
+    input_adjs = tf.keras.Input(
+        shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
+    input_features = tf.keras.Input(
+        shape=(max_n_atoms, max_n_types), name='features')
+    # for graph
+    h = GAT(max_n_types, 32)(input_features, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = GAT(32, 16)(h, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GraphGather()(h)
+    logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
+    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
+
+
 def split_train_test_val(dataset):
     """
     splits the dataset into train, test, val\n
@@ -276,7 +324,6 @@ def kfold_generator(dataset, k):
         yield train, test
 
 
-# NOTE: k-foldっぽい感じにした
 def normal_learning(rounds, epochs, batchsize, lr, model_type, dataset_name):
     dataset = load_data(False, dataset_name)
     dataset_length = tf.data.experimental.cardinality(dataset).numpy()
@@ -287,7 +334,8 @@ def normal_learning(rounds, epochs, batchsize, lr, model_type, dataset_name):
             MAX_N_TYPES = element[0]['features'].shape[1]
             MAX_N_ATOMS = element[0]['adjs'].shape[1]
 
-        model = build_model(model_type, MAX_N_ATOMS, MAX_N_TYPES)
+        # model = build_model(model_type, MAX_N_ATOMS, MAX_N_TYPES)
+        model = build_model_gat(MAX_N_ATOMS, MAX_N_TYPES)
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
                       loss=tf.keras.losses.BinaryCrossentropy(),
                       metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC(name="auc")])
