@@ -58,6 +58,45 @@ class GINFL(Layer):
         return tf.reduce_sum(tf.stack(ahws, 1), 1)
 
 
+class GATFL(Layer):
+    """ only single head """
+
+    def __init__(self, out_feats, initializer='glorot_uniform', **kwargs):
+        super(GATFL, self).__init__(**kwargs)
+        self.initializer = initializer
+        self.out_feats = out_feats
+        self.a = self.add_weight(shape=(2*out_feats, 1), initializer=initializer)
+
+    def build(self, input_shape):
+        in_feats = input_shape[2]
+        self.w = self.add_weight(shape=(in_feats, self.out_feats),
+                                 initializer=self.initializer)
+        super(GATFL, self).build(input_shape)
+
+    def call(self, h, adj):
+        n_nodes = adj.shape[2]
+        wh = tf.matmul(h, self.w)
+
+        # h_repeat[i, j] should be wh[i]
+        h_repeat = tf.reshape(tf.repeat(wh, n_nodes, axis=1),
+                              [-1, n_nodes, n_nodes, self.out_feats])
+        # h_merge[i, j] should be wh[j]
+        h_merge = tf.reshape(tf.concat([wh]*n_nodes, axis=1),
+                             [-1, n_nodes, n_nodes, self.out_feats])
+
+        # h_concat[i, j] should be [...wh[i], ...wh[j]]
+        h_concat = tf.concat([h_repeat, h_merge], axis=3)
+        e = tf.nn.leaky_relu(tf.matmul(h_concat, self.a))
+        zero_vec = -9e15*tf.ones_like(e)
+
+        adj_reshape = tf.reshape(adj, [-1, n_nodes, n_nodes, 1])
+        attention = tf.where(adj_reshape > 0, e, zero_vec)
+        attention = tf.reshape(attention, [-1, n_nodes, n_nodes])
+        attention = tf.nn.softmax(attention)
+        h_prime = tf.matmul(attention, wh)
+        return h_prime
+
+
 class GraphConv(Layer):
     def __init__(self, output_dim, adj_channel_num, initializer='glorot_uniform', **kwargs):
         self.output_dim = output_dim

@@ -15,43 +15,6 @@ from libs.datasets.toxicity import load_data
 from tensorflow.python.keras.layers import Layer, Dense, Conv1D
 
 
-class GAT(Layer):
-    def __init__(self, out_feats, initializer='glorot_uniform', **kwargs):
-        super(GAT, self).__init__(**kwargs)
-        self.initializer = initializer
-        self.out_feats = out_feats
-        self.a = self.add_weight(shape=(2*out_feats, 1), initializer=initializer)
-
-    def build(self, input_shape):
-        in_feats = input_shape[2]
-        self.w = self.add_weight(shape=(in_feats, self.out_feats),
-                                 initializer=self.initializer)
-        super(GAT, self).build(input_shape)
-
-    def call(self, h, adj):
-        n_nodes = adj.shape[2]
-        wh = tf.matmul(h, self.w)
-
-        # h_repeat[i, j] should be wh[i]
-        h_repeat = tf.reshape(tf.repeat(wh, n_nodes, axis=1),
-                              [-1, n_nodes, n_nodes, self.out_feats])
-        # h_merge[i, j] should be wh[j]
-        h_merge = tf.reshape(tf.concat([wh]*n_nodes, axis=1),
-                             [-1, n_nodes, n_nodes, self.out_feats])
-
-        # h_concat[i, j] should be [...wh[i], ...wh[j]]
-        h_concat = tf.concat([h_repeat, h_merge], axis=3)
-        e = tf.nn.leaky_relu(tf.matmul(h_concat, self.a))
-        zero_vec = -9e15*tf.ones_like(e)
-
-        adj_reshape = tf.reshape(adj, [-1, n_nodes, n_nodes, 1])
-        attention = tf.where(adj_reshape > 0, e, zero_vec)
-        attention = tf.reshape(attention, [-1, n_nodes, n_nodes])
-        attention = tf.nn.softmax(attention)
-        h_prime = tf.matmul(attention, wh)
-        return h_prime
-
-
 def get_logger(level='DEBUG'):
     FORMAT = '%(asctime)-15s - %(pathname)s - %(funcName)s - L%(lineno)3d ::: %(message)s'
     logging.basicConfig(format=FORMAT)
@@ -90,11 +53,27 @@ def build_model_gcn(max_n_atoms, max_n_types):
     return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
 
 
+def build_model_gat(max_n_atoms, max_n_types):
+    input_adjs = tf.keras.Input(
+        shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
+    input_features = tf.keras.Input(
+        shape=(max_n_atoms, max_n_types), name='features')
+    h = layers.GATFL(32)(input_features, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GATFL(16)(h, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GraphGather()(h)
+    logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
+    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
+
+
 def build_model(model, max_n_atoms, max_n_types):
     if model == 'gcn':
         return build_model_gcn(max_n_atoms, max_n_types)
     elif model == 'gin':
         return build_model_gin(max_n_atoms, max_n_types)
+    elif model == 'gat':
+        return build_model_gat(max_n_atoms, max_n_types)
 
 
 def client_data(source, n):
@@ -114,7 +93,7 @@ def repeat_dataset(client_dataset, batch_size, epochs):
 @click.option('--batchsize', default=32, help='the number of batch size.')
 @click.option('--lr', default=0.2, help='learning rate for the central model.')
 @click.option('--clientlr', default=0.001, help='learning rate for client models.')
-@click.option('--model', default='gcn', type=click.Choice(['gcn', 'gin']), help='support gcn or gin.')
+@click.option('--model', default='gcn', type=click.Choice(['gcn', 'gin', 'gat']), help='support gcn, gin, gat.')
 @click.option('--ratio', default=None, help='set ratio of the biggest dataset in total datasize.' +
               ' Other datasets are equally divided. (0, 1)')
 @click.option('--dataset_name', type=click.Choice(['Benchmark', 'NTP_PubChem_Bench.20201106', 'Ames_S9_minus.20201106']),
@@ -265,21 +244,6 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
     logger.debug(f"{clients} >>>> all_test_auc = {all_test_metrics['auc']}")
 
 
-def build_model_gat(max_n_atoms, max_n_types):
-    input_adjs = tf.keras.Input(
-        shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
-    input_features = tf.keras.Input(
-        shape=(max_n_atoms, max_n_types), name='features')
-    # for graph
-    h = GAT(32)(input_features, input_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = GAT(16)(h, input_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphGather()(h)
-    logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
-    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
-
-
 def split_train_test_val(dataset):
     """
     splits the dataset into train, test, val\n
@@ -338,8 +302,7 @@ def normal_learning(rounds, epochs, batchsize, lr, model_type, dataset_name):
             MAX_N_TYPES = element[0]['features'].shape[1]
             MAX_N_ATOMS = element[0]['adjs'].shape[1]
 
-        # model = build_model(model_type, MAX_N_ATOMS, MAX_N_TYPES)
-        model = build_model_gat(MAX_N_ATOMS, MAX_N_TYPES)
+        model = build_model(model_type, MAX_N_ATOMS, MAX_N_TYPES)
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
                       loss=tf.keras.losses.BinaryCrossentropy(),
                       metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC(name="auc")])
