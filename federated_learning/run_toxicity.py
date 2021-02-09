@@ -16,26 +16,30 @@ from tensorflow.python.keras.layers import Layer, Dense, Conv1D
 
 
 class GAT(Layer):
-    def __init__(self, in_feats, out_feats, initializer='glorot_uniform', **kwargs):
+    def __init__(self, out_feats, initializer='glorot_uniform', **kwargs):
         super(GAT, self).__init__(**kwargs)
         self.initializer = initializer
-        self.in_feats = in_feats
         self.out_feats = out_feats
-        self.w = self.add_weight(shape=(in_feats, out_feats), initializer=initializer)
         self.a = self.add_weight(shape=(2*out_feats, 1), initializer=initializer)
+
+    def build(self, input_shape):
+        in_feats = input_shape[2]
+        self.w = self.add_weight(shape=(in_feats, self.out_feats),
+                                 initializer=self.initializer)
+        super(GAT, self).build(input_shape)
 
     def call(self, h, adj):
         n_nodes = adj.shape[2]
         wh = tf.matmul(h, self.w)
 
-        # h_repeat[i, j] = wh[i]となっていて欲しい
+        # h_repeat[i, j] should be wh[i]
         h_repeat = tf.reshape(tf.repeat(wh, n_nodes, axis=1),
                               [-1, n_nodes, n_nodes, self.out_feats])
-        # h_merge[i, j] = wh[j]となっていて欲しい
+        # h_merge[i, j] should be wh[j]
         h_merge = tf.reshape(tf.concat([wh]*n_nodes, axis=1),
                              [-1, n_nodes, n_nodes, self.out_feats])
 
-        # h_concat[i, j] = [...wh[i], ...wh[j]]となっていて欲しい
+        # h_concat[i, j] should be [...wh[i], ...wh[j]]
         h_concat = tf.concat([h_repeat, h_merge], axis=3)
         e = tf.nn.leaky_relu(tf.matmul(h_concat, self.a))
         zero_vec = -9e15*tf.ones_like(e)
@@ -267,9 +271,9 @@ def build_model_gat(max_n_atoms, max_n_types):
     input_features = tf.keras.Input(
         shape=(max_n_atoms, max_n_types), name='features')
     # for graph
-    h = GAT(max_n_types, 32)(input_features, input_adjs)
+    h = GAT(32)(input_features, input_adjs)
     h = tf.keras.layers.ReLU()(h)
-    h = GAT(32, 16)(h, input_adjs)
+    h = GAT(16)(h, input_adjs)
     h = tf.keras.layers.ReLU()(h)
     h = layers.GraphGather()(h)
     logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
