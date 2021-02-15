@@ -11,8 +11,18 @@ import kgcn.layers as layers
 import tensorflow_federated as tff
 import tensorflow as tf
 from libs.datasets.toxicity import load_data
+from spektral.layers.pooling import GlobalAttentionPool
 
-from tensorflow.python.keras.layers import Layer, Dense, Conv1D
+from tensorflow.python.keras.layers import Layer, Dense
+
+
+def pad_adjmat(adj):
+    """
+    add super node which is connected to all the other nodes
+    """
+    adj_pad_right = tf.pad(adj, [[0, 0], [0, 0], [0, 0], [0, 1]])
+    adj_pad = tf.pad(adj_pad_right, [[0, 0], [0, 0], [0, 1], [0, 0]], constant_values=1)
+    return adj_pad
 
 
 def get_logger(level='DEBUG'):
@@ -33,8 +43,41 @@ def build_model_gin(max_n_atoms, max_n_types):
     h = layers.GINFL(16, 1)(h, input_adjs)
     h = tf.keras.layers.ReLU()(h)
     h = layers.GraphGather()(h)
-    logits = tf.keras.layers.Dense(1, activation='sigmoid',
-                                   kernel_regularizer="l2", bias_regularizer="l2")(h)
+    logits = tf.keras.layers.Dense(1, activation='sigmoid')(h)
+    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
+
+
+def build_model_gcn_super_node(max_n_atoms, max_n_types):
+    input_adjs = tf.keras.Input(
+        shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
+    input_features = tf.keras.Input(
+        shape=(max_n_atoms, max_n_types), name='features')
+    # add dummy super node
+    padded_adjs = pad_adjmat(input_adjs)
+    h = tf.pad(input_features, [[0, 0], [0, 1], [0, 0]]) 
+    h = layers.GraphConvFL(32, 1)(h, padded_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GraphConvFL(16, 1)(h, padded_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GraphGather()(h)
+    logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
+    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
+
+
+def build_model_gin_super_node(max_n_atoms, max_n_types):
+    input_adjs = tf.keras.Input(
+        shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
+    input_features = tf.keras.Input(
+        shape=(max_n_atoms, max_n_types), name='features')
+    # add dummy super node
+    padded_adjs = pad_adjmat(input_adjs)
+    h = tf.pad(input_features, [[0, 0], [0, 1], [0, 0]]) 
+    h = layers.GINFL(32, 1)(h, padded_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GINFL(16, 1)(h, padded_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GraphGather()(h)
+    logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
     return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
 
 
@@ -67,13 +110,33 @@ def build_model_gat(max_n_atoms, max_n_types):
     return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
 
 
+def build_model_diff_pool(max_n_atoms, max_n_types):
+    input_adjs = tf.keras.Input(shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
+    input_features = tf.keras.Input(shape=(max_n_atoms, max_n_types), name='features')
+    h = layers.GINFL(32, 1)(input_features, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GINFL(16, 1)(h, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h, adj = layers.DiffPool(16, 5, 1, inner_gnn="gin")(h, input_adjs)
+    h = tf.keras.layers.ReLU()(h)
+    h = layers.GraphGather()(h)
+    logits = tf.keras.layers.Dense(1, activation='sigmoid')(h)
+    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
+
+
 def build_model(model, max_n_atoms, max_n_types):
     if model == 'gcn':
         return build_model_gcn(max_n_atoms, max_n_types)
+    elif model == 'gcn_super_node':
+        return build_model_gcn_super_node(max_n_atoms, max_n_types)
     elif model == 'gin':
         return build_model_gin(max_n_atoms, max_n_types)
+    elif model == 'gin_super_node':
+        return build_model_gin_super_node(max_n_atoms, max_n_types)
     elif model == 'gat':
         return build_model_gat(max_n_atoms, max_n_types)
+    elif model == 'diff_pool':
+        return build_model_diff_pool(max_n_atoms, max_n_types)
 
 
 def client_data(source, n):
@@ -93,7 +156,7 @@ def repeat_dataset(client_dataset, batch_size, epochs):
 @click.option('--batchsize', default=32, help='the number of batch size.')
 @click.option('--lr', default=0.2, help='learning rate for the central model.')
 @click.option('--clientlr', default=0.001, help='learning rate for client models.')
-@click.option('--model', default='gcn', type=click.Choice(['gcn', 'gin', 'gat']), help='support gcn, gin, gat.')
+@click.option('--model', default='gcn', type=click.Choice(['gcn', 'gcn_super_node', 'gin', 'gin_super_node', 'gat', 'diff_pool']), help='support gcn, gin, gat.')
 @click.option('--ratio', default=None, help='set ratio of the biggest dataset in total datasize.' +
               ' Other datasets are equally divided. (0, 1)')
 @click.option('--dataset_name', type=click.Choice(['Benchmark', 'NTP_PubChem_Bench.20201106', 'Ames_S9_minus.20201106']),

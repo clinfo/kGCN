@@ -92,9 +92,32 @@ class GATFL(Layer):
         adj_reshape = tf.reshape(adj, [-1, n_nodes, n_nodes, 1])
         attention = tf.where(adj_reshape > 0, e, zero_vec)
         attention = tf.reshape(attention, [-1, n_nodes, n_nodes])
-        attention = tf.nn.softmax(attention)
+        attention = tf.nn.softmax(attention, axis=1) # TODO: axis合ってるのか?
         h_prime = tf.matmul(attention, wh)
         return h_prime
+
+
+class DiffPool(Layer):
+    def __init__(self, output_feats, output_nodes, adj_channel_num, initializer='glorot_uniform', inner_gnn="gin", **kwargs):
+        if inner_gnn not in ['gin', 'gcn']:
+            raise ValueError(f"{inner_gnn} is not valid as inner_gnn")
+
+        if inner_gnn == "gin":
+            self.gnn_pool = GINFL(output_nodes, adj_channel_num, initializer=initializer)
+            self.gnn_embed  = GINFL(output_feats, adj_channel_num, initializer=initializer)
+        else:
+            self.gnn_pool = GraphConvFL(output_nodes, adj_channel_num, initializer=initializer)
+            self.gnn_embed  = GraphConvFL(output_feats, adj_channel_num, initializer=initializer)
+
+        super(DiffPool, self).__init__(**kwargs)
+    
+    def call(self, x, a):
+        z = self.gnn_embed(x, a)
+        s = tf.nn.softmax(self.gnn_pool(x, a), axis=1)
+        s_transpose = tf.transpose(s, perm=[0, 2, 1])
+        x_next = tf.matmul(s_transpose, z)
+        a_next = tf.matmul(s_transpose, tf.matmul(a, s))
+        return x_next, a_next
 
 
 class GraphConv(Layer):
