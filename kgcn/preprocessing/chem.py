@@ -766,5 +766,5 @@ def main():
     joblib.dump(obj, args.output, compress=3)
 
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()
