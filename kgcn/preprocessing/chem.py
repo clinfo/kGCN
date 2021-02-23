@@ -4,7 +4,7 @@ import os
 import random
 import sys
 
-import numpy as np
+#import numpy as np
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
