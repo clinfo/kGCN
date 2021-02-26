@@ -11,9 +11,11 @@ import kgcn.layers as layers
 import tensorflow_federated as tff
 import tensorflow as tf
 from libs.datasets.toxicity import load_data
-from spektral.layers.pooling import GlobalAttentionPool
 
 from tensorflow.python.keras.layers import Layer, Dense
+
+import optuna
+import sys
 
 
 def pad_adjmat(adj):
@@ -33,110 +35,38 @@ def get_logger(level='DEBUG'):
     return logger
 
 
-def build_model_gin(max_n_atoms, max_n_types):
+def build_model(gnn_type, max_n_atoms, max_n_types, dropout_rate, super_node=True, diff_pool=True, n_features_1=32, n_features_2=16):
+    if gnn_type not in ["gin", "gcn"]:
+        raise ValueError(f"{gnn_type} is not supported.")
+
     input_adjs = tf.keras.Input(
         shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
-    input_features = tf.keras.Input(
-        shape=(max_n_atoms, max_n_types), name='features')
-    h = layers.GINFL(32, 1)(input_features, input_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GINFL(16, 1)(h, input_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphGather()(h)
-    logits = tf.keras.layers.Dense(1, activation='sigmoid')(h)
-    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
-
-
-def build_model_gcn_super_node(max_n_atoms, max_n_types):
-    input_adjs = tf.keras.Input(
-        shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
-    input_features = tf.keras.Input(
-        shape=(max_n_atoms, max_n_types), name='features')
-    # add dummy super node
-    padded_adjs = pad_adjmat(input_adjs)
-    h = tf.pad(input_features, [[0, 0], [0, 1], [0, 0]]) 
-    h = layers.GraphConvFL(32, 1)(h, padded_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphConvFL(16, 1)(h, padded_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphGather()(h)
-    logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
-    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
-
-
-def build_model_gin_super_node(max_n_atoms, max_n_types):
-    input_adjs = tf.keras.Input(
-        shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
-    input_features = tf.keras.Input(
-        shape=(max_n_atoms, max_n_types), name='features')
-    # add dummy super node
-    padded_adjs = pad_adjmat(input_adjs)
-    h = tf.pad(input_features, [[0, 0], [0, 1], [0, 0]]) 
-    h = layers.GINFL(32, 1)(h, padded_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GINFL(16, 1)(h, padded_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphGather()(h)
-    logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
-    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
-
-
-def build_model_gcn(max_n_atoms, max_n_types):
-    input_adjs = tf.keras.Input(
-        shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
-    input_features = tf.keras.Input(
-        shape=(max_n_atoms, max_n_types), name='features')
-    # for graph
-    h = layers.GraphConvFL(32, 1)(input_features, input_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphConvFL(16, 1)(h, input_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphGather()(h)
-    logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
-    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
-
-
-def build_model_gat(max_n_atoms, max_n_types):
-    input_adjs = tf.keras.Input(
-        shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
-    input_features = tf.keras.Input(
-        shape=(max_n_atoms, max_n_types), name='features')
-    h = layers.GATFL(32)(input_features, input_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GATFL(16)(h, input_adjs)
-    h = tf.keras.layers.ReLU()(h)
-    h = layers.GraphGather()(h)
-    logits = tf.keras.layers.Dense(1, activation='sigmoid', name="dense")(h)
-    return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
-
-
-def build_model_diff_pool(max_n_atoms, max_n_types):
-    input_adjs = tf.keras.Input(shape=(1, max_n_atoms, max_n_atoms), name='adjs', sparse=False)
     input_features = tf.keras.Input(shape=(max_n_atoms, max_n_types), name='features')
-    h = layers.GINFL(32, 1)(input_features, input_adjs)
+    adjs = pad_adjmat(input_adjs) if super_node else input_adjs
+    feats = tf.pad(input_features, [[0, 0], [0, 1], [0, 0]]
+                   ) if super_node else input_features
+
+    if gnn_type == "gin":
+        h = layers.GINFL(n_features_1, 1)(feats, adjs)
+    else:
+        h = layers.GraphConvFL(n_features_1, 1)(feats, adjs)
     h = tf.keras.layers.ReLU()(h)
-    h = layers.GINFL(16, 1)(h, input_adjs)
+    h = tf.keras.layers.Dropout(rate=dropout_rate)(h)
+
+    if gnn_type == "gin":
+        h = layers.GINFL(n_features_2, 1)(h, adjs)
+    else:
+        h = layers.GraphConvFL(n_features_2, 1)(h, adjs)
     h = tf.keras.layers.ReLU()(h)
-    h, adj = layers.DiffPool(16, 5, 1, inner_gnn="gin")(h, input_adjs)
+    h = tf.keras.layers.Dropout(rate=dropout_rate)(h)
+
+    if diff_pool:
+        h, adj = layers.DiffPool(n_features_2, 5, 1, inner_gnn="gin")(h, adjs)
+
     h = tf.keras.layers.ReLU()(h)
     h = layers.GraphGather()(h)
     logits = tf.keras.layers.Dense(1, activation='sigmoid')(h)
     return tf.keras.Model(inputs=[input_adjs, input_features], outputs=logits)
-
-
-def build_model(model, max_n_atoms, max_n_types):
-    if model == 'gcn':
-        return build_model_gcn(max_n_atoms, max_n_types)
-    elif model == 'gcn_super_node':
-        return build_model_gcn_super_node(max_n_atoms, max_n_types)
-    elif model == 'gin':
-        return build_model_gin(max_n_atoms, max_n_types)
-    elif model == 'gin_super_node':
-        return build_model_gin_super_node(max_n_atoms, max_n_types)
-    elif model == 'gat':
-        return build_model_gat(max_n_atoms, max_n_types)
-    elif model == 'diff_pool':
-        return build_model_diff_pool(max_n_atoms, max_n_types)
 
 
 def client_data(source, n):
@@ -156,12 +86,13 @@ def repeat_dataset(client_dataset, batch_size, epochs):
 @click.option('--batchsize', default=32, help='the number of batch size.')
 @click.option('--lr', default=0.2, help='learning rate for the central model.')
 @click.option('--clientlr', default=0.001, help='learning rate for client models.')
-@click.option('--model', default='gcn', type=click.Choice(['gcn', 'gcn_super_node', 'gin', 'gin_super_node', 'gat', 'diff_pool']), help='support gcn, gin, gat.')
+@click.option('--model', default='gcn', type=click.Choice(['gcn', 'gin']), help='support gcn, gin.')
+@click.option('--dropout_rate', default=0.5)
 @click.option('--ratio', default=None, help='set ratio of the biggest dataset in total datasize.' +
               ' Other datasets are equally divided. (0, 1)')
 @click.option('--dataset_name', type=click.Choice(['Benchmark', 'NTP_PubChem_Bench.20201106', 'Ames_S9_minus.20201106']),
               default='NTP_PubChem_Bench.20201106', help='set dataset name')
-def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, dataset_name):
+def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, dropout_rate, ratio, dataset_name):
     logger = get_logger()
     subsets = clients + 2
     logger.debug(f'federated = {federated}')
@@ -173,14 +104,15 @@ def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, rat
     logger.debug(f'lr = {lr}')
     logger.debug(f'clientlr = {clientlr}')
     logger.debug(f'model = {model}')
+    logger.debug(f'dropout_date = {dropout_rate}')
     logger.debug(f'ratio = {ratio}')
     logger.debug(f'dataset_name = {dataset_name}')
 
     if federated:
         federated_learning(rounds, clients, epochs, batchsize,
-                           lr, clientlr, model, ratio, dataset_name)
+                           lr, clientlr, model, dropout_rate, ratio, dataset_name)
     else:
-        normal_learning(rounds, epochs, batchsize, lr, model, dataset_name)
+        normal_learning(rounds, epochs, batchsize, lr, model, dropout_rate, dataset_name)
 
 
 def calc_ratios(ratio, subsets):
@@ -227,15 +159,15 @@ def get_log_dir(dataset_name, train_type):
 
 
 # Wrap a Keras model for use with TFF.
-def _model_fn(model, max_n_atoms, max_n_types, input_spec):
+def _model_fn(model, max_n_atoms, max_n_types, dropout_date, input_spec):
     return tff.learning.from_keras_model(
-        build_model(model, max_n_atoms, max_n_types),
+        build_model(model, max_n_atoms, max_n_types, dropout_date),
         loss=tf.keras.losses.BinaryCrossentropy(),
         metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC()],
         input_spec=input_spec)
 
 
-def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, dataset_name):
+def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, dropout_date, ratio, dataset_name):
     logger = get_logger()
     subsets = clients + 2
     ratios = calc_ratios(ratio, subsets)
@@ -254,10 +186,10 @@ def federated_learning(rounds, clients, epochs, batchsize, lr, clientlr, model, 
     record_experimental_settings(
         logdir,
         {'epochs': epochs, 'batchsize': batchsize, "lr": lr, "clientlr": clientlr},
-        build_model(model, MAX_N_ATOMS, MAX_N_TYPES))
+        build_model(model, MAX_N_ATOMS, MAX_N_TYPES, dropout_date))
 
     model_fn = functools.partial(
-        _model_fn, model=model, max_n_atoms=MAX_N_ATOMS, max_n_types=MAX_N_TYPES, input_spec=input_spec)
+        _model_fn, model=model, max_n_atoms=MAX_N_ATOMS, max_n_types=MAX_N_TYPES, input_spec=input_spec, dropout_rate=dropout_date)
 
     # Simulate a few rounds of training with the selected client devices.
     trainer = tff.learning.build_federated_averaging_process(
@@ -355,7 +287,7 @@ def kfold_generator(dataset, k):
         yield train, test
 
 
-def normal_learning(rounds, epochs, batchsize, lr, model_type, dataset_name):
+def normal_learning(rounds, epochs, batchsize, lr, model_type, dropout_rate, dataset_name):
     dataset = load_data(False, dataset_name)
     dataset_length = tf.data.experimental.cardinality(dataset).numpy()
     logdir = get_log_dir(dataset_name, 'normal')
@@ -365,7 +297,7 @@ def normal_learning(rounds, epochs, batchsize, lr, model_type, dataset_name):
             MAX_N_TYPES = element[0]['features'].shape[1]
             MAX_N_ATOMS = element[0]['adjs'].shape[1]
 
-        model = build_model(model_type, MAX_N_ATOMS, MAX_N_TYPES)
+        model = build_model(model_type, MAX_N_ATOMS, MAX_N_TYPES, dropout_rate)
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
                       loss=tf.keras.losses.BinaryCrossentropy(),
                       metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC(name="auc")])
@@ -380,5 +312,57 @@ def normal_learning(rounds, epochs, batchsize, lr, model_type, dataset_name):
                             validation_data=test.batch(batchsize), callbacks=[output_log])
 
 
+def model_tuning(epochs, dataset_name):
+    """
+    TODO: add initializer, more logging
+    """
+    dataset = load_data(False, dataset_name)
+    dataset_length = tf.data.experimental.cardinality(dataset).numpy()
+    logdir = get_log_dir(dataset_name, 'normal')
+
+    def objective(trial: optuna.trial.Trial):
+        dropout_rate = trial.suggest_float("dropout_rate", 0.0, 0.7)
+        gnn_type = trial.suggest_categorical("gnn_type", ["gin"])
+        initializer = trial.suggest_categorical("initializer", ["glorot_uniform"])
+        batchsize = trial.suggest_int("batch_size", 1, 32)
+        lr = trial.suggest_float("lr", 1e-5, 1e-2, log=True)
+        super_node = trial.suggest_categorical("super_node", [True, False])
+        diff_pool = trial.suggest_categorical("diff_pool", [True, False])
+        n_features_1 = trial.suggest_int("n_features_1", 10, 32)
+        n_features_2 = trial.suggest_int("n_features_2", 5, 16)
+
+        aucs = []
+
+        for idx, (train, test) in enumerate(kfold_generator(dataset, 4)):
+            for element in train.take(1):
+                MAX_N_TYPES = element[0]['features'].shape[1]
+                MAX_N_ATOMS = element[0]['adjs'].shape[1]
+
+            model = build_model(gnn_type, MAX_N_ATOMS, MAX_N_TYPES, dropout_rate,
+                                super_node, diff_pool, n_features_1, n_features_2)
+            model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
+                          loss=tf.keras.losses.BinaryCrossentropy(),
+                          metrics=[tf.keras.metrics.BinaryAccuracy(), tf.keras.metrics.AUC(name="auc")])
+
+            output_log = tf.keras.callbacks.TensorBoard(log_dir=os.path.join(logdir, f"log_{idx}"),
+                                                        histogram_freq=0, write_graph=True)
+
+            history = model.fit(train.shuffle(dataset_length).batch(batchsize),
+                                epochs=epochs, validation_data=test.batch(batchsize), callbacks=[output_log])
+
+            aucs.append(history.history['val_auc'][-1])
+
+        return sum(aucs)/len(aucs)
+
+    study_name = f"tuning_{dataset_name}"
+    optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
+    optuna.logging.get_logger("optuna").addHandler(
+        logging.FileHandler(os.path.join("logs", "toxicity", dataset_name, "tuning.log")))
+    study = optuna.create_study(study_name=study_name, storage="sqlite:///tuning.db", load_if_exists=True,
+                                pruner=optuna.pruners.MedianPruner(), direction="maximize")
+    study.optimize(objective, n_trials=3)
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    model_tuning(250, "NTP_PubChem_Bench.20201106")
