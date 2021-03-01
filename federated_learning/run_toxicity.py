@@ -11,9 +11,6 @@ import kgcn.layers as layers
 import tensorflow_federated as tff
 import tensorflow as tf
 from libs.datasets.toxicity import load_data
-from spektral.layers.pooling import GlobalAttentionPool
-
-from tensorflow.python.keras.layers import Layer, Dense
 
 
 def pad_adjmat(adj):
