@@ -29,6 +29,7 @@ setuptools.setup(
             'kgcn-opt = kgcn.opt:main',
             'kgcn-gen = kgcn.gen:main',
             'kgcn-sparse = kgcn.task_sparse_gcn:main'
+            'kgcn-federated = kgcn.federated_learning.main:main'            
         ],
     },
     classifiers=[
