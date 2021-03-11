@@ -63,6 +63,41 @@ Options:
                        Other datasets are equally divided. (0, 1)
 ```
 
+## toxicity
+
+```shell
+Usage: run_toxicity.py [OPTIONS]
+
+Options:
+  --mode [tuning|federated|cross_val|cross_val_flipped]
+                                  "cross_val_flipped" simulates the situation
+                                  where the single client only uses its own
+                                  data. Other modes work namely
+
+  --rounds INTEGER                the number of updates of the central model
+  --clients INTEGER               the number of clients
+  --epochs INTEGER                the number of training epochs in client
+                                  traning.
+
+  --dataset_name [Benchmark|NTP_PubChem_Bench.20201106|Ames_S9_minus.20201106]
+                                  set dataset name
+  --batch_size INTEGER            the number of batch size.
+  --load_params                   If set True, parameters are loaded and args
+                                  below are ingored. To load params, model
+                                  tuning should be executed previously.
+
+  --lr FLOAT                      learning rate for the central model.
+  --clientlr FLOAT                learning rate for client models. ignored
+                                  when mode is normal
+
+  --gnn_type [gcn|gin]            support gcn, gin.
+  --ratio TEXT                    set ratio of the biggest dataset in total
+                                  datasize. Other datasets are equally
+                                  divided. (0, 1)
+
+  --help                          Show this message and exit.
+```
+
 ## tensorboard
 
 ```shell

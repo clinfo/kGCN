@@ -81,8 +81,8 @@ def repeat_dataset(client_dataset, batch_size, epochs):
 
 
 @click.command()
-@click.option('--federated', is_flag=True)
-@click.option('--mode', default='tuning', type=click.Choice(['tuning', 'training']))
+@click.option('--mode', default='training', type=click.Choice(['tuning', 'federated', 'cross_val', 'cross_val_flipped']),
+              help='"cross_val_flipped" simulates the situation where the single client only uses its own data. Other modes work namely')
 @click.option('--rounds', default=10, help='the number of updates of the central model')
 @click.option('--clients', default=2, help='the number of clients')
 @click.option('--epochs', default=500, help='the number of training epochs in client traning.')
@@ -96,11 +96,10 @@ def repeat_dataset(client_dataset, batch_size, epochs):
 @click.option('--gnn_type', default='gcn', type=click.Choice(['gcn', 'gin']), help='support gcn, gin.')
 @click.option('--ratio', default=None, help='set ratio of the biggest dataset in total datasize.' +
               ' Other datasets are equally divided. (0, 1)')
-def main(mode, federated, rounds, clients, epochs, load_params, batch_size, lr, clientlr, gnn_type, ratio, dataset_name):
+def main(mode, rounds, clients, epochs, load_params, batch_size, lr, clientlr, gnn_type, ratio, dataset_name):
     logger = get_logger()
     subsets = clients + 2
     logger.debug(f'mode = {mode}')
-    logger.debug(f'federated = {federated}')
     logger.debug(f'rounds = {rounds}')
     logger.debug(f'clients = {clients}')
     logger.debug(f'subsets = {subsets}')
@@ -113,27 +112,25 @@ def main(mode, federated, rounds, clients, epochs, load_params, batch_size, lr, 
     logger.debug(f'dataset_name = {dataset_name}')
 
     if mode == "tuning":
-        if federated:
-            raise NotImplementedError("tuning for federated learning is not supported")
         model_tuning(dataset_name, epochs)
-    elif mode == "training":
-        if federated:
-            if load_params:
-                # NOTE: load params tunued without federated learning
-                params = load_best_params(dataset_name)
-                params['clientlr'] = params.pop('lr')
-                federated_learning(dataset_name, rounds, clients,
-                                   ratio, epochs, lr=lr, **params)
-            else:
-                federated_learning(dataset_name, rounds, clients, ratio, epochs,
-                                   batch_size=batch_size, lr=lr, clientlr=clientlr, gnn_type=gnn_type)
+    elif mode == "federated":
+        if load_params:
+            # NOTE: load params tunued without federated learning. `lr` is used as `clientlr`
+            params = load_best_params('NTP_PubChem_Bench.20201106')
+            params['clientlr'] = params.pop('lr')
+            federated_learning(dataset_name, rounds, clients,
+                               ratio, epochs, lr=lr, **params)
         else:
-            if load_params:
-                params = load_best_params(dataset_name)
-                normal_learning(dataset_name, rounds, epochs, **params)
-            else:
-                normal_learning(dataset_name, rounds, epochs,
-                                batch_size=batch_size, lr=lr, gnn_type=gnn_type)
+            federated_learning(dataset_name, rounds, clients, ratio, epochs,
+                               batch_size=batch_size, lr=lr, clientlr=clientlr, gnn_type=gnn_type)
+    else:
+        flipped = (mode == 'cross_val_flipped')
+        if load_params:
+            params = load_best_params('NTP_PubChem_Bench.20201106')
+            normal_learning(dataset_name, rounds, epochs, clients, flipped, **params)
+        else:
+            normal_learning(dataset_name, rounds, epochs, clients, flipped,
+                            batch_size=batch_size, lr=lr, gnn_type=gnn_type)
 
 
 def calc_ratios(ratio, subsets):
@@ -328,7 +325,13 @@ def get_optimizer(name, lr):
         return tf.keras.optimizers.Nadam(learning_rate=lr)
 
 
-def normal_learning(dataset_name, rounds, epochs, optimizer="adam", **params):
+def normal_learning(dataset_name, rounds, epochs, clients, flipped, optimizer="adam", **params):
+    """
+    evaluate the model by k-fold cross-validation.\n
+    `clients` is used as "k"\n
+    When `flipped` is set True, dataset is splitted with the ratio train : val = 1 : k-1\n
+    This simulates the situation where the single client only uses its own data.
+    """
     dataset = load_data(False, dataset_name)
     dataset_length = tf.data.experimental.cardinality(dataset).numpy()
     logdir = get_log_dir(dataset_name, 'normal')
@@ -336,7 +339,9 @@ def normal_learning(dataset_name, rounds, epochs, optimizer="adam", **params):
     lr = params.pop("lr")
     batch_size = params.pop("batch_size")
 
-    for idx, (train, test) in enumerate(kfold_generator(dataset, 4)):
+    for idx, (train, test) in enumerate(kfold_generator(dataset, clients)):
+        if flipped:
+            train, test = test, train
         for element in train.take(1):
             MAX_N_TYPES = element[0]['features'].shape[1]
             MAX_N_ATOMS = element[0]['adjs'].shape[1]
@@ -377,7 +382,6 @@ def model_tuning(dataset_name, epochs):
 
         aucs = []
 
-        # normal_learning()と共通化すべきか否か
         for idx, (train, test) in enumerate(kfold_generator(dataset, 4)):
             for element in train.take(1):
                 MAX_N_TYPES = element[0]['features'].shape[1]
@@ -403,9 +407,9 @@ def model_tuning(dataset_name, epochs):
     optuna.logging.get_logger("optuna").addHandler(logging.StreamHandler(sys.stdout))
     optuna.logging.get_logger("optuna").addHandler(
         logging.FileHandler(os.path.join("logs", "toxicity", dataset_name, "tuning.log")))
-    study = optuna.create_study(study_name=get_study_name(dataset_name), storage="sqlite:///tuning.db", load_if_exists=True,
+    study = optuna.create_study(study_name=get_study_name(dataset_name), storage="sqlite:///tuning___.db", load_if_exists=True,
                                 pruner=optuna.pruners.MedianPruner(), direction="maximize")
-    study.optimize(objective, n_trials=1)
+    study.optimize(objective, n_trials=10)
 
 
 if __name__ == "__main__":
