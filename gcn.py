@@ -602,12 +602,15 @@ def infer(sess, graph, config):
                 json.dump(fold, fp, indent=4, cls=NumPyArangeEncoder)
         else:
             joblib.dump(fold, save_path, compress=True)
+
     if config["prediction_data"] is not None:
         obj = {}
-        obj["prediction_data"] = prediction_data
-        obj["labels"] = all_data.labels
-
-        os.makedirs(os.path.dirname(config["prediction_data"]), exist_ok=True)
+        pred_score = np.array(prediction_data)
+        obj["prediction_data"] = pred_score
+        # obj["labels"] = all_data.labels
+        save_path = config["prediction_data"]
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        print(f"[SAVE] {save_path}")
         joblib.dump(obj, config["prediction_data"], compress=True)
 
 
