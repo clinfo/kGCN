@@ -523,7 +523,7 @@ def infer(sess, graph, config):
         dataset_filename = config["dataset_test"]
     if "test_label_list" in config:
         config["label_list"]=config["test_label_list"]
-    all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True)
+    all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True, test_mode=True)
 
     model = CoreModel(sess, config, info)
     load_model_py(model, config["model.py"], is_train=False)
