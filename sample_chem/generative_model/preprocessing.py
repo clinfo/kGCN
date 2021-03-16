@@ -18,7 +18,7 @@ from rdkit import Chem
 """
 atomから原子の情報を取得する
 """
-def atom_features(atom, bool_id_feat=False, explicit_H=False):
+def atom_features(atom, bool_id_feat=False, explicit_H=False, generative_mode=True):
     if bool_id_feat:
         return np.array([atom_to_id(atom)])
     else:
@@ -78,7 +78,9 @@ def atom_features(atom, bool_id_feat=False, explicit_H=False):
             Chem.rdchem.HybridizationType.SP3, Chem.rdchem.HybridizationType.
             SP3D, Chem.rdchem.HybridizationType.SP3D2
         ]) + [atom.GetIsAromatic()]
-
+        
+    if generative_mode:
+        results+=[atom.IsInRing()]+[atom.IsInRingSize(i) for i in range(3,8)]
     # In case of explicit hydrogen(QM8, QM9), avoid calling `GetTotalNumHs`
     if not explicit_H:
         results+= one_of_k_encoding_unk(atom.GetTotalNumHs(),[0, 1, 2, 3, 4])
@@ -110,14 +112,17 @@ def dense_to_sparse(dense):
 
 
 def create_multi_adjancy_matrix(mol):
-    mol_adj = Chem.GetAdjacencyMatrix(mol,useBO=True)
+    #mol_adj = Chem.GetAdjacencyMatrix(mol,useBO=True)
     num=mol.GetNumAtoms()
-    nch=5
+    nch=6
     adj = np.zeros((nch,num,num), dtype=np.int)
     for b in mol.GetBonds():
         i=b.GetBeginAtomIdx()
         j=b.GetEndAtomIdx()
         t=b.GetBondType()
+        if b.GetIsConjugated():
+            ch=5
+            adj[ch,i,j]=1
         if t==Chem.rdchem.BondType.SINGLE:
             ch=0
             adj[ch,i,j]=1
@@ -148,9 +153,9 @@ def create_adjancy_matrix(mol):
     return adj
 
 
-def create_feature_matrix(mol, args):
+def create_feature_matrix(mol, atom_num_limit):
     feature = [atom_features(atom) for atom in mol.GetAtoms()]
-    for _ in range(args.atom_num_limit - len(feature)):
+    for _ in range(atom_num_limit - len(feature)):
         feature.append(np.zeros(len(feature[0]), dtype=np.int))
     return feature
 
@@ -413,7 +418,10 @@ if __name__ == '__main__':
     with open(input_path, "r") as f:
         lines = f.readlines()
         mol_obj_list = [Chem.MolFromSmarts(line.split(" ")[0]) for line in lines]
-        mol_name_list= [line.split(" ")[1] for line in lines]
+        try:
+            mol_name_list= [line.split(" ")[1] for line in lines]
+        except:
+            mol_name_list= ["index{:04}".format(i) for i,o in enumerate(mol_obj_list)]
     #
     atom_num_list=[]
     adj_list=[]
@@ -433,7 +441,7 @@ if __name__ == '__main__':
             adj = create_multi_adjancy_matrix(mol)
             adjs=[dense_to_sparse(a) for a in adj]
             adj_list.append(adjs)
-        feature = create_feature_matrix(mol, args)
+        feature = create_feature_matrix(mol, args.atom_num_limit)
         atom_num_list.append(mol.GetNumAtoms())
         feature_list.append(feature)
     #
@@ -454,5 +462,5 @@ if __name__ == '__main__':
         mol_info = {"obj_list": mol_obj_list, "name_list": mol_name_list}
         obj.update(mol_info)
         print('[SAVE]', args.output.replace("//", "/"))
-        joblib.dump(obj, args.output.replace("//", "/"))
+        joblib.dump(obj, args.output.replace("//", "/"), compress=3)
 

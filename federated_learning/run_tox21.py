@@ -14,19 +14,13 @@ import tensorflow_federated as tff
 import kgcn.layers as layers
 
 from libs.datasets.tox21 import load_data
-
+from libs.utils import get_logger
+from libs.platformer import Platformer
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 logdir = 'logs/gradient_tape/' + current_time + '/tox21'
 writer = tf.summary.create_file_writer(logdir)
 
-
-def get_logger(level='DEBUG'):
-    FORMAT = '%(asctime)-15s - %(pathname)s - %(funcName)s - L%(lineno)3d ::: %(message)s'
-    logging.basicConfig(format=FORMAT)
-    logger = logging.getLogger(__name__)
-    logger.setLevel(level)
-    return logger
 
 def client_data(source, n, batch_size, epochs):
     return source.create_tf_dataset_for_client(source.client_ids[n]).repeat(epochs).batch(batch_size)
@@ -92,38 +86,6 @@ def build_single_model_gin(max_n_atoms, max_n_types):
     )
 
 
-class MultitaskBinaryCrossentropyWithMask(keras.losses.Loss):
-    def call(self, y_true, model_out):
-        logits = model_out[0]
-        masks = model_out[1]
-        losses = []
-        for task in range(12):
-            mask = tf.cast(masks[:, task], tf.bool)
-            y_true_masked = tf.boolean_mask(y_true[:, task], mask)
-            logits_masked = tf.boolean_mask(logits[:, task], mask)
-            loss = tf.keras.losses.binary_crossentropy(
-                y_true_masked, logits_masked, from_logits=False
-            )
-            losses.append(loss)
-        loss = tf.stack(losses)
-        return loss
-
-
-class AUCMultitask(keras.metrics.AUC):
-    def __init__(self, name="auc_multitask", task_number=0, **kwargs):
-        super(AUCMultitask, self).__init__(name=name, **kwargs)
-        self.task_number = task_number
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        model_out = y_pred
-        logits = model_out[0]
-        masks = model_out[1]
-        losses = []
-        mask = tf.cast(masks[:, self.task_number], tf.bool)
-        y_true_masked = tf.boolean_mask(y_true[:, self.task_number], mask)
-        logits_masked = tf.boolean_mask(logits[:, self.task_number], mask)
-        super(AUCMultitask, self).update_state(y_true_masked, logits_masked)
-
 
 @click.command()
 @click.option('--rounds', default=10, help='the number of updates of the centeral model')
@@ -142,7 +104,7 @@ class AUCMultitask(keras.metrics.AUC):
                                  'SR-HSE', 'SR-MMP', 'SR-p53']), 
               default=None, help='set single task target. if not set, multitask is running.')
 def main(rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, task):
-    logger = get_logger()
+    logger = get_logger('tox21')
     subsets = clients + 2
     logger.debug(f'rounds = {rounds}')
     logger.debug(f'clients = {clients}')
@@ -203,6 +165,7 @@ def main(rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, task):
         server_optimizer_fn=lambda: tf.keras.optimizers.Adam(lr),
     )
     evaluation = tff.learning.build_federated_evaluation(model_fn)
+    
     all_test_loss = []
     all_test_auc = []
     

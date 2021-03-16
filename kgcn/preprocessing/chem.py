@@ -338,7 +338,7 @@ class AssayData:
         self.seq_symbol = seq_symbol
         # interpro
         pro_filename = os.path.join(assay_path, "interpro.txt")
-        if os.path.exists(seq_filename):
+        if os.path.exists(pro_filename):
             seq_domain = {}
             for line in open(pro_filename):
                 arr=line.strip().split("\t")

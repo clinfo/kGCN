@@ -147,7 +147,7 @@ def build_model(placeholders,info,config,batch_size=4,**kwargs):
     input_decoder={
         "input_layer":layer,
         "input_layer_dim":64,
-        "output_layer_dim":75,
+        "output_layer_dim":features.shape[2],
         "decoded_node_num":decoded_node_num,
         "dropout_rate":placeholders["dropout_rate"],
         "is_train":placeholders["is_train"],
