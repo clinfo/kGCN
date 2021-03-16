@@ -116,7 +116,7 @@ def main(mode, rounds, clients, epochs, load_params, batch_size, lr, clientlr, g
     elif mode == "federated":
         if load_params:
             # NOTE: load params tunued without federated learning. `lr` is used as `clientlr`
-            params = load_best_params('NTP_PubChem_Bench.20201106')
+            params = load_best_params(dataset_name)
             params['clientlr'] = params.pop('lr')
             federated_learning(dataset_name, rounds, clients,
                                ratio, epochs, lr=lr, **params)
@@ -126,7 +126,7 @@ def main(mode, rounds, clients, epochs, load_params, batch_size, lr, clientlr, g
     else:
         flipped = (mode == 'cross_val_flipped')
         if load_params:
-            params = load_best_params('NTP_PubChem_Bench.20201106')
+            params = load_best_params(dataset_name)
             normal_learning(dataset_name, rounds, epochs, clients, flipped, **params)
         else:
             normal_learning(dataset_name, rounds, epochs, clients, flipped,
