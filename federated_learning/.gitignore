@@ -1,3 +1,9 @@
+
+data/
+logs/
+__pycache__
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -109,3 +115,4 @@ exp/*
 models/*
 *_log_dir/*
 data/*
+
