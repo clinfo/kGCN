@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
+import numbers
 from pathlib import Path
 import collections
 
@@ -8,6 +9,7 @@ import rdkit
 from rdkit import Chem
 from rdkit.Chem import rdmolops
 from rdkit.Chem import SaltRemover
+from mordred import Calculator, descriptors
 import numpy as np
 import tensorflow as tf
 import tensorflow_federated as tff
@@ -22,21 +24,22 @@ def load_data(FL_FLAG, datapath, task_name, max_n_atoms, max_n_types, n_groups,
               subset_ratios: list or int=None):
     """loads the federated tox21 dataset.
     """
-    
+    datapath = Path(datapath).resolve().expanduser()
     if FL_FLAG:
         dataset = ADMEDataset(datapath, task_name, max_n_atoms, max_n_types, n_groups, subset_ratios)
+        descriptors_shape = dataset.descriptors_shape
     else:
-        dataset = create_dataset(datapath, task_name, max_n_atoms, max_n_types)
-    return dataset
+        dataset, descriptors_shape = create_dataset(datapath, task_name, max_n_atoms, max_n_types)
+    return dataset, descriptors_shape
 
-def _create_element(mol, label, max_n_atoms, max_n_types, salt_remover):
+def _create_element(mol, label, max_n_atoms, max_n_types, salt_remover, descriptor):
     label = np.array(label)
     salt_removed_mol = salt_remover.StripMol(mol, dontRemoveEverything=True)
     features = pad_bottom_matrix(
         create_mol_feature(salt_removed_mol, max_n_types), max_n_atoms)
     adjs = pad_bottom_right_matrix(
         rdmolops.GetAdjacencyMatrix(salt_removed_mol), max_n_atoms)
-    return ({'adjs': adjs, 'features': features}, label)
+    return ({'adjs': adjs, 'features': features, 'descriptor': descriptor}, label)
 
 def _read_sdf_file(datapath, task_name):
     sdf_name = _task_name_to_sdf_name(task_name)
@@ -99,22 +102,45 @@ def _read_dataset_file(datapath, task_name):
         labels.append(label)
     return mols, labels
 
-def create_dataset(datapath, task_name):
-    mols, labels = _read_dataset_file(datapath, task_name, max_n_atoms, max_n_types)
-    elements = [_create_element(mol, label, max_n_atoms, max_n_types, salt_remover)
-                for mol, label in zip(mols, labels)]
+def calc_mordred_descriptor(mols, datapath, task_name):
+    from concurrent.futures import ProcessPoolExecutor
+    descriptor_calc = Calculator(descriptors, ignore_3D=True)
+    descriptor_filepath = datapath / f"{task_name}.csv"
+
+    if not descriptor_filepath.exists():
+        with ProcessPoolExecutor(max_workers=8) as executor:
+            futures = []
+            for i, m in enumerate(mols):
+                futures.append(executor.submit(descriptor_calc, m))
+            results = [f.result() for f in futures]
+        df = pd.DataFrame(results, dtype=np.float32)
+        df.columns = list(results[0].keys())
+        df.to_csv(str(descriptor_filepath))
+    else:
+        df = pd.read_csv(str(descriptor_filepath), sep=',', header=None, skiprows=1)
+    df = df.dropna(how='any', axis=1)
+    decriptors = df.to_numpy().astype(np.float32)
+    return decriptors
+
+def create_dataset(datapath, task_name, max_n_atoms, max_n_types):
+    salt_remover = SaltRemover.SaltRemover()
+    mols, labels = _read_dataset_file(datapath, task_name)
+    descriptors = calc_mordred_descriptor(mols, datapath, task_name)
+    elements = [_create_element(mol, label, max_n_atoms, max_n_types, salt_remover, descriptor)
+                for mol, label, descriptor in zip(mols, labels, descriptors)]
     inputs = collections.OrderedDict(
-        {key: [] for key in sorted(['adjs', 'features'])})
+        {key: [] for key in sorted(['adjs', 'features', 'descriptor'])})
     labels = []
     for mol, label in elements:
         adjs = np.expand_dims(mol['adjs'], axis=0)  # for adj channel
         inputs['adjs'].append(adjs)
         inputs['features'].append(mol['features'])
+        inputs['descriptor'].append(mol['descriptor'])
         labels.append(label)
 
     inputs = collections.OrderedDict(
         (name, np.array(ds)) for name, ds in sorted(inputs.items()))
-    return tf.data.Dataset.from_tensor_slices((inputs, labels))
+    return tf.data.Dataset.from_tensor_slices((inputs, labels)), descriptors.shape
 
 def _task_name_to_sdf_name(task_name):
     task_to_sdf = {'abso_sol_cls': 'Sol_514_standardized.sdf',
@@ -169,6 +195,8 @@ class ADMEDataset(ClientData):
     def __init__(self, datapath, task_name, max_n_atoms=150, max_n_types=100, n_groups=2,
                  subset_ratios=None, none_label=None, loaddir='./data'):
         mols, labels = _read_dataset_file(datapath, task_name)
+        descriptors = calc_mordred_descriptor(mols, datapath, task_name)
+        self._descriptors_shape = descriptors.shape
         self.task_name = task_name
         self.max_n_atoms = max_n_atoms
         self.max_n_types = max_n_types
@@ -185,11 +213,10 @@ class ADMEDataset(ClientData):
                 1. / self.n_groups for _ in range(self.n_groups)]
         else:
             self.subset_ratios = subset_ratios
-        print(self._client_ids, self._len, self.subset_ratios)
-        for (mol, label), client_id in zip(zip(mols, labels),
+        for (mol, descriptor, label), client_id in zip(zip(mols, descriptors, labels),
                                            np.random.choice(self._client_ids, self._len, p=self.subset_ratios)):
             self.elements[client_id].append(
-                _create_element(mol, label, self.max_n_atoms, self.max_n_types, self._salt_remover))
+                _create_element(mol, label, self.max_n_atoms, self.max_n_types, self._salt_remover, descriptor))
 
         g = tf.Graph()
         with g.as_default():
@@ -199,12 +226,13 @@ class ADMEDataset(ClientData):
     def _create_dataset(self, client_id):
         # https://stackoverflow.com/questions/52582275/tf-data-with-multiple-inputs-outputs-in-keras
         _data = collections.OrderedDict(
-            {key: [] for key in sorted(['adjs', 'features'])})
+            {key: [] for key in sorted(['adjs', 'features', 'descriptor'])})
         _labels = []
         for mol, label in self.elements[client_id]:
             adjs = np.expand_dims(mol['adjs'], axis=0)  # for adj channel
             _data['adjs'].append(adjs)
             _data['features'].append(mol['features'])
+            _data['descriptor'].append(mol['descriptor'])
             _labels.append(label)
         _data = collections.OrderedDict(
             (name, np.array(ds)) for name, ds in sorted(_data.items()))
@@ -217,6 +245,10 @@ class ADMEDataset(ClientData):
                 "property `client_ids` for the list of valid ids.".format(i=client_id))
         tf_dataset = self._create_dataset(client_id)
         return tf_dataset
+
+    @property    
+    def descriptors_shape(self):
+        return self._descriptors_shape
 
     @property
     def adj_shape(self):

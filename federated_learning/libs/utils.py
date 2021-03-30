@@ -7,7 +7,7 @@ from typing import List
 
 import numpy as np
 import requests
-
+from rdkit.Chem import rdmolops
 
 
 def create_client_data(source, n: int, batch_size: int, epochs: int):
@@ -50,6 +50,32 @@ def pad_bottom_right_matrix(matrix: np.array, max_dim):
 
 def pad_bottom_matrix(matrix: np.array, max_dim):
     n_bottom_padding = max_dim - matrix.shape[0]
+    if n_bottom_padding < 0:
+        print(max_dim, matrix.shape[0])
     return np.pad(matrix, [(0, n_bottom_padding), (0, 0)], 'constant')
 
+def create_mol_feature(mol, max_n_types):
+    """
+    creates a feature vector from atoms in a molecule
 
+    mol: `Chem.rdchem.Mol`
+    """
+    mol_features = np.array([atom.GetAtomicNum() for atom in mol.GetAtoms()])
+    mol_features = one_hot(mol_features, max_n_types).astype(np.int32)
+    return mol_features
+
+def check_mol_feature(mol, cut_off_idx):
+    max_idx = np.max(np.array([atom.GetAtomicNum() for atom in mol.GetAtoms()]))
+    if max_idx > cut_off_idx:
+        return False
+    else:
+        return True
+
+def check_mol_size(mol, cut_off_idx):
+    adjs = rdmolops.GetAdjacencyMatrix(mol)
+    max_dim = adjs.shape[0]
+    if max_dim > cut_off_idx:
+        return False
+    else:
+        return True
+    

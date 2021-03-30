@@ -15,7 +15,8 @@ from libs.datasets.adme import load_data
 from libs.utils import (create_client_data,
                         get_logger)
 from libs.platformer import Platformer
-from libs.models import build_model_gin, build_model_gcn
+from libs.models import (build_model_gin, build_model_gcn, build_model_gat,
+                         build_model_discriptor_gcn)
 
 
 @click.command()
@@ -55,16 +56,19 @@ def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, rat
     logger.debug(f'datapath = {datapath}')        
     logger.debug(f'task_name = {task_name}')    
 
-    dataset = load_data(federated, datapath, task_name, MAX_N_ATOMS, MAX_N_TYPES, subsets, ratio)
+    dataset, descriptors_shape = load_data(federated, datapath, task_name, MAX_N_ATOMS, MAX_N_TYPES, subsets, ratio)
     
     if federated:
         federated_learning(task_name, dataset, model, rounds, clients,
-                           epochs, batchsize, lr, clientlr, ratio, kfold, logger)
+                           epochs, batchsize, lr, clientlr, ratio, kfold,
+                           descriptors_shape, logger)
     else:
-        normal_learning(task_name, dataset, epochs, batchsize, clinetlr, model, ratio, kfold, logger)
+        normal_learning(task_name, dataset, epochs, batchsize, clientlr, model, ratio, kfold,
+                        descriptors_shape, logger)
 
         
-def normal_learning(task_name, dataset, epochs, batchsize, lr, model, ratio, kfold):
+def normal_learning(task_name, dataset, epochs, batchsize, lr, model,
+                    ratio, kfold, descriptors_shape, logger):
     MAX_N_ATOMS = 150
     MAX_N_TYPES = 100
     dataset_length = tf.data.experimental.cardinality(dataset).numpy()    
@@ -86,7 +90,8 @@ def normal_learning(task_name, dataset, epochs, batchsize, lr, model, ratio, kfo
     test = shuffled_dataset.enumerate().filter(is_test).map(recover)
     val = shuffled_dataset.enumerate().filter(is_val).map(recover)
     task_type = task_name.split('_')[-1]
-    task_target = task_name.split('_')[-2]    
+    task_target = task_name.split('_')[-2]
+    
     if task_type == 'cls':
         num_classes = 2            
         if task_target == 'llc':
@@ -94,31 +99,39 @@ def normal_learning(task_name, dataset, epochs, batchsize, lr, model, ratio, kfo
     else:
         # regression
         num_classes = 1        
-    
+
+    num_descriptors_features = descriptors_shape[1]        
     if model == 'gcn':
-        model = build_model_gcn(MAX_N_ATOMS, MAX_N_TYPES, num_classes)
+        model = build_model_discriptor_gcn(MAX_N_ATOMS, MAX_N_TYPES,
+                                           num_classes, num_descriptors_features)
     elif model == 'gin':
         model = build_model_gin(MAX_N_ATOMS, MAX_N_TYPES, num_classes)
+    elif model == 'gat':
+        model = build_model_gat(MAX_N_ATOMS, MAX_N_TYPES, num_classes, 1)
 
     if task_type == 'cls':
-        print(task_name)
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
                       loss=tf.keras.losses.CategoricalCrossentropy(),
                       metrics=[tf.keras.metrics.CategoricalAccuracy(),
-                               tf.keras.metrics.AUC()])
-        # 
-        # model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
-        #               loss=tf.keras.losses.BinaryCrossentropy(),
-        #               metrics=[tf.keras.metrics.BinaryAccuracy(),
-        #                        tf.keras.metrics.AUC(),
-        #                        tfa.metrics.CohenKappa(num_classes=2)])
+                               tf.keras.metrics.AUC(),
+                               tfa.metrics.CohenKappa(num_classes=num_classes, sparse_labels=False)])
+        monitor_metric = 'val_auc'
     else:
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr),
                       loss=tf.keras.losses.MeanSquaredError(),
                       metrics=[tf.keras.metrics.MeanSquaredError()])
+        monitor_metric = 'val_loss'        
+
+    es_callback = tf.keras.callbacks.EarlyStopping(monitor=monitor_metric,
+                                                   verbose=1,
+                                                   patience=10,
+                                                   mode='max',
+                                                   restore_best_weights=True)
+    lr_decay = tf.keras.callbacks.LearningRateScheduler(lambda epoch: 0.005 - (0.0001 * epoch), verbose=False)
     
     model.summary()
-    model.fit(train.shuffle(100).batch(batchsize), epochs=epochs)
+    model.fit(train.shuffle(1000).batch(batchsize), validation_data=val.batch(batchsize*10),
+              epochs=epochs, callbacks=[es_callback, lr_decay])
     model.evaluate(test.batch(1))
     prediction = model.predict(test.batch(1))
     
@@ -127,9 +140,10 @@ def normal_learning(task_name, dataset, epochs, batchsize, lr, model, ratio, kfo
         trues = tf.math.argmax([t[-1] for t in test], axis=1)
         kappa_metrics = tfa.metrics.CohenKappa(num_classes=num_classes, sparse_labels=True)
         kappa_metrics.update_state(trues, predictions)
+        print('num_classes\n', num_classes)
         print('predictions\n', predictions)
         print('trues\n', trues)        
-        print('kappa', kappa_metrics.result())
+        print('kappa', kappa_metrics.result().numpy())
     else:
         trues = [t[-1] for t in test]
         predictions = prediction[:, -1]
@@ -141,7 +155,8 @@ def normal_learning(task_name, dataset, epochs, batchsize, lr, model, ratio, kfo
 
         
 def federated_learning(task_name, dataset, model, rounds, clients,
-                       epochs, batchsize, lr, clientlr, ratio, kfold, logger):
+                       epochs, batchsize, lr, clientlr, ratio, kfold,
+                       descriptors_shape, logger):
     if not model in ['gcn', 'gin']:
         raise Exception(f'not supported model. {model}')
     MAX_N_ATOMS = 150
@@ -159,7 +174,8 @@ def federated_learning(task_name, dataset, model, rounds, clients,
             num_classes = 3
     else:
         # regression
-        num_classes = 1        
+        num_classes = 1
+    num_descriptors_features = descriptors_shape[1]
     def _model_fn(model, task_type, num_classes):
         if model == 'gcn':
             model = build_model_gcn(MAX_N_ATOMS, MAX_N_TYPES, num_classes)
