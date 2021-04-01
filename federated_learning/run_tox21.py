@@ -16,6 +16,7 @@ import kgcn.layers as layers
 from libs.datasets.tox21 import load_data
 from libs.utils import get_logger
 from libs.platformer import Platformer
+from libs.metrics import MultitaskBinaryCrossentropyWithMask, AUCMultitask
 
 current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 logdir = 'logs/gradient_tape/' + current_time + '/tox21'

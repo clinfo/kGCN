@@ -46,7 +46,7 @@ class GINFL(Layer):
         self.output_dim = output_dim
         self.adj_channel_num = adj_channel_num
         self.initializer = initializer
-        self.linear = [Dense(output_dim) for _ in range(adj_channel_num)]
+        self.linear = [Dense(output_dim, kernel_initializer=initializer) for _ in range(adj_channel_num)]
         self.eps = eps
         self.train_eps = train_eps # not supported yet.
         super(GINFL, self).__init__(**kwargs)
