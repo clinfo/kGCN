@@ -77,7 +77,7 @@ def _read_sdf_file(datapath, task_name):
 
 def create_dataset(datapath, max_n_atoms, max_n_types, criteria):
     salt_remover = SaltRemover.SaltRemover()
-    query = f'select smiles, target_sequence, pchembl_value from random_activities where valid = 1 and length(target_sequence) < 2000'
+    query = f'select smiles, target_sequence, pchembl_value from nondup_random_activities'
     output_types = (tf.string, tf.string, tf.float64)
     dataset = tf.data.experimental.SqlDataset(
         'sqlite', datapath, query, output_types)

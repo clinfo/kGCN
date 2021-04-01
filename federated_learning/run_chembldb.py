@@ -35,7 +35,7 @@ from libs.models import build_multimodel_gcn
               ' Other datasets are equally divided. (0, 1)')
 @click.option('--kfold', default=4, type=int, help='selt number of subsets for the k-fold validation.')
 @click.option('--criteria', type=float, default=6., help='set chembl value.')
-@click.option('--datapath', type=str, default='./data/data/exported.db',
+@click.option('--datapath', type=str, default='./data/data/preprocessed.db',
               help='set a path of preprocessed database.')
 def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, kfold, datapath, criteria):
     logger = get_logger("ChEBMLDB")
