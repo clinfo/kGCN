@@ -27,7 +27,7 @@ from libs.models import build_multimodel_gcn
 @click.option('--rounds', default=10, help='the number of updates of the centeral model')
 @click.option('--clients', default=4, help='the number of clients')
 @click.option('--epochs', default=200, help='the number of training epochs in client traning.')
-@click.option('--batchsize', default=258, help='the number of batch size.')
+@click.option('--batchsize', default=128, help='the number of batch size.')
 @click.option('--lr', default=0.1, help='learning rate for the central model.')
 @click.option('--clientlr', default=0.003, help='learning rate for client models.')
 @click.option('--model', default='gcn', help='support gcn or gin.')
@@ -35,9 +35,10 @@ from libs.models import build_multimodel_gcn
               ' Other datasets are equally divided. (0, 1)')
 @click.option('--kfold', default=4, type=int, help='selt number of subsets for the k-fold validation.')
 @click.option('--criteria', type=float, default=6., help='set chembl value.')
+@click.option('--train_size', type=int, default=5000., help='set training data size.')
 @click.option('--datapath', type=str, default='./data/data/exported.db',
               help='set a path of preprocessed database.')
-def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, kfold, datapath, criteria):
+def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, ratio, kfold, datapath, train_size, criteria):
     logger = get_logger("ChEBMLDB")
     subsets = clients + 2
     MAX_N_ATOMS = 150
@@ -55,6 +56,7 @@ def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, rat
     logger.debug(f'ratio = {ratio}')
     logger.debug(f'datapath = {datapath}')
     logger.debug(f'criteria = {criteria}')            
+    logger.debug(f'train_size = {train_size}')            
     dataset = load_data(federated, datapath, MAX_N_ATOMS, MAX_N_TYPES, subsets, ratio, criteria)
     #run_optuna(dataset, kfold, epochs)
     if criteria == 5.:
@@ -69,33 +71,37 @@ def main(federated, rounds, clients, epochs, batchsize, lr, clientlr, model, rat
                            epochs, batchsize, lr, clientlr, ratio, kfold, class_weight, logger)
     else:
         print('normal_learning')
-        normal_learning(dataset, epochs, batchsize, clientlr, ratio, kfold, class_weight, logger)
+        normal_learning(dataset, epochs, batchsize, clientlr, ratio, kfold, class_weight, train_size, logger)
 
         
-def normal_learning(dataset, epochs, batchsize, clientlr, ratio, kfold, class_weight, logger):
+def normal_learning(dataset, epochs, batchsize, clientlr, ratio, kfold, class_weight, train_size, logger):
     MAX_N_ATOMS = 200
     MAX_N_TYPES = 110
-    buffer_size = 3000
-    train_steps = 100
+    buffer_size = 1000
+    train_steps = 10
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     # shuffled_dataset = dataset.shuffle(
     #     buffer_size, reshuffle_each_iteration=False)
     shuffled_dataset = dataset
-    val_size = train_steps // 10 * batchsize
-    test_size = train_steps // 10 * batchsize
+    val_size = train_size // 10
+    test_size = 10000
     print('val_size', val_size)
     print('test_size', test_size)
-    total_size = 2230981
+    total_size = 2230981 
     print('{} epochs', total_size / (batchsize * train_steps))
     test_dataset = shuffled_dataset.take(val_size + test_size)
     val = test_dataset.take(val_size).batch(batchsize).prefetch(buffer_size=AUTOTUNE)
     test = test_dataset.skip(test_size).batch(batchsize).prefetch(buffer_size=AUTOTUNE)
-    train = shuffled_dataset.skip(val_size + test_size).shuffle(buffer_size).repeat(3).batch(batchsize).prefetch(buffer_size=AUTOTUNE)
+    train = shuffled_dataset.skip(val_size + test_size).take(train_size).batch(batchsize).prefetch(buffer_size=AUTOTUNE)
 
-    PROTEIN_MAX_SEQLEN = 750
+    PROTEIN_MAX_SEQLEN = 1000
     LENGTH_ONE_LETTER_AA = len('XACDEFGHIKLMNPQRSTVWYOUBJZ')
     num_classes = 2
 
+    # for t in train.batch(10):
+    #     print(t)
+    #     break
+    # a
     # pos = 1
     # neg = 10
     # initial_bias = np.log([pos/neg])
@@ -110,8 +116,11 @@ def normal_learning(dataset, epochs, batchsize, clientlr, ratio, kfold, class_we
             decay_rate=0.96,
             staircase=True)
 
+    loss = tf.keras.losses.BinaryCrossentropy()
+    loss = tfa.losses.SigmoidFocalCrossEntropy()
+    
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr_schedule),
-                  loss=tf.keras.losses.BinaryCrossentropy(),
+                  loss=loss,
                   metrics=[tf.keras.metrics.BinaryAccuracy(),
                            tf.keras.metrics.AUC(), tf.keras.metrics.Precision(),
                            tf.keras.metrics.Recall(),
@@ -124,7 +133,8 @@ def normal_learning(dataset, epochs, batchsize, clientlr, ratio, kfold, class_we
                                                 patience=10,
                                                 mode='max',
                                                 restore_best_weights=True)
-    checkpoint_path = "models/chembl.ckpt"
+    checkpoint_path = f"models/chembl.ckpt.{os.getpid()}"
+    logger.info(f'checkpoint_path {checkpoint_path}')
     checkpoint_dir = os.path.dirname(checkpoint_path)
     cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
                                                      monitor='val_auc',
@@ -134,13 +144,13 @@ def normal_learning(dataset, epochs, batchsize, clientlr, ratio, kfold, class_we
                                                      verbose=1)
     metric = model.fit(train, epochs=epochs,
                        validation_data=val,
-                       steps_per_epoch=train_steps,
+                       #steps_per_epoch=train_steps,
                        callbacks=[cp_callback, callback],
-                       class_weight=class_weight)
-    metric = model.evaluate(test, steps=10)
-    print('final results', metric)
-
-
+                       class_weight=class_weight,
+                       verbose=0)
+    metric = model.evaluate(test, verbose=2)
+    print(metric)
+    logger.info(f'final results => {metric}')
     kappa = kfold_cv
     
 def kfold_cv(nfold, dataset, epochs, loss_type, lr, optim,

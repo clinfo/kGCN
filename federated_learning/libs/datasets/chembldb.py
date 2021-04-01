@@ -19,6 +19,7 @@ from ..utils import download as _download
 from ..utils import (extract_zipfile, create_ids, one_hot, pad_bottom_right_matrix,
                      pad_bottom_matrix, create_mol_feature, check_mol_feature, check_mol_size)
 
+
 def load_data(FL_FLAG, datapath, max_n_atoms, max_n_types, n_groups,
               subset_ratios: list or int=None, criteria=6):
     """loads the federated tox21 dataset.
@@ -77,13 +78,14 @@ def _read_sdf_file(datapath, task_name):
 
 def create_dataset(datapath, max_n_atoms, max_n_types, criteria):
     salt_remover = SaltRemover.SaltRemover()
-    query = f'select smiles, target_sequence, pchembl_value from random_activities where valid = 1 and length(target_sequence) < 2000'
+
+    PROTEIN_MAX_SEQLEN = 1000    
+    query = f'select smiles, target_sequence, pchembl_value from random_activities where valid = 1 and length(target_sequence) < {PROTEIN_MAX_SEQLEN}'
     output_types = (tf.string, tf.string, tf.float64)
     dataset = tf.data.experimental.SqlDataset(
         'sqlite', datapath, query, output_types)
     MAX_N_ATOMS = 200
     MAX_N_TYPES = 23
-    PROTEIN_MAX_SEQLEN = 2000
     LENGTH_ONE_LETTER_AA = len('XACDEFGHIKLMNPQRSTVWYOUBJZ')
 
     def map_fn(ele1, ele2, ele3):
@@ -115,7 +117,7 @@ def create_dataset(datapath, max_n_atoms, max_n_types, criteria):
     def map_shape_fn(x1, x2, x3, x4):
         x1.set_shape((200, 200))
         x2.set_shape((200, 23))
-        x3.set_shape((2000,))
+        x3.set_shape((1000,))
         x4.set_shape(())        
         data = collections.OrderedDict({key: x for key, x in zip(['adjs', 'features', 'protein_seq'], (x1, x2, x3))})
         return data, x4
