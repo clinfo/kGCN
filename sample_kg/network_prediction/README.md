@@ -88,3 +88,14 @@ arguments;
  - traininput : train graph output file (`<gcn/distmult/ip>.train.graph.tsv`). (step 3)
  - th : arbitrary link threshold for determining the number of links in the predicted network.
 
+## Reference
+```
+@article{tanaka2021,
+  title={Complex network prediction using deep learning}, 
+  author={Yoshihisa Tanaka and Ryosuke Kojima and Shoichi Ishida and Fumiyoshi Yamashita and Yasushi Okuno},
+  year={2021},
+  eprint={2104.03871},
+  archivePrefix={arXiv},
+  primaryClass={physics.soc-ph}
+}
+```
