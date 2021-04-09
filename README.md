@@ -149,6 +149,7 @@ Once you execute this command, cross-validation is performed by running a series
 ├── model/                               : output directory for exmaples
 ├── Notebook/                            : examples of jupyter notebook
 ├── result/                              : output directory for exmaples
+├── sample_kg/                           : 
 ├── sample_chem/                         : 
 ├── sample_nx/                           :
 ├── script                               : utility sctipts
@@ -224,6 +225,8 @@ Please reffer to sample_data/multi_label.txt and a coverting program (make_sampl
 ## [Application example2: Reaction prediction and visualization](./docs/example_for_reaction_prediction.md)
 
 ## [Application example3: Retrosynthetic analysis](https://github.com/clinfo/ReTReK)
+
+## [Application example4: Network prediction](./sample_kg/network_prediction/)
 
 ## Generative model
 
