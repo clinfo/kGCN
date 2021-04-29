@@ -455,6 +455,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
     outdir = config["visualize_path"]
     os.makedirs(outdir, exist_ok=True)
     mol_obj_list = info.mol_info["obj_list"] if "mol_info" in info else None
+    mol_id_list = info.mol_info["name_list"] if "mol_info" in info else None
     tf_grads = None
 
     all_count = 0
@@ -530,9 +531,11 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
             try:
                 mol_name = Chem.MolToSmiles(mol_obj_list[compound_id])
                 mol_obj = mol_obj_list[compound_id]
+                mol_id = mol_id_list[compound_id]
             except:
                 mol_name = None
                 mol_obj = None
+                mol_id = None
             if args.verbose:
                 print(f"No.{compound_id}, task={idx}: \"{mol_name}\": {assay_str} (score= {_out_prediction}, "
                       f"true_label= {true_label}, target_label= {target_index}, target_score= {target_score})")
@@ -548,6 +551,8 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
             visualizer.dump(f"{header}_{compound_id:04d}_task_{idx}_{assay_str}_{ig_modal_target}_scaling.jbl",
                             additional_data={
                                 "mol": mol_obj,
+                                "mol_smiles": mol_name,
+                                "mol_id": mol_id,
                                 "prediction_score": target_score,
                                 "target_label": target_index,
                                 "true_label": true_label, }
