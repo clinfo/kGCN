@@ -396,7 +396,7 @@ def concat_assay(assay_list):
         if assay_data.profeat is not None:
             dict_profeat = dict_profeat if dict_profeat is not None else {}
             dict_profeat[assay_data.path] = assay_data.profeat
-    
+
     return dict_all_assay, dict_all_id_mol, dict_dragon_data, seq, seq_symbol, seq_domain, seq_domain_set, dict_profeat
 
 
@@ -528,7 +528,7 @@ def extract_mol_info(args):
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, seq_domain, profeat = \
             generate_multimodal_data(args, mol_obj_list, label_data, label_mask, dragon_data, task_name_list,
                                      mol_id_list, seq, seq_symbol, seq_domain, profeat)
-        
+
     elif args.assay_dir is not None:
         mol_obj_list, label_data, label_mask, dragon_data, task_name_list, mol_id_list, seq, seq_symbol, seq_domain, profeat = \
             build_all_assay_data(args)

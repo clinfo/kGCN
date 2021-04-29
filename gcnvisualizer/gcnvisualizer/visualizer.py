@@ -94,7 +94,7 @@ class GCNVisualizer(object):
         else:
             self.logger.info(f'use default abamax with np.max(np.abs({name}))')
             return np.max(np.abs(data))
-        
+
     def _get_atoms_color(self, atom_num):
         ig_data = self.ig_dict['features_IG']
         highlight_atoms = []
@@ -206,6 +206,7 @@ class GCNVisualizer(object):
                 traceback.print_exc()
                 self.logger.warning("you don't install rdkit yet.")
                 self.logger.warning("skip drawing a structure image.")
+        
         if 'nodes' in list(self.ig_dict.keys()):
             self._draw_structure()
             return True
