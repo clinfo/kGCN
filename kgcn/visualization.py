@@ -548,7 +548,7 @@ def cal_feature_IG(sess, all_data, placeholders, info, config, prediction, ig_mo
             tf_grads = visualizer.grads if tf_grads is None else tf_grads
             visualizer.cal_integrated_gradients(sess, divide_number, method=args.visualize_method)
             visualizer.check_IG(sess, target_prediction)
-            visualizer.dump(f"{header}_{compound_id:04d}_task_{idx}_{assay_str}_{ig_modal_target}_scaling__________________________.jbl",
+            visualizer.dump(f"{header}_{compound_id:04d}_task_{idx}_{assay_str}_{ig_modal_target}_scaling.jbl",
                             additional_data={
                                 "mol": mol_obj,
                                 "mol_smiles": mol_name,
