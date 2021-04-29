@@ -4,7 +4,7 @@ import os
 import random
 import sys
 
-#import numpy as np
+import numpy as np
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -766,5 +766,5 @@ def main():
     joblib.dump(obj, args.output, compress=3)
 
 
-#if __name__ == "__main__":
-#    main()
+if __name__ == "__main__":
+    main()
