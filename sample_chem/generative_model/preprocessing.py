@@ -10,6 +10,31 @@ from rdkit import Chem
 #==============================================================================
 # 関数群の定義
 #==============================================================================
+def mol_gaff_features(mol):
+    import pybel
+    atom_list=['c', 'c1', 'c2', 'c3', 'ca', 'cp', 'cq', 'cc', 'cd', 'ce', 'cf', 'cg', 'ch', 'cx', 'cy', 'cu', 'cv', 'cz',
+            'h1', 'h2', 'h3', 'h4', 'h5', 'ha', 'hc', 'hn', 'ho', 'hp', 'hs', 'hw', 'hx', 'f', 'cl', 'br', 'i', 'n', 'n1',
+            'n2', 'n3', 'n4', 'na', 'nb', 'nc', 'nd', 'ne', 'nf', 'nh', 'no', 'o', 'oh', 'os', 'ow', 'p2', 'p3', 'p4', 'p5',
+            'pb', 'pc', 'pd', 'pe', 'pf', 'px', 'py', 's', 's2', 's4', 's6', 'sh', 'ss', 'sx', 'sy']
+    smiles = Chem.MolToSmiles(mol)
+    molecule = pybel.readstring("smi", smiles)
+    force_field = pybel._forcefields["gaff"]
+    force_field.Setup(molecule.OBMol)
+    force_field.GetAtomTypes(molecule.OBMol)
+    features=[]
+    for i in range(molecule.OBMol.NumAtoms()):
+        at=molecule.OBMol.GetAtom(i+1)
+        try:
+            t = at.GetData("FFAtomType") # an OBPairData object
+            atom_type=str(t.GetValue())
+            atom_type_f = one_of_k_encoding_unk(atom_type, atom_list)
+        except:
+            print("[unknown gaff atom type] "+smiles)
+            atom_type_f = [0]*len(atom_list)
+        f = np.array(atom_type_f,dtype=np.float32)
+        features.append(f)
+    return features
+
 
 ###############################################
 #deepchemで使用されているメソッド
@@ -158,6 +183,14 @@ def create_feature_matrix(mol, atom_num_limit):
     for _ in range(atom_num_limit - len(feature)):
         feature.append(np.zeros(len(feature[0]), dtype=np.int))
     return feature
+
+def create_gaff_feature_matrix(mol, atom_num_limit):
+    #Chem.SanitizeMol(mol)
+    feature = mol_gaff_features(mol)
+    for _ in range(atom_num_limit - len(feature)):
+        feature.append(np.zeros(len(feature[0]), dtype=np.int))
+    return feature
+
 
 
 #↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
@@ -410,6 +443,9 @@ if __name__ == '__main__':
     parser.add_argument(
         '-m', '--multi', action='store_true',
         help='help')
+    parser.add_argument(
+        '--use_gaff', action='store_true',
+        help='help')
     args=parser.parse_args()
 
 
@@ -441,7 +477,10 @@ if __name__ == '__main__':
             adj = create_multi_adjancy_matrix(mol)
             adjs=[dense_to_sparse(a) for a in adj]
             adj_list.append(adjs)
-        feature = create_feature_matrix(mol, args.atom_num_limit)
+        if args.use_gaff:
+            feature = create_gaff_feature_matrix(mol, args.atom_num_limit)
+        else:
+            feature = create_feature_matrix(mol, args.atom_num_limit)
         atom_num_list.append(mol.GetNumAtoms())
         feature_list.append(feature)
     #
