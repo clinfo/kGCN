@@ -36,6 +36,7 @@ def mol_gaff_features(mol):
     return features
 
 
+
 ###############################################
 #deepchemで使用されているメソッド
 #↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
@@ -43,66 +44,31 @@ def mol_gaff_features(mol):
 """
 atomから原子の情報を取得する
 """
-def atom_features(atom, bool_id_feat=False, explicit_H=False, generative_mode=True):
+def atom_features(atom, bool_id_feat=False, use_sybyl=True, explicit_H=False, generative_mode=True):
     if bool_id_feat:
         return np.array([atom_to_id(atom)])
     else:
-        results = one_of_k_encoding_unk(
-        atom.GetSymbol(),
-        [
-            'C',
-            'N',
-            'O',
-            'S',
-            'F',
-            'Si',
-            'P',
-            'Cl',
-            'Br',
-            'Mg',
-            'Na',
-            'Ca',
-            'Fe',
-            'As',
-            'Al',
-            'I',
-            'B',
-            'V',
-            'K',
-            'Tl',
-            'Yb',
-            'Sb',
-            'Sn',
-            'Ag',
-            'Pd',
-            'Co',
-            'Se',
-            'Ti',
-            'Zn',
-            'H',  # H?
-            'Li',
-            'Ge',
-            'Cu',
-            'Au',
-            'Ni',
-            'Cd',
-            'In',
-            'Mn',
-            'Zr',
-            'Cr',
-            'Pt',
-            'Hg',
-            'Pb',
-            'Unknown'
-        ]) + one_of_k_encoding(atom.GetDegree(),
-                               [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) + \
-        one_of_k_encoding_unk(atom.GetImplicitValence(), [0, 1, 2, 3, 4, 5, 6]) +\
-        [atom.GetFormalCharge(), atom.GetNumRadicalElectrons()] + \
-        one_of_k_encoding_unk(atom.GetHybridization(), [
-            Chem.rdchem.HybridizationType.SP, Chem.rdchem.HybridizationType.SP2,
-            Chem.rdchem.HybridizationType.SP3, Chem.rdchem.HybridizationType.
-            SP3D, Chem.rdchem.HybridizationType.SP3D2
-        ]) + [atom.GetIsAromatic()]
+        if use_sybyl:
+            import oddt.toolkits.extras.rdkit as ordkit
+            atom_type = ordkit._sybyl_atom_type(atom)
+            atom_list = ['C.ar', 'C.cat', 'C.1', 'C.2', 'C.3', 'N.ar', 'N.am', 'N.pl3', 'N.1', 'N.2', 'N.3', 'N.4', 'O.co2',
+                         'O.2', 'O.3', 'S.o', 'S.o2', 'S.2', 'S.3', 'F', 'Si', 'P', 'P3', 'Cl', 'Br', 'Mg', 'Na', 'Ca',
+                         'Fe', 'As', 'Al', 'I', 'B', 'V', 'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn',
+                         'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni', 'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'Unknown']
+        else:
+            atom_type = atom.GetSymbol()
+            atom_list=['C', 'N', 'O', 'S', 'F', 'Si', 'P', 'Cl', 'Br', 'Mg', 'Na', 'Ca', 'Fe', 'As', 'Al', 'I', 'B', 'V',
+                       'K', 'Tl', 'Yb', 'Sb', 'Sn', 'Ag', 'Pd', 'Co', 'Se', 'Ti', 'Zn', 'H', 'Li', 'Ge', 'Cu', 'Au', 'Ni',
+                       'Cd', 'In', 'Mn', 'Zr', 'Cr', 'Pt', 'Hg', 'Pb', 'Unknown']
+        results = one_of_k_encoding_unk(atom_type, atom_list) + \
+            one_of_k_encoding(atom.GetDegree(),[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) + \
+            one_of_k_encoding_unk(atom.GetImplicitValence(), [0, 1, 2, 3, 4, 5, 6]) + \
+            [atom.GetFormalCharge(), atom.GetNumRadicalElectrons()] + \
+            one_of_k_encoding_unk(atom.GetHybridization(),
+                                  [Chem.rdchem.HybridizationType.SP, Chem.rdchem.HybridizationType.SP2,
+                                   Chem.rdchem.HybridizationType.SP3, Chem.rdchem.HybridizationType.
+                                   SP3D, Chem.rdchem.HybridizationType.SP3D2 ]) + \
+            [atom.GetIsAromatic()]
         
     if generative_mode:
         results+=[atom.IsInRing()]+[atom.IsInRingSize(i) for i in range(3,8)]
@@ -178,7 +144,9 @@ def create_adjancy_matrix(mol):
     return adj
 
 
-def create_feature_matrix(mol, atom_num_limit):
+def create_feature_matrix(mol, atom_num_limit, use_sybyl=True):
+    if use_sybyl:
+        Chem.GetSymmSSSR(mol)
     feature = [atom_features(atom) for atom in mol.GetAtoms()]
     for _ in range(atom_num_limit - len(feature)):
         feature.append(np.zeros(len(feature[0]), dtype=np.int))
