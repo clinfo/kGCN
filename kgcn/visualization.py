@@ -412,8 +412,12 @@ def cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, prediction
             else:
                 print("[ERROR]")
                 sys.exit(1)
+            logger.debug(f"all_data.label_list[0, target] = {all_data.label_list[0, target]}")
             node1 = all_data.label_list[0, target, 0]
-            node2 = all_data.label_list[0, target, 1]
+            #node2 = all_data.label_list[0, target, 1]
+            node2 = all_data.label_list[0, target, 2]
+            logger.debug(f"node1 = all_data.label_list[0, target, 0] = {all_data.label_list[0, target, 0]}")
+            logger.debug(f"node2 = all_data.label_list[0, target, 2] = {all_data.label_list[0, target, 2]}")
             logger.info(f"edge target = {target} => {node1}-{node2}")
             filename = f'edgepred-{node1}-{node2}'
             vis_nodes = [node1, node2]
