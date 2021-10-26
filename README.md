@@ -97,6 +97,13 @@ Once you execute this command, cross-validation is performed by running a series
 
 ### [Visualization file](./docs/visualization.md)
 
+## Related library
+
+Another PyTorch-based library is also available: 
+- kMoL: https://github.com/elix-tech/kmol
+
+In the current version of kMoL, it is not completely compatible with kGCN, but we are developing the kMoL library with the aim of compatibility.
+
 ## Cite
 ```
 @article{Kojima2020,
@@ -111,6 +118,7 @@ Once you execute this command, cross-validation is performed by running a series
   doi = "10.1186/s13321-020-00435-6"
 }
 ```
+
 ## Directory structure
 
 ```
