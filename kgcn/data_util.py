@@ -3,6 +3,9 @@ import json
 from operator import itemgetter
 
 import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
 import numpy as np
 from scipy.sparse import coo_matrix
 import scipy
