@@ -6,8 +6,6 @@ from __future__ import print_function
 import numpy as np
 import os
 
-from scipy.misc import imsave
-
 
 
 M = 100  # datasize

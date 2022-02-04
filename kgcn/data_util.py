@@ -3,6 +3,9 @@ import json
 from operator import itemgetter
 
 import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
 import numpy as np
 from scipy.sparse import coo_matrix
 import scipy
@@ -362,13 +365,13 @@ def build_and_split_data(config, data, valid_data_rate=0.2):
     return all_data, train_data, valid_data, info
 
 
-def load_data(config, filename="data.jbl", prohibit_shuffle=False):
+def load_data(config, filename="data.jbl", prohibit_shuffle=False, test_mode=False):
     print("[LOAD]", filename)
     data = joblib.load(filename)
-    return build_data(config, data, prohibit_shuffle=prohibit_shuffle)
+    return build_data(config, data, prohibit_shuffle=prohibit_shuffle, test_mode=test_mode)
 
 
-def build_data(config, data, prohibit_shuffle=False, verbose=True):
+def build_data(config, data, prohibit_shuffle=False, verbose=True, test_mode=False):
     # data
     # Num x N x F
     features = None
@@ -428,7 +431,14 @@ def build_data(config, data, prohibit_shuffle=False, verbose=True):
     #
     node_label = data["node_label"] if "node_label" in data else None
     mask_node_label = data["mask_node_label"] if "mask_node_label" in data else None
-    label_list = data["label_list"] if "label_list" in data else None
+    # label_list = data["label_list"] if "label_list" in data else None
+    if "label_list" in data:
+        if test_mode:
+            label_list=data["test_label_list"]
+        else:
+            label_list=data["label_list"]
+    else:
+        label_list=None
     # Setting sequence data (multimodal)
     sequences = data["sequence"] if "sequence" in data else None
     sequences_vec = data["sequence_vec"] if "sequence_vec" in data else None

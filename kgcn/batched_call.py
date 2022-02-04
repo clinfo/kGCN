@@ -57,8 +57,8 @@ def _bspmdt_grad(op, *grad):
   
     b_grads = b_module.bspmm(a_indices, a_values, a_shape, grad, adjoint_a=True, adjoint_b=False)
 
-    bg_row=tf.shape(b_grads[0])[0]
-    bg_col=tf.shape(b_grads[0])[1]
+    bg_row=tf.shape(input=b_grads[0])[0]
+    bg_col=tf.shape(input=b_grads[0])[1]
     b_grads = tf.reshape(b_grads, (numTensors * bg_row, bg_col))
 
     if adj_b:

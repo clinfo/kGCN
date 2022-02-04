@@ -12,6 +12,13 @@ from sklearn.metrics import average_precision_score, balanced_accuracy_score, ma
     roc_curve, auc, accuracy_score, precision_recall_fscore_support
 from sklearn.model_selection import KFold, StratifiedKFold
 import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
+    import tensorflow.compat.v1.logging as logging
+else:
+    import tensorflow.logging as logging
+
 from tensorflow.python.framework import graph_util
 
 import kgcn.layers
@@ -129,7 +136,7 @@ def load_model_py(model, model_py, is_train=True, feed_embedded_layer=False, bat
     pair = model_py.split(":")
     sys.path.append(os.getcwd())
     if len(pair) >= 2:
-        tf.logging.info(f"[LOAD] {pair[1]} from {pair[0]}")
+        logging.info(f"[LOAD] {pair[1]} from {pair[0]}")
         mod = importlib.import_module(pair[0])
         cls = getattr(mod, pair[1])
         obj = cls()
@@ -137,7 +144,7 @@ def load_model_py(model, model_py, is_train=True, feed_embedded_layer=False, bat
             model.build(obj, is_train, feed_embedded_layer, batch_size)
         return obj
     else:
-        tf.logging.info(f"[LOAD] {pair[0]}")
+        logging.info(f"[LOAD] {pair[0]}")
         mod = importlib.import_module(pair[0])
         if model:
             model.build(mod, is_train, feed_embedded_layer, batch_size)
@@ -168,29 +175,29 @@ def compute_metrics(config, info, prediction_data, labels):
         pred_score = pred_score[:, np.newaxis, np.newaxis]
     elif len(pred_score.shape) == 2:
         pred_score = np.expand_dims(pred_score, axis=1)
-    tf.logging.info(f"prediction #data x # task x #class: {pred_score.shape}")
+    logging.info(f"prediction #data x # task x #class: {pred_score.shape}")
     # multilabel=True  => pred_score: #data x # task x #class
     # multilabel=False => pred_score: #data x # task
     multiclass = False
     ntask = pred_score.shape[1]
     if pred_score.shape[2] == 1:  # regression or binary
         pred_score = pred_score[:, :, 0]
-        tf.logging.info(f"2-class sigmoid")
+        logging.info(f"2-class sigmoid")
     elif pred_score.shape[2] == 2:  # binary
         pred_score = pred_score[:, :, 1]
-        tf.logging.info(f"2-class softmax")
+        logging.info(f"2-class softmax")
     elif pred_score.shape[2] > 2:
         multiclass = True
-        tf.logging.info(f"multi-class softmax")
+        logging.info(f"multi-class softmax")
     # true_label: #data x # task/#class
     if ntask == 1 and len(true_label.shape) == 2 and true_label.shape[1] == 2:
         true_label = true_label[:, 1]
     if len(true_label.shape) == 1:
         true_label = true_label[:, np.newaxis]
 
-    tf.logging.info(f"label #data x # task/#class: {true_label.shape}")
+    logging.info(f"label #data x # task/#class: {true_label.shape}")
     if not multiclass:
-        tf.logging.info(f"binary-class mode")
+        logging.info(f"binary-class mode")
         v = []
         for i in range(ntask):
             el = {}
@@ -224,7 +231,7 @@ def compute_metrics(config, info, prediction_data, labels):
     else:  # multiclass=True
         # #data x # task x #class
         # limitation: #task=1
-        tf.logging.info(f"multi-class mode")
+        logging.info(f"multi-class mode")
         pred = np.argmax(pred_score, axis=-1)
         true_label = np.argmax(true_label, axis=-1)
         pred = pred[:, 0]
@@ -523,7 +530,7 @@ def infer(sess, graph, config):
         dataset_filename = config["dataset_test"]
     if "test_label_list" in config:
         config["label_list"]=config["test_label_list"]
-    all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True)
+    all_data, info = load_data(config, filename=dataset_filename, prohibit_shuffle=True, test_mode=True)
 
     model = CoreModel(sess, config, info)
     load_model_py(model, config["model.py"], is_train=False)
@@ -602,18 +609,21 @@ def infer(sess, graph, config):
                 json.dump(fold, fp, indent=4, cls=NumPyArangeEncoder)
         else:
             joblib.dump(fold, save_path, compress=True)
+
     if config["prediction_data"] is not None:
         obj = {}
-        obj["prediction_data"] = prediction_data
-        obj["labels"] = all_data.labels
-
-        os.makedirs(os.path.dirname(config["prediction_data"]), exist_ok=True)
+        pred_score = np.array(prediction_data)
+        obj["prediction_data"] = pred_score
+        # obj["labels"] = all_data.labels
+        save_path = config["prediction_data"]
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        print(f"[SAVE] {save_path}")
         joblib.dump(obj, config["prediction_data"], compress=True)
 
 
 def restore_ckpt(sess, ckpt):
     saver = tf.train.Saver()
-    tf.logging.info(f"[LOAD]{ckpt}")
+    logging.info(f"[LOAD]{ckpt}")
     try:
         saver.restore(sess, ckpt)
     except:
@@ -641,10 +651,10 @@ def visualize(sess, config, args):
     if config['visualize_type'] == 'graph':
         cal_feature_IG(sess, all_data, placeholders, info, config, model.prediction,
                        args.ig_modal_target, args.ig_label_target,
-                       logger=tf.logging, model=model.nn, args=args)
+                       logger=logging, model=model.nn, args=args)
     else:
         cal_feature_IG_for_kg(sess, all_data, placeholders, info, config, model.prediction,
-                              logger=tf.logging, model=model.nn, args=args)
+                              logger=logging, model=model.nn, args=args)
 
 
 def main():
@@ -713,9 +723,9 @@ def main():
 
     args = parser.parse_args()
     if args.verbose:
-        tf.logging.set_verbosity(tf.logging.DEBUG)
+        logging.set_verbosity(logging.DEBUG)
     else:
-        tf.logging.set_verbosity(tf.logging.WARN)
+        logging.set_verbosity(logging.WARN)
 
     # config
     config = get_default_config()

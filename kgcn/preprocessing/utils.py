@@ -7,7 +7,13 @@ from rdkit import Chem
 from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
 from scipy import sparse
 from sklearn.preprocessing import LabelEncoder
-from tensorflow.python_io import TFRecordWriter
+
+import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    from tensorflow.io import TFRecordWriter
+else:
+    from tensorflow.python_io import TFRecordWriter
+
 from tensorflow.train import Feature, Features, FloatList, Int64List, Example
 
 
@@ -46,6 +52,32 @@ def atom_features(atom, en_list=None, explicit_H=False, use_sybyl=False, use_ele
     if not explicit_H:
         results = results + one_of_k_encoding_unk(atom.GetTotalNumHs(), [0, 1, 2, 3, 4])
     return np.array(results, dtype=np.float32)
+
+
+def mol_gaff_features(mol):
+    import pybel
+    atom_list=['c', 'c1', 'c2', 'c3', 'ca', 'cp', 'cq', 'cc', 'cd', 'ce', 'cf', 'cg', 'ch', 'cx', 'cy', 'cu', 'cv', 'cz',
+            'h1', 'h2', 'h3', 'h4', 'h5', 'ha', 'hc', 'hn', 'ho', 'hp', 'hs', 'hw', 'hx', 'f', 'cl', 'br', 'i', 'n', 'n1',
+            'n2', 'n3', 'n4', 'na', 'nb', 'nc', 'nd', 'ne', 'nf', 'nh', 'no', 'o', 'oh', 'os', 'ow', 'p2', 'p3', 'p4', 'p5',
+            'pb', 'pc', 'pd', 'pe', 'pf', 'px', 'py', 's', 's2', 's4', 's6', 'sh', 'ss', 'sx', 'sy']
+    smiles = Chem.MolToSmiles(mol)
+    molecule = pybel.readstring("smi", smiles)
+    force_field = pybel._forcefields["gaff"]
+    force_field.Setup(molecule.OBMol)
+    force_field.GetAtomTypes(molecule.OBMol)
+    features=[]
+    for i in range(molecule.OBMol.NumAtoms()):
+        at=molecule.OBMol.GetAtom(i+1)
+        try:
+            t = at.GetData("FFAtomType") # an OBPairData object
+            atom_type=str(t.GetValue())
+            atom_type_f = one_of_k_encoding_unk(atom_type, atom_list)
+        except:
+            print("[unknown gaff atom type] "+smiles)
+            atom_type_f = [0]*len(atom_list)
+        f = np.array(atom_type_f,dtype=np.float32)
+        features.append(f)
+    return features
 
 
 def one_of_k_encoding(x, allowable_set):
@@ -121,18 +153,22 @@ def create_adjancy_matrix(mol):
     return adj
 
 
-def create_feature_matrix(mol, atom_num_limit, use_electronegativity=False, use_sybyl=False, use_gasteiger=False,
+def create_feature_matrix(mol, atom_num_limit, use_electronegativity=False, use_gaff=False, use_sybyl=False, use_gasteiger=False,
                           use_tfrecords=False, degree_dim=17, en_list=None):
-    if use_sybyl or use_gasteiger:
-        Chem.SanitizeMol(mol)
-    if use_gasteiger:
-        ComputeGasteigerCharges(mol)
-    feature = [atom_features(atom,
-                             en_list=en_list,
-                             use_sybyl=use_sybyl,
-                             use_electronegativity=use_electronegativity,
-                             use_gasteiger=use_gasteiger,
-                             degree_dim=degree_dim) for atom in mol.GetAtoms()]
+    if use_gaff:
+        #Chem.SanitizeMol(mol)
+        feature=mol_gaff_features(mol)
+    else:
+        if use_sybyl or use_gasteiger:
+            Chem.SanitizeMol(mol)
+        if use_gasteiger:
+            ComputeGasteigerCharges(mol)
+        feature = [atom_features(atom,
+                                 en_list=en_list,
+                                 use_sybyl=use_sybyl,
+                                 use_electronegativity=use_electronegativity,
+                                 use_gasteiger=use_gasteiger,
+                                 degree_dim=degree_dim) for atom in mol.GetAtoms()]
     if not use_tfrecords:
         for _ in range(atom_num_limit - len(feature)):
             feature.append(np.zeros(len(feature[0]), dtype=np.int8))

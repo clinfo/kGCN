@@ -4,7 +4,7 @@ mkdir -p result_st0
 mkdir -p result_st1
 mkdir -p result_st2
 mkdir -p result_st3
-# multimodak
+# multimodal
 kgcn train_cv --config config_mm.json  > log_mm.txt 2>&1 
 # multitask
 kgcn train_cv --config config_mt.json  > log_mt.txt 2>&1 

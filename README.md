@@ -11,7 +11,7 @@ Now, you have to execute the python codes directly.
 
 ### Requirements
 * python: >3.6
-* tensorflow: >1.12 (currently does NOT support TensorFlow 2)
+* tensorflow: >1.12 (partially suporting TensorFlow2 by the compatible mode, but does NOT guarantee working on TensorFlow2)
 * joblib
 * numpy
 * scipy 
@@ -97,6 +97,13 @@ Once you execute this command, cross-validation is performed by running a series
 
 ### [Visualization file](./docs/visualization.md)
 
+## Related library
+
+Another PyTorch-based library is also available: 
+- kMoL: https://github.com/elix-tech/kmol
+
+In the current version of kMoL, it is not completely compatible with kGCN, but we are developing the kMoL library with the aim of compatibility.
+
 ## Cite
 ```
 @article{Kojima2020,
@@ -111,6 +118,7 @@ Once you execute this command, cross-validation is performed by running a series
   doi = "10.1186/s13321-020-00435-6"
 }
 ```
+
 ## Directory structure
 
 ```
@@ -149,6 +157,7 @@ Once you execute this command, cross-validation is performed by running a series
 ├── model/                               : output directory for exmaples
 ├── Notebook/                            : examples of jupyter notebook
 ├── result/                              : output directory for exmaples
+├── sample_kg/                           : 
 ├── sample_chem/                         : 
 ├── sample_nx/                           :
 ├── script                               : utility sctipts
@@ -224,6 +233,8 @@ Please reffer to sample_data/multi_label.txt and a coverting program (make_sampl
 ## [Application example2: Reaction prediction and visualization](./docs/example_for_reaction_prediction.md)
 
 ## [Application example3: Retrosynthetic analysis](https://github.com/clinfo/ReTReK)
+
+## [Application example4: Network prediction](./sample_kg/network_prediction/)
 
 ## Generative model
 
