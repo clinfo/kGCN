@@ -56,15 +56,15 @@ class GCN(DefaultModel):
 
         # computing cost and metrics
         cost = mask * tf.nn.softmax_cross_entropy_with_logits(
-            labels=labels, logits=layer
+            labels=tf.stop_gradient(labels), logits=layer
         )
-        cost_opt = tf.reduce_mean(cost)
+        cost_opt = tf.reduce_mean(input_tensor=cost)
 
         metrics = {}
-        cost_sum = tf.reduce_sum(cost)
+        cost_sum = tf.reduce_sum(input_tensor=cost)
 
         correct_count = mask * tf.cast(
-            tf.equal(tf.argmax(prediction, 1), tf.argmax(labels, 1)), tf.float32
+            tf.equal(tf.argmax(input=prediction, axis=1), tf.argmax(input=labels, axis=1)), tf.float32
         )
-        metrics["correct_count"] = tf.reduce_sum(correct_count)
+        metrics["correct_count"] = tf.reduce_sum(input_tensor=correct_count)
         return layer, prediction, cost_opt, cost_sum, metrics
