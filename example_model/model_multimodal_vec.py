@@ -6,8 +6,13 @@ profeat使用時に使用する
 
 from kgcn.default_model import DefaultModel
 import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
+    import tensorflow.keras as K
+else:
+    import tensorflow.contrib.keras as K
 import kgcn.layers
-import tensorflow.contrib.keras as K
 
 class GCN(DefaultModel):
     def build_placeholders(self,info,config,batch_size, **kwargs):

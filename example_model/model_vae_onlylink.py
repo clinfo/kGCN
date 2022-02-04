@@ -1,8 +1,13 @@
 import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
+    import tensorflow.keras as K
+else:
+    import tensorflow.contrib.keras as K
 import numpy as np
 import joblib
 import layers
-#import tensorflow.contrib.keras as K
 from tensorflow.python.keras.layers import Dense
 
 def build_placeholders(info,config,batch_size=4,**kwargs):
