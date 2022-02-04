@@ -7,7 +7,13 @@ from rdkit import Chem
 from rdkit.Chem.rdPartialCharges import ComputeGasteigerCharges
 from scipy import sparse
 from sklearn.preprocessing import LabelEncoder
-from tensorflow.python_io import TFRecordWriter
+
+import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    from tensorflow.io import TFRecordWriter
+else:
+    from tensorflow.python_io import TFRecordWriter
+
 from tensorflow.train import Feature, Features, FloatList, Int64List, Example
 
 

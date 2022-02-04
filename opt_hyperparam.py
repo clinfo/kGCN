@@ -7,6 +7,21 @@ import numpy as np
 import json
 import argparse
 
+class NumPyArangeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.int64):
+            return int(obj)
+        if isinstance(obj, np.float64):
+            return float(obj)
+        if isinstance(obj, np.int32):
+            return int(obj)
+        if isinstance(obj, np.float32):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()  # or map(int, obj)
+        return json.JSONEncoder.default(self, obj)
+
+
 # Global variables
 opt_cmd = string.Template("kgcn --config ${config} train ${args}")
 domain = [
@@ -40,7 +55,7 @@ num_cores = 1
 def save_json(path, obj):
     print("[SAVE] ", path)
     with open(path, "w") as fp:
-        json.dump(obj, fp, indent=4)
+        json.dump(obj, fp, indent=4, cls=NumPyArangeEncoder)
 
 
 def load_json(path):

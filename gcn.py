@@ -16,6 +16,8 @@ if tf.__version__.split(".")[0]=='2':
     import tensorflow.compat.v1 as tf
     tf.disable_v2_behavior()
     import tensorflow.compat.v1.logging as logging
+else:
+    import tensorflow.logging as logging
 
 from tensorflow.python.framework import graph_util
 

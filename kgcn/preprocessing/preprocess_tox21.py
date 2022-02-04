@@ -19,11 +19,11 @@ from rdkit import Chem
 import tensorflow as tf
 
 from .preprocessing_utility import get_adj_feature
-
+import tensorflow as tf
 if tf.__version__.split(".")[0]=='2':
-    from tf.python_io as TFRecordWriter
+    from tensorflow.io import TFRecordWriter
 else:
-    from tf.io as TFRecordWriter
+    from tensorflow.python_io import TFRecordWriter
 
 def molecule_to_example(molecule, split_adj):
     """
