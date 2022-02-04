@@ -2,6 +2,9 @@ import json
 import os
 
 import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
 from tensorflow.python.client import timeline
 import numpy as np
 

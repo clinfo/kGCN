@@ -5,7 +5,11 @@ from __future__ import print_function
 import os
 
 import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
 from tensorflow.python.keras.layers import Layer, Dense
+
 
 enabled_batched = False
 enabled_bspmm = False

@@ -11,6 +11,9 @@ import numpy as np
 from rdkit import Chem
 from scipy.sparse import coo_matrix
 import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    import tensorflow.compat.v1 as tf
+    tf.disable_v2_behavior()
 
 from kgcn.data_util import sparse_to_dense, sparse_to_dense_core
 from kgcn.feed import construct_feed

@@ -19,6 +19,11 @@ from rdkit import Chem
 import tensorflow as tf
 
 from .preprocessing_utility import get_adj_feature
+import tensorflow as tf
+if tf.__version__.split(".")[0]=='2':
+    from tensorflow.io import TFRecordWriter
+else:
+    from tensorflow.python_io import TFRecordWriter
 
 def molecule_to_example(molecule, split_adj):
     """
@@ -97,7 +102,7 @@ def preprocess(dataset, destination_folder, split_adj):
             mask_label = np.invert(np.isnan(row[:12].values.astype(np.float32))).astype(np.float32)
             molecule = Molecule(mol, label, mask_label)
             molecules.append(molecule)
-            with tf.python_io.TFRecordWriter(os.path.join(destination_folder, row['mol_id'] + '_' + split  + '.tfrecords')) as single_writer:
+            with TFRecordWriter(os.path.join(destination_folder, row['mol_id'] + '_' + split  + '.tfrecords')) as single_writer:
                 ex = molecule_to_example(molecule, split_adj)
                 single_writer.write(ex.SerializeToString())
         #with tf.python_io.TFRecordWriter(os.path.join(dir_name, '_' + split + '.tfrecords')) as dataset_writer:
