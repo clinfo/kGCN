@@ -11,7 +11,7 @@ Now, you have to execute the python codes directly.
 
 ### Requirements
 * python: >3.6
-* tensorflow: >1.12 (currently does NOT support TensorFlow 2)
+* tensorflow: >1.12 (partially suporting TensorFlow2 by the compatible mode, but does NOT guarantee working on TensorFlow2)
 * joblib
 * numpy
 * scipy 
