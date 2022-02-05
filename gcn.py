@@ -774,7 +774,8 @@ def main():
     with tf.Graph().as_default() as graph:
         seed = 1234
         tf.set_random_seed(seed)
-        with tf.Session(config=tf.ConfigProto(log_device_placement=False)) as sess:
+        with tf.Session(config=tf.ConfigProto(log_device_placement=False,
+                                              gpu_options=tf.GPUOptions(allow_growth=True))) as sess:
             # mode
             config["mode"] = args.mode
             if args.mode == "train":
