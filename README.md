@@ -182,6 +182,29 @@ In the current version of kMoL, it is not completely compatible with kGCN, but w
 └── task_sparse_gcn.py                   : 
 
 ```
+## Command list
+### Learning and prediction
+| command | python file | description |
+| :--     | :--         | :--         |
+| kgcn | gcn.py | a main command of kGCN for learning and prediction |
+| kgcn-gen | gcn_gen.py | a command for generative models (learning, reconstruction, and generation) |
+| kgcn-sparse | task_sparse_gcn.py | a command for on-the-fly learning and prediction using tfrecords |
+
+### Preprocessing
+| command | python file | description |
+| :--     | :--         | :--         |
+|kgcn-chem | kgcn/preprocessing/chem.py | a command to preprocess chemical compounds and protein data |
+|kgcn-kg | kgcn/preprocessing/kg.py     | a command to preprocess knowledge graph data |
+|kgcn-cv-splitter | script_cv/cv_splitter | a command to split a dataset file(.jbl) for cross-validation (especially for parallel execution) |
+|kgcn-join | kgcn/data_join               | a command to join dataset files(.jbl) |
+
+### Other
+| command | python file | description |
+| :--     | :--         | :--         |
+| kgcn-opt | opt_hyperparam.py | a command for hyper parameter optimization using optuna library|
+| gcnv | gcnvisualize/ | a command for visualization (see https://github.com/clinfo/kGCN/tree/master/gcnvisualizer ) 
+
+
 ## Additional sample1
 We provide additional example using synthetic data to discriminate 5-node rings and 6-node rings.
 The following command generates synthetic data as text formats:
