@@ -259,6 +259,9 @@ Please reffer to sample_data/multi_label.txt and a coverting program (make_sampl
 
 ## [Application example4: Network prediction](./sample_kg/network_prediction/)
 
+## [Application example5: Pathogenicity prediction](https://github.com/clinfo/PathoGN)
+
+
 ## Generative model
 
 ```bash
