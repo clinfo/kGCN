@@ -10,7 +10,7 @@ Dataset: ZINC
 
 Move to `GraphCNN/sample_chem/generative_model/` and execute the following command
 
-````
+```
 sh . /get_dataset.sh
 ```
 
@@ -23,7 +23,7 @@ https://drive.google.com/drive/folders/15wRLBPHnu6A8emMRM_gU5EQNAQeKk7q8?usp=sha
 ## Resampling of data
 Similarly, run the following command in the directory `GraphCNN/sample_chem/generative_model/`.
 
-````
+```
 sh . /init.sh
 ```
 This script performs the following operations
@@ -66,12 +66,12 @@ The following two files are generated when training is performed with the above 
 - recons.valid.jbl
 
 For the external dataset,
-````
-kgcn-gen recons --config <config file>.
+```
+kgcn-gen recons --config <config file>
 ```
 will also generate a reconstructed dataset file
 
-### reconstructed dataset files
+### Reconstructed dataset files
 The reconstructed dataset file can be read, for example, as follows.
 
 ```
@@ -107,10 +107,10 @@ Atomic features have the following 75 dimensions
 - 1 dimension for GetIsAromatic()
 - 5 dimensions for GetTotalNumHs()
 
-## Visualize molecules from a reconstructed dataset file
+## Visualization of molecules from a reconstructed dataset file
 
 Specifying the following in conv_graph.py will generate image files visualizing 10 molecules under the directory specified in output_dir.
-````
+```
 python conv_graph.py recons.valid.jbl --num 10 --output_dir images/ 
 ```
 
@@ -121,11 +121,11 @@ python conv_graph.py recons.valid.jbl --num 10 --output_dir images/ --multi
 
 If you specify --threshold 0.9 as an option in conv_graph.py, only the bonds with probability greater than or equal to 0.9 will be kept and the numerator will be created.
 
-## Generate
+## Generation
 
 To generate a molecule from scratch instead of rebuilding, execute the following commands
 - single mode
-````
+```
 sh run_gen.single.sh
 ```
 - multi mode
@@ -134,5 +134,5 @@ sh run_gen.multi.sh
 ```
 
 Now, we are passing the same dataset as in training, but instead of actually using it in the program, we generate a new dataset,
-generate ``gen.single.test.jbl`` or ``gen.multi.test.jbl``.
+generate `gen.single.test.jbl` or `gen.multi.test.jbl`.
 The format is the same as the reconstructed data set file and can also be visualized as molecules using `conv_graph.py`.
